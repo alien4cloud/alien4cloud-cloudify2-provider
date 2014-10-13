@@ -1,0 +1,38 @@
+node_templates:
+  serveur_web:
+    type: tosca.nodes.Compute
+    properties:
+      os_type: linux
+      os_distribution: ubuntu
+      os_version: ubuntu
+  apache:
+    type: fastconnect.nodes.apache
+    relationships:
+      hostedOnServeurWeb:
+        target: serveur_web
+        type: tosca.relationships.HostedOn
+        requirement_name: host
+        requirement_type: tosca.capabilities.Container
+  tomcat:
+    type: fastconnect.nodes.TomcatSh
+    relationships:
+      hostedOnServeurWeb:
+        target: serveur_web
+        type: tosca.relationships.HostedOn
+        requirement_name: host
+        requirement_type: tosca.capabilities.Container
+
+
+# scaling_policies:
+
+dependencies:
+  - name: tosca-base-types
+    version: 1.0
+  - name: tomcat-test-types
+    version: 0.1.1
+  - name: apache-types
+    version: 0.1.1
+
+# input_properties:
+
+# input_artifacts:

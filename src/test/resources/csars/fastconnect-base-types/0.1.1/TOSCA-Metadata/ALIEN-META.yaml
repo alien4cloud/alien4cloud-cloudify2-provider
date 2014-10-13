@@ -1,0 +1,10 @@
+name: "fastconnect-base-types"
+version: "0.1.1"
+created_by: "FastConnect"
+
+dependencies:
+  - name: tosca-normative-types
+    version: 1.0.0-wd02-SNAPSHOT
+
+definitions:
+  - Definitions/fastconnect-base-types.yaml

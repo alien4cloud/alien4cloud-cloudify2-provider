@@ -1,0 +1,55 @@
+service {
+  name "$serviceName"
+  compute {
+    template "$computeTemplateName"       
+  }
+  
+  elastic true
+  numInstances $numInstances
+  minAllowedInstances $minAllowedInstances
+  maxAllowedInstances $maxAllowedInstances
+  
+  lifecycle {
+    init {}
+    install "install.groovy"
+    postInstall {}
+    start "start.groovy"
+    startDetectionTimeoutSecs 300
+#if($startDetectionCommand && !$startDetectionCommand.trim().isEmpty())
+    startDetection {
+      $startDetectionCommand
+    }
+#end
+    postStart $postStartCommand
+    preStop {}
+    stop "stop.groovy"
+    shutdown $shutdownCommand
+#if($stopDetectionCommand && !$stopDetectionCommand.trim().isEmpty())
+    stopDetection {
+      $stopDetectionCommand
+    }
+#end
+    locator {
+      #if($locators.size() > 0)
+      List<Long> merged = []
+      #foreach ($locator in $locators)
+      merged.addAll($locator)
+      #end
+      println "Global Pids to monitor are: ${merged}"
+      return merged
+      #else
+      NO_PROCESS_LOCATORS
+      #end
+    }
+  }
+  
+  #if($customCommands.size() > 0)
+  customCommands ([
+    #foreach ($mapEntry in $customCommands.entrySet())
+    "$mapEntry.getKey()" : { String[] args->
+    	return $mapEntry.getValue()
+    },
+    #end
+  ])
+  #end
+}

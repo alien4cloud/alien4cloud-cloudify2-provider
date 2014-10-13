@@ -1,0 +1,1 @@
+[{"eventIndex":2,"applicationName":"70d19d52-8145-4b34-ad58-17e4d3328ae3","serviceName":"tomcat_compute","instanceId":"1","deploymentId":null,"event":"START","dateTimestamp":1398331251836},{"eventIndex":1,"applicationName":"70d19d52-8145-4b34-ad58-17e4d3328ae3","serviceName":"tomcat_compute","instanceId":"1","deploymentId":null,"event":"INSTALL","dateTimestamp":1398331227598}]

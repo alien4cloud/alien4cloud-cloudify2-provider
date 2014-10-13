@@ -1,0 +1,61 @@
+
+name: apache
+namespace: fastconnect
+description: simple apache recipe. startDetection script in closure form
+
+node_types:
+  fastconnect.nodes.apache:
+    derived_from: tosca.nodes.SoftwareComponent
+    description: >
+      This is the definition of the Apache Recipe.
+      This is based on Cloudify Apache groovy recipe.
+    tags:
+      icon: /images/apache.png
+    properties:
+      version:
+        type: version
+        default: 2
+        constraints:
+          - equal: 2
+    interfaces:
+      lifecycle:
+        operations:
+          create:
+            implementation_artifact:
+              artifact_type: tosca.artifacts.GroovyScript
+              artifact_ref: "scripts/alien_apache_install.groovy"
+          start:
+            implementation_artifact:
+              artifact_type: tosca.artifacts.GroovyScript
+              artifact_ref: "scripts/apache_start.groovy"
+          stop:
+            implementation_artifact:
+              artifact_type: tosca.artifacts.GroovyScript
+              artifact_ref: "scripts/apache_stop.groovy"
+          delete:
+            implementation_artifact:
+              artifact_type: tosca.artifacts.GroovyScript
+              artifact_ref: "scripts/apache_uninstall.groovy"
+      fastconnect.cloudify.extensions:
+        operations:
+          start_detection:
+            implementation_artifact:
+              artifact_type: tosca.artifacts.GroovyScript
+              artifact_ref: scripts/alien_apache_startDetection.groovy
+          stop_detection:
+            implementation_artifact:
+              artifact_type: tosca.artifacts.GroovyScript
+              artifact_ref: scripts/alien_apache_stopDetection.groovy
+          locator:
+            implementation_artifact:
+              artifact_type: tosca.artifacts.GroovyScript
+              artifact_ref: scripts/alien_apache_locator.groovy
+    requirements:
+      httpEndpoint:
+        type: alien4cloud.capabilities.HttpEndpoint
+        lower_bound: 0
+        upper_bound: unbounded
+    artifacts:
+      scripts:
+        artifact_type: fastconnect.artifacts.ResourceDirectory
+        artifact_ref: scripts

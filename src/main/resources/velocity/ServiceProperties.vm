@@ -1,0 +1,4 @@
+
+#foreach ($mapEntry in $properties.entrySet())
+$mapEntry.getKey()="$mapEntry.getValue()"
+#end
