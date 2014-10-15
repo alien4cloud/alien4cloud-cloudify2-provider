@@ -5,7 +5,6 @@ import java.nio.file.Paths;
 
 import javax.annotation.Resource;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
@@ -26,7 +25,6 @@ public class ArtifactsCopyTestIT extends GenericTestCase {
     }
 
     @Test
-    @Ignore
     public void testOverridingArtifacts() throws Exception {
         String cloudifyAppId = null;
 
@@ -46,7 +44,5 @@ public class ArtifactsCopyTestIT extends GenericTestCase {
         assertHttpCodeEquals(cloudifyAppId, serviceName, DEFAULT_TOMCAT_PORT, "", HTTP_CODE_OK);
         assertHttpCodeEquals(cloudifyAppId, serviceName, DEFAULT_TOMCAT_PORT, war1.getProperties().get("contextPath"), HTTP_CODE_OK);
         assertHttpCodeEquals(cloudifyAppId, serviceName, DEFAULT_TOMCAT_PORT, war2.getProperties().get("contextPath"), HTTP_CODE_OK);
-
     }
-
 }

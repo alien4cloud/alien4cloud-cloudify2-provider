@@ -235,8 +235,8 @@ public class GenericTestCase {
         return topology.getId();
     }
 
-    private Topology createAlienApplication(String applicationName, String topologyFileName, boolean isYamlTopologyFile) throws IOException, JsonParseException,
-            JsonMappingException, CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException {
+    private Topology createAlienApplication(String applicationName, String topologyFileName, boolean isYamlTopologyFile) throws IOException,
+            JsonParseException, JsonMappingException, CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException {
 
         Topology topology = isYamlTopologyFile ? parseYamlTopology(topologyFileName) : parseJsonTopology(topologyFileName);
 

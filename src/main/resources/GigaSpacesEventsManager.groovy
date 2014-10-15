@@ -18,6 +18,7 @@ public class GigaSpacesEventsManager {
   UrlSpaceConfigurer spaceConfigurer
 
   def GigaSpacesEventsManager(String url = "jini://*/*/cloudifyManagementSpace", String locator = null) {
+    println "[GigaSpacesEventsManager] Alien4Cloud event manager creating."
     if (locator == null) {
       locator = System.getenv('LUS_IP_ADDRESS') == null ? DEFAULT_LOCATOR : System.getenv('LUS_IP_ADDRESS')
     }
@@ -26,6 +27,7 @@ public class GigaSpacesEventsManager {
     this.spaceConfigurer = new UrlSpaceConfigurer(url).lookupLocators(locator); 
     IJSpace space = spaceConfigurer.space();
     this.gigaSpace = new GigaSpaceConfigurer(space).gigaSpace();
+    println "[GigaSpacesEventsManager] Alien4Cloud event manager created."
   }
 
   def printDebug(message) {
@@ -35,7 +37,9 @@ public class GigaSpacesEventsManager {
   }
   
   def destroy() {
+      println "[GigaSpacesEventsManager] Alien4Cloud event manager destroying."
       this.spaceConfigurer.destroy()
+      println "[GigaSpacesEventsManager] Alien4Cloud event manager destroyed."
   }
 
   def putEvent(def application, def service, def instanceId, def event) {
