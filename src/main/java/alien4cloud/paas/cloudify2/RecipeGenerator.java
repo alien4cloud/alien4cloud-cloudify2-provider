@@ -403,8 +403,11 @@ public class RecipeGenerator {
         }
         if (lifecycleName.equals("stop")) {
             executions.add(CloudifyCommandGenerator.SHUTDOWN_COMMAND);
+            executions.add(CloudifyCommandGenerator.DESTROY_COMMAND);
         }
-        executions.add(CloudifyCommandGenerator.DESTROY_COMMAND);
+        if (lifecycleName.equals("start")) {
+            executions.add(CloudifyCommandGenerator.DESTROY_COMMAND);
+        }
         generateScriptWorkflow(context.getServicePath(), scriptDescriptorPath, lifecycleName, executions, null);
     }
 
@@ -706,5 +709,4 @@ public class RecipeGenerator {
         log.debug("Setting temporary path to {}", path);
         recipeDirectoryPath = Paths.get(path).toAbsolutePath();
     }
-
 }
