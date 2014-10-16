@@ -124,8 +124,8 @@ public class RecipeGenerator {
         shutdownBlockStorageScriptDescriptorPath = recipePropertiesGenerator.loadResourceFromClasspath("classpath:velocity/shutdownBlockStorage.vm");
     }
 
-    public Path generateRecipe(final String deploymentName, final String topologyId, final Map<String, PaaSNodeTemplate> nodeTemplates, final List<PaaSNodeTemplate> roots)
-            throws IOException {
+    public Path generateRecipe(final String deploymentName, final String topologyId, final Map<String, PaaSNodeTemplate> nodeTemplates,
+            final List<PaaSNodeTemplate> roots) throws IOException {
         // cleanup/create the topology recipe directory
         Path recipePath = cleanupDirectory(topologyId);
         List<String> serviceIds = Lists.newArrayList();
@@ -148,10 +148,10 @@ public class RecipeGenerator {
 
     /**
      * Find the name of the cloudify service that host the given node template.
-     *
+     * 
      * @param nodeTemplate The node template for which to get the service name.
      * @return The id of the service that contains the node template.
-     *
+     * 
      * @throws PaaSDeploymentException if the node is not declared as hosted on a compute
      */
     private String serviceIdFromNodeTemplateOrDie(final PaaSNodeTemplate paaSNodeTemplate) {
@@ -164,10 +164,10 @@ public class RecipeGenerator {
 
     /**
      * Find the name of the cloudify service that host the given node template.
-     *
+     * 
      * @param nodeTemplate The node template for which to get the service name.
      * @return The id of the service that contains the node template.
-     *
+     * 
      */
 
     public String cfyServiceNameFromNodeTemplate(final PaaSNodeTemplate paaSNodeTemplate) {
@@ -296,9 +296,9 @@ public class RecipeGenerator {
                     velocityProps.put(FORMAT_VOLUME_COMMAND, cloudifyCommandGen.getFormatVolumeCommand(DEFAULT_BLOCKSTORAGE_DEVICE, DEFAULT_BLOCKSTORAGE_FS));
 
                 } else {
-                    throw new MissingPropertyException("Neither <" + NormativeBlockStorageConstants.VOLUME_ID + ">, nor <" + NormativeBlockStorageConstants.SIZE
-                            + "> properties are found in BlockStorage node <"
-                            + blockStorageNode.getId() + ">. Please, provide one of them. ");
+                    throw new MissingPropertyException("Neither <" + NormativeBlockStorageConstants.VOLUME_ID + ">, nor <"
+                            + NormativeBlockStorageConstants.SIZE + "> properties are found in BlockStorage node <" + blockStorageNode.getId()
+                            + ">. Please, provide one of them. ");
                 }
 
                 velocityProps.put(NormativeBlockStorageConstants.DEVICE, DEFAULT_BLOCKSTORAGE_DEVICE);
@@ -309,8 +309,7 @@ public class RecipeGenerator {
                 shutdownCommand = "\"shutdown.groovy\"";
             } else {
                 throw new MissingPropertyException("Neither <" + NormativeBlockStorageConstants.VOLUME_ID + ">, nor <" + NormativeBlockStorageConstants.SIZE
-                        + "> properties are found in BlockStorage node <"
-                        + blockStorageNode.getId() + ">. Please, provide one of them. ");
+                        + "> properties are found in BlockStorage node <" + blockStorageNode.getId() + ">. Please, provide one of them. ");
             }
         }
         context.getAdditionalProperties().put(POSTSTART_COMMAND, postStartCommand);
@@ -328,15 +327,13 @@ public class RecipeGenerator {
     }
 
     private void manageDetectionStep(final RecipeGeneratorServiceContext context, final String stepName, final String stepCommandName,
-            final Map<String, String> stepCommandsMap,
-            final String commandsLogicalOperator, final Path velocityDescriptorPath) throws IOException {
+            final Map<String, String> stepCommandsMap, final String commandsLogicalOperator, final Path velocityDescriptorPath) throws IOException {
 
         if (MapUtils.isNotEmpty(stepCommandsMap)) {
 
             // get a formated command for all commands found: command1 && command2 && command3 or command1 || command2 || command3
             // this assumes that every command should return a boolean
-            String detectioncommand = cloudifyCommandGen.getMultipleGroovyCommand(commandsLogicalOperator, stepCommandsMap.values()
-                    .toArray(new String[0]));
+            String detectioncommand = cloudifyCommandGen.getMultipleGroovyCommand(commandsLogicalOperator, stepCommandsMap.values().toArray(new String[0]));
             generateScriptWorkflow(context.getServicePath(), velocityDescriptorPath, stepName, null,
                     MapUtil.newHashMap(new String[] { SERVICE_DETECTION_COMMAND, "is" + stepName }, new Object[] { detectioncommand, true }));
 
@@ -347,7 +344,6 @@ public class RecipeGenerator {
         }
 
     }
-
 
     private void addCustomCommands(final PaaSNodeTemplate nodeTemplate, final RecipeGeneratorServiceContext context) throws IOException {
         Interface customInterface = nodeTemplate.getIndexedNodeType().getInterfaces().get(NODE_CUSTOM_INTERFACE_NAME);
@@ -367,9 +363,8 @@ public class RecipeGenerator {
                 if (GROOVY_ARTIFACT_TYPE.equals(artifactType)) {
                     command = cloudifyCommandGen.getClosureGroovyCommandWithArrayParamsName(artifactRef, "args");
                 } else {
-                    throw new PaaSDeploymentException("Operation <" + nodeTemplate.getId() + "." + NODE_CUSTOM_INTERFACE_NAME + "."
-                            + entry.getKey() + "> is defined using an unsupported artifact type <"
-                            + artifactType + ">.");
+                    throw new PaaSDeploymentException("Operation <" + nodeTemplate.getId() + "." + NODE_CUSTOM_INTERFACE_NAME + "." + entry.getKey()
+                            + "> is defined using an unsupported artifact type <" + artifactType + ">.");
                 }
 
                 if (log.isDebugEnabled()) {
@@ -393,12 +388,16 @@ public class RecipeGenerator {
         }
         if (lifecycleName.equals("stop")) {
             executions.add(CloudifyCommandGenerator.SHUTDOWN_COMMAND);
+            executions.add(CloudifyCommandGenerator.DESTROY_COMMAND);
         }
-        executions.add(CloudifyCommandGenerator.DESTROY_COMMAND);
+        if (lifecycleName.equals("start")) {
+            executions.add(CloudifyCommandGenerator.DESTROY_COMMAND);
+        }
         generateScriptWorkflow(context.getServicePath(), scriptDescriptorPath, lifecycleName, executions, null);
     }
 
-    private void processWorkflowStep(final RecipeGeneratorServiceContext context, final WorkflowStep workflowStep, final List<String> executions) throws IOException {
+    private void processWorkflowStep(final RecipeGeneratorServiceContext context, final WorkflowStep workflowStep, final List<String> executions)
+            throws IOException {
         if (workflowStep instanceof OperationCallActivity) {
             processOperationCallActivity(context, (OperationCallActivity) workflowStep, executions);
         } else if (workflowStep instanceof StateUpdateEvent) {
@@ -410,8 +409,7 @@ public class RecipeGenerator {
             ParallelJoinStateGateway joinStateGateway = (ParallelJoinStateGateway) workflowStep;
             for (Map.Entry<String, String[]> nodeStates : joinStateGateway.getValidStatesPerElementMap().entrySet()) {
                 // TODO supports multiple states
-                String command = cloudifyCommandGen.getWaitEventCommand(
-                        serviceIdFromNodeTemplateOrDie(context.getNodeTemplateById(nodeStates.getKey())),
+                String command = cloudifyCommandGen.getWaitEventCommand(serviceIdFromNodeTemplateOrDie(context.getNodeTemplateById(nodeStates.getKey())),
                         nodeStates.getKey(), nodeStates.getValue()[0]);
                 executions.add(command);
             }
@@ -437,8 +435,8 @@ public class RecipeGenerator {
         }
     }
 
-    private void processOperationCallActivity(final RecipeGeneratorServiceContext context, final OperationCallActivity operationCall, final List<String> executions)
-            throws IOException {
+    private void processOperationCallActivity(final RecipeGeneratorServiceContext context, final OperationCallActivity operationCall,
+            final List<String> executions) throws IOException {
         if (operationCall.getImplementationArtifact() == null) {
             return;
         }
@@ -475,8 +473,7 @@ public class RecipeGenerator {
         }
     }
 
-    private void manageProcessLocator(final PaaSNodeTemplate paaSNodeTemplate, final Map<String, String> processLocatorsCommands)
-            throws IOException {
+    private void manageProcessLocator(final PaaSNodeTemplate paaSNodeTemplate, final Map<String, String> processLocatorsCommands) throws IOException {
         String command = getExtendedOperationCommand(paaSNodeTemplate, CLOUDIFY_EXTENSIONS_LOCATOR_OPERATION_NAME, true);
         if (command != null) {
             processLocatorsCommands.put(paaSNodeTemplate.getId(), command);
@@ -484,8 +481,8 @@ public class RecipeGenerator {
 
     }
 
-    private void generateNodeDetectionCommand(final PaaSNodeTemplate paaSNodeTemplate, final String operationName,
-            final Map<String, String> commandsMap, final boolean closureCommand) throws IOException {
+    private void generateNodeDetectionCommand(final PaaSNodeTemplate paaSNodeTemplate, final String operationName, final Map<String, String> commandsMap,
+            final boolean closureCommand) throws IOException {
         String command = getExtendedOperationCommand(paaSNodeTemplate, operationName, closureCommand);
         if (command != null) {
             // here we register the command itself.
@@ -509,10 +506,10 @@ public class RecipeGenerator {
         return command;
     }
 
-    private void generateNodeOperationCall(final RecipeGeneratorServiceContext context, final OperationCallActivity operationCall, final List<String> executions,
-            final PaaSNodeTemplate paaSNodeTemplate, final boolean isAsynchronous) throws IOException {
-        this.artifactCopier.copyDeploymentArtifacts(context, operationCall.getCsarPath(), paaSNodeTemplate.getId(),
-                paaSNodeTemplate.getIndexedNodeType(), paaSNodeTemplate.getNodeTemplate().getArtifacts());
+    private void generateNodeOperationCall(final RecipeGeneratorServiceContext context, final OperationCallActivity operationCall,
+            final List<String> executions, final PaaSNodeTemplate paaSNodeTemplate, final boolean isAsynchronous) throws IOException {
+        this.artifactCopier.copyDeploymentArtifacts(context, operationCall.getCsarPath(), paaSNodeTemplate.getId(), paaSNodeTemplate.getIndexedNodeType(),
+                paaSNodeTemplate.getNodeTemplate().getArtifacts());
         String relativePath = getNodeTypeRelativePath(paaSNodeTemplate.getIndexedNodeType());
         Map<String, Path> copiedArtifactPath = context.getNodeArtifactsPaths().get(paaSNodeTemplate.getId());
         String[] parameters = new String[] { serviceIdFromNodeTemplateId(paaSNodeTemplate.getId()), serviceIdFromNodeTemplateOrDie(paaSNodeTemplate) };
@@ -536,11 +533,10 @@ public class RecipeGenerator {
         return pathStr.replaceAll("\\\\", "/");
     }
 
-    private void generateRelationshipOperationCall(final RecipeGeneratorServiceContext context, final OperationCallActivity operationCall, final List<String> executions,
-            final PaaSNodeTemplate paaSNodeTemplate) throws IOException {
+    private void generateRelationshipOperationCall(final RecipeGeneratorServiceContext context, final OperationCallActivity operationCall,
+            final List<String> executions, final PaaSNodeTemplate paaSNodeTemplate) throws IOException {
         PaaSRelationshipTemplate paaSRelationshipTemplate = paaSNodeTemplate.getRelationshipTemplate(operationCall.getRelationshipId());
-        this.artifactCopier.copyDeploymentArtifacts(context, operationCall.getCsarPath(), null,
-                paaSRelationshipTemplate.getIndexedRelationshipType(), null);
+        this.artifactCopier.copyDeploymentArtifacts(context, operationCall.getCsarPath(), null, paaSRelationshipTemplate.getIndexedRelationshipType(), null);
         String relativePath = getNodeTypeRelativePath(paaSRelationshipTemplate.getIndexedRelationshipType());
 
         String sourceNodeTemplateId = paaSRelationshipTemplate.getSource();
@@ -554,8 +550,9 @@ public class RecipeGenerator {
         generateOperationCallCommand(context, relativePath, operationCall, parameters, executions, false);
     }
 
-    private void generateOperationCallCommand(final RecipeGeneratorServiceContext context, final String relativePath, final OperationCallActivity operationCall,
-            final String[] parameters, final List<String> executions, final boolean isAsynchronous) throws IOException {
+    private void generateOperationCallCommand(final RecipeGeneratorServiceContext context, final String relativePath,
+            final OperationCallActivity operationCall, final String[] parameters, final List<String> executions, final boolean isAsynchronous)
+            throws IOException {
         // now call the operation script
         String command = getCommandFromOperation(operationCall.getNodeTemplateId(), relativePath, operationCall.getImplementationArtifact(), false, parameters);
 
@@ -604,14 +601,13 @@ public class RecipeGenerator {
         String command;
         // TODO copy implementation artifact.
         if (GROOVY_ARTIFACT_TYPE.equals(artifact.getArtifactType())) {
-            command = closureCommand ? cloudifyCommandGen.getClosureGroovyCommand(scriptPath, parameters)
-                    : cloudifyCommandGen.getGroovyCommand(scriptPath, parameters);
+            command = closureCommand ? cloudifyCommandGen.getClosureGroovyCommand(scriptPath, parameters) : cloudifyCommandGen.getGroovyCommand(scriptPath,
+                    parameters);
         } else if (SHELL_ARTIFACT_TYPE.equals(artifact.getArtifactType())) {
             command = cloudifyCommandGen.getBashCommand(scriptPath);
         } else {
-            throw new PaaSDeploymentException("Operation <" + nodeId + "." + artifact.getInterfaceName() + "."
-                    + artifact.getOperationName() + "> is defined using an unsupported artifact type <"
-                    + artifact.getArtifactType() + ">.");
+            throw new PaaSDeploymentException("Operation <" + nodeId + "." + artifact.getInterfaceName() + "." + artifact.getOperationName()
+                    + "> is defined using an unsupported artifact type <" + artifact.getArtifactType() + ">.");
         }
         return command;
     }
@@ -633,7 +629,7 @@ public class RecipeGenerator {
 
     /**
      * Compute the path of the node type of a node template relative to the service root directory.
-     *
+     * 
      * @param paaSNodeTemplate The PaaS Node template for which to generate and get it's directory relative path.
      * @return The relative path of the node tempalte's type artifacts in the service directory.
      */
@@ -654,8 +650,8 @@ public class RecipeGenerator {
         VelocityUtil.writeToOutputFile(velocityDescriptorPath, outputPath, properties);
     }
 
-    private void generateServiceDescriptor(final RecipeGeneratorServiceContext context, final String serviceName, final String computeTemplate, final ScalingPolicy scalingPolicy)
-            throws IOException {
+    private void generateServiceDescriptor(final RecipeGeneratorServiceContext context, final String serviceName, final String computeTemplate,
+            final ScalingPolicy scalingPolicy) throws IOException {
         Path outputPath = context.getServicePath().resolve(context.getServiceId() + DSLUtils.SERVICE_DSL_FILE_NAME_SUFFIX);
 
         // configure and write the service descriptor thanks to velocity.
@@ -680,7 +676,8 @@ public class RecipeGenerator {
         VelocityUtil.writeToOutputFile(serviceDescriptorPath, outputPath, properties);
     }
 
-    protected void generateApplicationDescriptor(final Path recipePath, final String topologyId, final String deploymentName, final List<String> serviceIds) throws IOException {
+    protected void generateApplicationDescriptor(final Path recipePath, final String topologyId, final String deploymentName, final List<String> serviceIds)
+            throws IOException {
         // configure and write the application descriptor thanks to velocity.
         Path outputPath = recipePath.resolve(topologyId + DSLUtils.APPLICATION_DSL_FILE_NAME_SUFFIX);
 
@@ -697,5 +694,4 @@ public class RecipeGenerator {
         log.debug("Setting temporary path to {}", path);
         recipeDirectoryPath = Paths.get(path).toAbsolutePath();
     }
-
 }

@@ -1,13 +1,13 @@
 import java.util.concurrent.*
-
-import groovy.lang.Binding;
-// import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import groovy.lang.Binding
 import groovy.transform.Synchronized
 
 import org.cloudifysource.utilitydomain.context.ServiceContextFactory
 
 public class CloudifyExecutorUtils {
-  static def threadPool = Executors.newFixedThreadPool(50)
+  static def counter = new AtomicInteger()
+  static def threadPool = Executors.newFixedThreadPool(50, { r -> return new Thread(r as Runnable, "alien-executor-" + counter.incrementAndGet()) } as ThreadFactory )
   static def call = { c -> threadPool.submit(c as Callable) }
 
   static def executeBash(bashScript) {
@@ -56,11 +56,11 @@ public class CloudifyExecutorUtils {
       def serviceDirectory = context.getServiceDirectory()
       
       if(args == null) {
-          def shell = new GroovyShell()
+          def shell = new GroovyShell(CloudifyExecutorUtils.class.classLoader)
           return shell.evaluate(new File("${serviceDirectory}/${groovyScript}"))
       } else {
           Binding argBinding = new Binding(args)
-          def shell = new GroovyShell(argBinding)
+          def shell = new GroovyShell(CloudifyExecutorUtils.class.classLoader, argBinding)
           return shell.evaluate(new File("${serviceDirectory}/${groovyScript}"))
       }
   }
@@ -75,7 +75,7 @@ public class CloudifyExecutorUtils {
       argBinding.setVariable("context", context)
       //hack for a MissingPropertyException thrown for CloudifyExecutorUtils
       argBinding.setVariable("CloudifyExecutorUtils", this)
-      def shell = new GroovyShell(argBinding)
+      def shell = new GroovyShell(CloudifyExecutorUtils.class.classLoader,argBinding)
       return shell.evaluate(new File("${serviceDirectory}/${groovyScript}"))
   }
 
@@ -135,7 +135,8 @@ public class CloudifyExecutorUtils {
   }
   
   static def shutdown() {
+      println "Shutting down threadpool"
       threadPool.shutdownNow();
-  }
-  
+      println "threadpool shut down!"
+  } 
 }
