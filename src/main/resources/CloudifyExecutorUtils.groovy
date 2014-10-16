@@ -119,6 +119,16 @@ public class CloudifyExecutorUtils {
     println "THE INSTANCE ID is <${instanceId}>"
     CloudifyUtils.putEvent(application, nodeId, instanceId, status)
   }
+  
+  static def fireBlockStorageEvent(nodeId, event, volumeId) {
+    def context = ServiceContextFactory.getServiceContext()
+
+    // Fire event
+    def application = context.getApplicationName()
+    def instanceId = context.getInstanceId()
+    println "THE INSTANCE ID is <${instanceId}>"
+    CloudifyUtils.putBlockStorageEvent(application, nodeId, instanceId, event, volumeId)
+  }
 
   static def waitFor(cloudifyService, nodeId, status) {
     CloudifyUtils.waitFor(cloudifyService, nodeId, status)

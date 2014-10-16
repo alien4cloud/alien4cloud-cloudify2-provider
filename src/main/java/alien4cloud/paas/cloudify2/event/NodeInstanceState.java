@@ -1,4 +1,4 @@
-package alien4cloud.paas.cloudify2;
+package alien4cloud.paas.cloudify2.event;
 
 import com.gigaspaces.annotation.pojo.SpaceId;
 import com.gigaspaces.annotation.pojo.SpaceRouting;

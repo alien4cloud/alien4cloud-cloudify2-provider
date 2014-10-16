@@ -26,6 +26,7 @@ public class CloudifyCommandGenerator {
     "CloudifyExecutorUtils.groovy" };
 
     private static final String FIRE_EVENT_FORMAT = "CloudifyExecutorUtils.fireEvent(\"%s\", \"%s\")";
+    private static final String FIRE_BLOCKSTORAGE_EVENT_FORMAT = "CloudifyExecutorUtils.fireBlockStorageEvent(\"%s\", \"%s\", %s)";
     private static final String WAIT_EVENT_FORMAT = "CloudifyExecutorUtils.waitFor(\"%s\", \"%s\", \"%s\")";
     private static final String EXECUTE_PARALLEL_FORMAT = "CloudifyExecutorUtils.executeParallel(%s, %s)";
     private static final String EXECUTE_ASYNC_FORMAT = "CloudifyExecutorUtils.executeAsync(%s, %s)";
@@ -52,7 +53,7 @@ public class CloudifyCommandGenerator {
 
     /**
      * Copy all internal extensions files to the service recipe directory.
-     * 
+     *
      * @param servicePath Path to the service recipe directory.
      * @throws IOException In case of a copy failure.
      */
@@ -86,7 +87,7 @@ public class CloudifyCommandGenerator {
 
     /**
      * Return the execution command for a groovy script as a string.
-     * 
+     *
      * @param groovyScriptRelativePath Path to the groovy script relative to the service root directory.
      * @return The execution command.
      */
@@ -107,7 +108,7 @@ public class CloudifyCommandGenerator {
     /**
      * Return the execution command for a groovy script as a string.
      * The command is made such as it can be run in a closure.
-     * 
+     *
      * @param groovyScriptRelativePath Path to the groovy script relative to the service root directory.
      * @return The execution command.
      */
@@ -128,7 +129,7 @@ public class CloudifyCommandGenerator {
     /**
      * Return the execution command for a groovy script as a string.
      * The command is made such as it can be run in a closure.
-     * 
+     *
      * @param groovyScriptRelativePath Path to the groovy script relative to the service root directory.
      * @param arrayParamsName Thename of the String array var that contains the args for this command. This assumes the var is defined before calling this
      *            command
@@ -142,9 +143,9 @@ public class CloudifyCommandGenerator {
     }
 
     /**
-     * 
+     *
      * transform a simple Groovy formated command to a closure groovy command (changes executeGroovy into executeGroovyInClosure )
-     * 
+     *
      * @param groovycommand
      * @return
      */
@@ -157,7 +158,7 @@ public class CloudifyCommandGenerator {
 
     /**
      * Return the execution command for multiple groovy scripts as a string. The command are separated with a "&&" or "||" depending on the parameter passed
-     * 
+     *
      * @param groovyCommands string commands to process.
      * @return The execution command.
      */
@@ -176,7 +177,7 @@ public class CloudifyCommandGenerator {
 
     /**
      * Return the "while" wrapped execution command for a groovy script as a string.
-     * 
+     *
      * @param groovyCommand the groovy command to wrap by the "while" loop.
      * @param loopCondition the condition to satisfy to continue the loop.
      * @return The looped execution command.
@@ -192,7 +193,7 @@ public class CloudifyCommandGenerator {
 
     /**
      * Return a conditional snippet
-     * 
+     *
      * @param condition The condition to satisfy
      * @param ifCommand The command to execute if satisfy
      * @param elseCommand Optional command to execute if not satisfy
@@ -210,7 +211,7 @@ public class CloudifyCommandGenerator {
 
     /**
      * add "return" keyword on a groovy command
-     * 
+     *
      * @param groovyCommand the groovy command to process.
      * @return The execution command with "return" keyword.
      */
@@ -220,7 +221,7 @@ public class CloudifyCommandGenerator {
 
     /**
      * Return the execution command for a bash script as a string.
-     * 
+     *
      * @param groovyScriptRelativePath Path to the bash script relative to the service root directory.
      * @return The execution command.
      */
@@ -230,7 +231,7 @@ public class CloudifyCommandGenerator {
 
     /**
      * Return a command to execute a number of scripts in parallel and then join for all the script to complete.
-     * 
+     *
      * @param groovyScripts The groovy scripts to execute in parallel.
      * @param bashScripts The bash scripts to execute in parallel.
      * @return The execution command to execute the scripts in parallel and then join for all the script to complete.
@@ -241,7 +242,7 @@ public class CloudifyCommandGenerator {
 
     /**
      * Return a command to execute a number of scripts in parallel.
-     * 
+     *
      * @param groovyScripts The groovy scripts to execute in parallel.
      * @param bashScripts The bash scripts to execute in parallel.
      * @return The execution command to execute the scripts in parallel.
@@ -265,8 +266,8 @@ public class CloudifyCommandGenerator {
     }
 
     /**
-     * Return the execution command for a bash script as a string.
-     * 
+     * Return the execution command to fire an event.
+     *
      * @param The node that has a status change.
      * @param The new status for the node.
      * @return The execution command.
@@ -276,8 +277,19 @@ public class CloudifyCommandGenerator {
     }
 
     /**
-     * Return the execution command for a bash script as a string.
-     * 
+     * Return the execution command to fire a blockstorage event.
+     *
+     * @param The node that has a status change.
+     * @param The new status for the node.
+     * @return The execution command.
+     */
+    public String getFireBlockStorageEventCommand(String nodeName, String status, String volumeId) {
+        return String.format(FIRE_BLOCKSTORAGE_EVENT_FORMAT, nodeName, status, volumeId);
+    }
+
+    /**
+     * Return the execution command to wait for a services.
+     *
      * @param The name of the service from Cloudify point of view.
      * @param The node that has a status change.
      * @param The new status for the node.
@@ -289,7 +301,7 @@ public class CloudifyCommandGenerator {
 
     /**
      * Return the cloudfy command to create a volume
-     * 
+     *
      * @param storageTemplate name of the storage template to use to create the volume
      * @return
      */
@@ -308,6 +320,12 @@ public class CloudifyCommandGenerator {
     // return String.format(STORAGE_ATTACH_VOLUME_COMMAND_FORMAT, volumeId, "\"" + device + "\"");
     // }
 
+    /**
+     * Return the cloudfy command to format a volume
+     *
+     * @param storageTemplate name of the storage template to use to create the volume
+     * @return
+     */
     public String getFormatVolumeCommand(String device, String fs) {
         return String.format(STORAGE_FORMAT_VOLUME_COMMAND_FORMAT, device, fs);
     }

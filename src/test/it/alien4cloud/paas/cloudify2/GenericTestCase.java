@@ -40,11 +40,6 @@ import alien4cloud.component.repository.CsarFileRepository;
 import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
 import alien4cloud.dao.ElasticSearchDAO;
 import alien4cloud.model.application.Application;
-import alien4cloud.paas.cloudify2.CloudifyPaaSProvider;
-import alien4cloud.paas.cloudify2.CloudifyRestClient;
-import alien4cloud.paas.cloudify2.CloudifyRestClientManager;
-import alien4cloud.paas.cloudify2.ComputeTemplate;
-import alien4cloud.paas.cloudify2.PluginConfigurationBean;
 import alien4cloud.paas.cloudify2.exception.A4CCloudifyDriverITException;
 import alien4cloud.paas.exception.PluginConfigurationException;
 import alien4cloud.tosca.container.archive.CsarUploadService;
@@ -235,8 +230,8 @@ public class GenericTestCase {
         return topology.getId();
     }
 
-    private Topology createAlienApplication(String applicationName, String topologyFileName, boolean isYamlTopologyFile) throws IOException, JsonParseException,
-            JsonMappingException, CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException {
+    private Topology createAlienApplication(String applicationName, String topologyFileName, boolean isYamlTopologyFile) throws IOException,
+            JsonParseException, JsonMappingException, CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException {
 
         Topology topology = isYamlTopologyFile ? parseYamlTopology(topologyFileName) : parseJsonTopology(topologyFileName);
 

@@ -29,10 +29,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
-import alien4cloud.paas.cloudify2.CloudifyEvent;
-import alien4cloud.paas.cloudify2.CloudifyEventsListener;
-import alien4cloud.paas.cloudify2.CloudifyPaaSProvider;
-import alien4cloud.paas.cloudify2.PluginConfigurationBean;
+import alien4cloud.paas.cloudify2.event.AlienEvent;
 import alien4cloud.paas.exception.MissingPropertyException;
 import alien4cloud.paas.exception.OperationExecutionException;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
@@ -334,11 +331,11 @@ public class CloudifyPaaSPoviderTestIT extends GenericTestCase {
             String applicationName = service.getApplicationName();
             String serviceName = nodeName;
             CloudifyEventsListener listener = new CloudifyEventsListener(cloudifyRestClientManager.getRestEventEndpoint(), applicationName, serviceName);
-            List<CloudifyEvent> allServiceEvents = listener.getEvents();
+            List<AlienEvent> allServiceEvents = listener.getEvents();
 
             Set<String> currentEvents = new HashSet<>();
-            for (CloudifyEvent cloudifyEvent : allServiceEvents) {
-                currentEvents.add(cloudifyEvent.getEvent());
+            for (AlienEvent alienEvent : allServiceEvents) {
+                currentEvents.add(alienEvent.getEvent());
             }
             log.info("Application: " + applicationName + "." + serviceName + " got events : " + currentEvents);
             Assert.assertTrue("Missing events: " + getMissingEvents(expectedEvents, currentEvents), currentEvents.containsAll(expectedEvents));

@@ -46,6 +46,8 @@ import alien4cloud.dao.IGenericSearchDAO;
 import alien4cloud.exception.TechnicalException;
 import alien4cloud.paas.AbstractPaaSProvider;
 import alien4cloud.paas.IConfigurablePaaSProvider;
+import alien4cloud.paas.cloudify2.event.AlienEvent;
+import alien4cloud.paas.cloudify2.event.NodeInstanceState;
 import alien4cloud.paas.exception.OperationExecutionException;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.PaaSDeploymentException;
@@ -564,7 +566,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
 
             // get instance status events
             CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, "", "");
-            List<CloudifyEvent> instanceEvents = listener.getEventsSince(date, maxEvents);
+            List<AlienEvent> instanceEvents = listener.getEventsSince(date, maxEvents);
 
             Set<String> processedDeployments = Sets.newHashSet();
             processEvents(events, instanceEvents, processedDeployments);
@@ -614,34 +616,34 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         }
     }
 
-    private void processEvents(List<AbstractMonitorEvent> events, List<CloudifyEvent> instanceEvents, Set<String> processedDeployments) {
-        for (CloudifyEvent cloudifyEvent : instanceEvents) {
+    private void processEvents(List<AbstractMonitorEvent> events, List<AlienEvent> instanceEvents, Set<String> processedDeployments) {
+        for (AlienEvent alienEvent : instanceEvents) {
             InstanceDeploymentInfo currentInstanceDeploymentInfo;
-            if (processedDeployments.add(cloudifyEvent.getApplicationName())) {
+            if (processedDeployments.add(alienEvent.getApplicationName())) {
                 currentInstanceDeploymentInfo = new InstanceDeploymentInfo();
-                DeploymentInfo deploymentInfo = statusByDeployments.get(cloudifyEvent.getApplicationName());
+                DeploymentInfo deploymentInfo = statusByDeployments.get(alienEvent.getApplicationName());
                 if (deploymentInfo != null) {
                     // application is undeployed but we can still get events as polling them is Async
-                    currentInstanceDeploymentInfo.instanceInformations = getInstancesInformation(cloudifyEvent.getApplicationName(),
+                    currentInstanceDeploymentInfo.instanceInformations = getInstancesInformation(alienEvent.getApplicationName(),
                             deploymentInfo.topology);
-                    generateDeleteEvents(cloudifyEvent.getApplicationName(), instanceStatusByDeployments.get(cloudifyEvent.getApplicationName()),
+                    generateDeleteEvents(alienEvent.getApplicationName(), instanceStatusByDeployments.get(alienEvent.getApplicationName()),
                             currentInstanceDeploymentInfo);
                 }
-                instanceStatusByDeployments.put(cloudifyEvent.getApplicationName(), currentInstanceDeploymentInfo);
+                instanceStatusByDeployments.put(alienEvent.getApplicationName(), currentInstanceDeploymentInfo);
             } else {
-                currentInstanceDeploymentInfo = instanceStatusByDeployments.get(cloudifyEvent.getApplicationName());
+                currentInstanceDeploymentInfo = instanceStatusByDeployments.get(alienEvent.getApplicationName());
             }
 
             PaaSInstanceStateMonitorEvent isMonitorEvent = new PaaSInstanceStateMonitorEvent();
 
-            isMonitorEvent.setDeploymentId(cloudifyEvent.getApplicationName());
-            isMonitorEvent.setNodeTemplateId(cloudifyEvent.getServiceName());
-            isMonitorEvent.setInstanceId(cloudifyEvent.getInstanceId());
-            isMonitorEvent.setDate(cloudifyEvent.getDateTimestamp().getTime());
-            isMonitorEvent.setInstanceState(cloudifyEvent.getEvent());
+            isMonitorEvent.setDeploymentId(alienEvent.getApplicationName());
+            isMonitorEvent.setNodeTemplateId(alienEvent.getServiceName());
+            isMonitorEvent.setInstanceId(alienEvent.getInstanceId());
+            isMonitorEvent.setDate(alienEvent.getDateTimestamp().getTime());
+            isMonitorEvent.setInstanceState(alienEvent.getEvent());
 
-            generateInstanceStateEvent(isMonitorEvent, currentInstanceDeploymentInfo, cloudifyEvent.getServiceName(),
-                    Integer.parseInt(cloudifyEvent.getInstanceId()));
+            generateInstanceStateEvent(isMonitorEvent, currentInstanceDeploymentInfo, alienEvent.getServiceName(),
+                    Integer.parseInt(alienEvent.getInstanceId()));
 
             events.add(isMonitorEvent);
         }
@@ -821,7 +823,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             // statusByDeployments.put(deploymentId, deploymentInfo);
         }
         PaaSNodeTemplate nodeTemplate = deploymentInfo.paaSNodeTemplates.get(nodeTemplateName);
-        return recipeGenerator.serviceIfFromNodeTemplate(nodeTemplate);
+        return recipeGenerator.cfyServiceNameFromNodeTemplate(nodeTemplate);
     }
 
     private String operationFQN(String serviceName, NodeOperationExecRequest request) {

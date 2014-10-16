@@ -1,6 +1,6 @@
 id: alien-cloudify-2-paas-provider
 name: Cloudify 2 PaaS provider
-version: 0.2.0-SNAPSHOT
+version: 0.2.2-SNAPSHOT
 description: >
   Plugin that contains the PaaS Provider for cloudify v2.
 configuration_class: alien4cloud.paas.cloudify2.PluginContextConfiguration
