@@ -1,0 +1,12 @@
+name: "tomcat-test-types"
+version: "0.4-snapshot"
+created_by: "FastConnect"
+
+dependencies:
+  - name: tosca-normative-types
+    version: 1.0.0-wd02-SNAPSHOT
+  - name: fastconnect-base-types
+    version: 0.1.1
+
+definitions:
+  - Definitions/tomcat-test-types.yml

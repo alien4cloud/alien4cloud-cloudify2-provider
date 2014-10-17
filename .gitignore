@@ -1,0 +1,5 @@
+/target
+/testit-logs
+.classpath
+.project
+.settings

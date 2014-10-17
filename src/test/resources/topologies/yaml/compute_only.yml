@@ -1,0 +1,16 @@
+node_templates:
+  compute:
+    type: tosca.nodes.Compute
+    properties:
+      os_type: linux
+      os_distribution: ubuntu
+      os_version: ubuntu
+
+# scaling_policies:
+
+dependencies:
+  - name: tosca-base-types
+    version: 1.0
+# input_properties:
+
+# input_artifacts:

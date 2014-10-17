@@ -1,0 +1,39 @@
+
+name: alien-tomcatGroovy
+namespace: alien4cloud
+description: Tomcat recipe.
+
+node_types:
+  fastconnect.nodes.TomcatGroovy:
+    derived_from: fastconnect.nodes.Tomcat
+    description: >
+      Installation of Tomcat using Cloudify scripts
+    interfaces:
+      lifecycle:
+        operations:
+          create:
+            implementation_artifact:
+              artifact_type: tosca.artifacts.GroovyScript
+              artifact_ref: "scripts/tomcat_installAlien.groovy"
+          start:
+            implementation_artifact:
+              artifact_type: tosca.artifacts.GroovyScript
+              artifact_ref: "scripts/tomcat_start.groovy"
+          stop:
+            implementation_artifact:
+              artifact_type: tosca.artifacts.GroovyScript
+              artifact_ref: "scripts/tomcat_stopAlien.groovy"
+      custom:
+        operations:
+          updateWar:
+            implementation_artifact:
+              artifact_type: tosca.artifacts.GroovyScript
+              artifact_ref: "scripts/updateWarUrl.groovy"
+          updateWarFile:
+            implementation_artifact:
+              artifact_type: tosca.artifacts.GroovyScript
+              artifact_ref: "scripts/updateWarFile.groovy"
+    artifacts:
+      scripts:
+        artifact_type: fastconnect.artifacts.ResourceDirectory
+        artifact_ref: "scripts"

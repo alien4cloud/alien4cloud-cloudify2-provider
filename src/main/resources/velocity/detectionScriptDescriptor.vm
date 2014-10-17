@@ -1,0 +1,14 @@
+println "service_script : starting $scriptLifecycle script"
+
+def passed = $detectionCommand
+println "Global $scriptLifecycle result is: ${passed}!"
+
+// to make sure we trigger the restart routine instead of the start one.
+if(passed){
+  #if ($isstopDetection)
+	context.attributes.thisInstance.restart = true
+  #else
+	context.attributes.thisInstance.restart = false
+  #end
+}
+return passed

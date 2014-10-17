@@ -1,0 +1,18 @@
+
+name: fastconnect-base-types
+namespace: fastconnect
+description: Some base types designed by Fastconnect.
+
+artifact_types:
+  tosca.artifacts.GroovyScript:
+    description: A groovy script (.groovy file)
+  tosca.artifacts.ShellScript:
+    description: A shell script (.sh file)
+  fastconnect.artifacts.ResourceDirectory:
+    description: A directory that contains resources files that are required for a node to be deployed.
+  fastconnect.artifacts.WarFile:
+    description: A war file (Web Archive).
+
+capability_types:
+  alien4cloud.capabilities.HttpEndpoint:
+    derived_from: tosca.capabilities.Endpoint

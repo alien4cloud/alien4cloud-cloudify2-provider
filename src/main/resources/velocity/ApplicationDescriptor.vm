@@ -1,0 +1,8 @@
+application {
+  name="$applicationName"
+  #foreach( $serviceName in $applicationServices )
+  service {
+    name = "$serviceName"
+  }
+  #end
+}
