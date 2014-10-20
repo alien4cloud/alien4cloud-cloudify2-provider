@@ -46,18 +46,16 @@ public class GigaSpacesEventsManager {
   
   def putEvent(def application, def service, def instanceId, def event) {
       println ">>> putEvent application=${application} service=${service} instanceId=${instanceId} event=${event}"
-      def type = INSTANCE_STATE_TYPE
       SpaceDocument document = new SpaceDocument("alien4cloud.paas.cloudify2.events.AlienEvent");
-      fillEventDocument(application, service, instanceId, event, type, document)
+      fillEventDocument(application, service, instanceId, event, INSTANCE_STATE_TYPE, document)
       gigaSpace.write(document, DEFAULT_LEASE);
       putNodeInstanceStateEvent(application, service, instanceId, event)
   }
   
   def putBlockStorageEvent(def application, def service, def instanceId, def event, def volumeId) {
       println ">>> putBlockStorageEvent application=${application} service=${service} instanceId=${instanceId} event=${event} volumeId=${volumeId}"
-      def type = BLOCKSTORAGE_TYPE
       SpaceDocument document = new SpaceDocument("alien4cloud.paas.cloudify2.events.BlockStorageEvent");
-      fillEventDocument(application, service, instanceId, event, type, document);
+      fillEventDocument(application, service, instanceId, event, BLOCKSTORAGE_TYPE, document);
       if(volumeId && volumeId != null) {
           document.setProperty("volumeId", volumeId as String);
       }
