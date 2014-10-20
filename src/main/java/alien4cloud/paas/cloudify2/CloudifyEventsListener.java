@@ -17,8 +17,8 @@ import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.util.EntityUtils;
 
-import alien4cloud.paas.cloudify2.event.AlienEvent;
-import alien4cloud.paas.cloudify2.event.NodeInstanceState;
+import alien4cloud.paas.cloudify2.events.AlienEvent;
+import alien4cloud.paas.cloudify2.events.NodeInstanceState;
 import alien4cloud.rest.utils.JsonUtil;
 
 @Slf4j
@@ -81,8 +81,8 @@ public class CloudifyEventsListener {
     }
 
     public List<AlienEvent> getEvents() throws IOException, URISyntaxException {
-        URIBuilder builder = new URIBuilder(endpoint.resolve(GET_EVENTS_END_POINT)).addParameter(APPLICATION_KEY, application).addParameter(SERVICE_KEY, service)
-                .addParameter("lastIndex", "0");
+        URIBuilder builder = new URIBuilder(endpoint.resolve(GET_EVENTS_END_POINT)).addParameter(APPLICATION_KEY, application)
+                .addParameter(SERVICE_KEY, service).addParameter("lastIndex", "0");
 
         String response = doGet(builder);
         return JsonUtil.toList(response, AlienEvent.class);
@@ -111,8 +111,8 @@ public class CloudifyEventsListener {
     }
 
     public List<AlienEvent> getNextEvents() throws URISyntaxException, IOException {
-        URIBuilder builder = new URIBuilder(endpoint.resolve(GET_EVENTS_END_POINT)).addParameter(APPLICATION_KEY, application).addParameter(SERVICE_KEY, service)
-                .addParameter("lastIndex", Integer.toString(this.currentEventIndex + 1));
+        URIBuilder builder = new URIBuilder(endpoint.resolve(GET_EVENTS_END_POINT)).addParameter(APPLICATION_KEY, application)
+                .addParameter(SERVICE_KEY, service).addParameter("lastIndex", Integer.toString(this.currentEventIndex + 1));
 
         final String response = this.doGet(builder);
 

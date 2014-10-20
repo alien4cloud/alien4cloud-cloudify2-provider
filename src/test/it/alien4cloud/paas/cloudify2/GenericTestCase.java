@@ -89,7 +89,7 @@ public class GenericTestCase {
 
         // String cloudifyURL = System.getenv("CLOUDIFY_URL");
         String cloudifyURL = null;
-        cloudifyURL = cloudifyURL == null ? "http://129.185.67.33:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "http://129.185.67.27:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL);
         pluginConfigurationBean.getComputeTemplates().add(new ComputeTemplate("MEDIUM_LINUX", 1, 1000, 1600, "x86_64", "linux", "ubuntu", "ubuntu", null));

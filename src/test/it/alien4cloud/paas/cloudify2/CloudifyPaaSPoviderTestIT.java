@@ -22,14 +22,13 @@ import org.cloudifysource.dsl.rest.response.ApplicationDescription;
 import org.cloudifysource.dsl.rest.response.ServiceDescription;
 import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
-import alien4cloud.paas.cloudify2.event.AlienEvent;
+import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.exception.MissingPropertyException;
 import alien4cloud.paas.exception.OperationExecutionException;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
@@ -58,7 +57,7 @@ public class CloudifyPaaSPoviderTestIT extends GenericTestCase {
 
     @Test(expected = ResourceMatchingFailedException.class)
     public void deployATopologyWhenNoComputeAreDefinedShouldFail() throws JsonParseException, JsonMappingException, CSARParsingException,
-    CSARVersionAlreadyExistsException, IOException, CSARValidationException {
+            CSARVersionAlreadyExistsException, IOException, CSARValidationException {
         this.initElasticSearch(new String[] { "apache-lb-types", "tomcat-types", "tomcatGroovy-types" }, new String[] { "0.1", "0.1", "0.1" });
 
         deployTopology("petclinic-nocompute", false);
@@ -116,9 +115,8 @@ public class CloudifyPaaSPoviderTestIT extends GenericTestCase {
             assertHttpCodeEquals(cloudifyAppId, "serveur_web", "80", "", HTTP_CODE_OK);
 
             testEvents(cloudifyAppId, new String[] { "serveur_web", "apache", "tomcat" }, PlanGeneratorConstants.STATE_CREATING,
-                    PlanGeneratorConstants.STATE_CREATED,
-                    PlanGeneratorConstants.STATE_CONFIGURING, PlanGeneratorConstants.STATE_CONFIGURED, PlanGeneratorConstants.STATE_STARTING,
-                    PlanGeneratorConstants.STATE_STARTED);
+                    PlanGeneratorConstants.STATE_CREATED, PlanGeneratorConstants.STATE_CONFIGURING, PlanGeneratorConstants.STATE_CONFIGURED,
+                    PlanGeneratorConstants.STATE_STARTING, PlanGeneratorConstants.STATE_STARTED);
 
             testUndeployment(cloudifyAppId);
 
@@ -196,7 +194,7 @@ public class CloudifyPaaSPoviderTestIT extends GenericTestCase {
     }
 
     @Test
-    @Ignore
+    // @Ignore
     public void blockStorageSizeProvidedSucessTest() throws Exception {
         String cloudifyAppId = null;
         this.initElasticSearch(new String[] { "tosca-normative-types", "fastconnect-base-types", "tomcat-test-types" }, new String[] { "1.0.0-wd02-SNAPSHOT",
@@ -261,7 +259,8 @@ public class CloudifyPaaSPoviderTestIT extends GenericTestCase {
         }
     }
 
-    private void testCustomCommandSuccess(String cloudifyAppId, String nodeName, Integer instanceId, String command, List<String> params, String expectedResultSnippet) {
+    private void testCustomCommandSuccess(String cloudifyAppId, String nodeName, Integer instanceId, String command, List<String> params,
+            String expectedResultSnippet) {
         Map<String, String> result = executeCustomCommand(cloudifyAppId, nodeName, instanceId, command, params);
 
         if (expectedResultSnippet != null) {
