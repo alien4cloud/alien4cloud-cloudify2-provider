@@ -43,7 +43,7 @@ public class RecipeGeneratorArtifactCopier {
 
     /**
      * Copy all artifacts for the nodes and relationships in the topology from a defined rootNode.
-     * 
+     *
      * @param context The recipe generator context.
      * @param rootNode The root node for which to copy artifacts.
      * @throws IOException In case we fail to copy files.
@@ -62,7 +62,7 @@ public class RecipeGeneratorArtifactCopier {
 
     /**
      * Copy a deployment artifact from the CSAR repository or other location into the generated cloudify recipe.
-     * 
+     *
      * @param context The context of the recipe generation that contains the path of the service as well as the list of node types that have been already
      *            managed for this service recipe.
      * @param csarPath Path to the CSAR that contains the node or relationship for which to copy artifacts.
@@ -92,8 +92,11 @@ public class RecipeGeneratorArtifactCopier {
                 DeploymentArtifact artifact = null;
                 String artifactTarget = null;
                 if (overrideArtifacts != null) {
-                    artifact = overrideArtifacts.get(artifactEntry.getKey());
-                    artifactTarget = artifact != null ? OVERRIDES_DIR_NAME + "-" + nodeId + File.separator + artifact.getArtifactRef() : artifactTarget;
+                    DeploymentArtifact tempArti = overrideArtifacts.get(artifactEntry.getKey());
+                    if (tempArti != null && ArtifactRepositoryConstants.ALIEN_ARTIFACT_REPOSITORY.equals(tempArti.getArtifactRepository())) {
+                        artifact = tempArti;
+                        artifactTarget = OVERRIDES_DIR_NAME + "-" + nodeId + File.separator + artifact.getArtifactRef();
+                    }
                 }
                 if (artifact == null) {
                     artifact = artifactEntry.getValue();
