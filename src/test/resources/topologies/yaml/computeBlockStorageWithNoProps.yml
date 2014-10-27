@@ -26,6 +26,11 @@ node_templates:
 
 
 # scaling_policies:
+scaling_policies:
+  serveur_web:
+    min_instances: 1
+    max_instances: 3
+    initial_instances: 1
 
 dependencies:
   - name: tosca-normative-types

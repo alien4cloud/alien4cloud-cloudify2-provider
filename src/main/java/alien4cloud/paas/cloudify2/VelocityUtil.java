@@ -32,7 +32,7 @@ public class VelocityUtil {
 
     /**
      * Writes a generated file after injecting properties by velocity engine
-     * 
+     *
      * @param velocityTemplateFile template file
      * @param outpuFilePath generated file destination
      * @param properties properties to inject in the template

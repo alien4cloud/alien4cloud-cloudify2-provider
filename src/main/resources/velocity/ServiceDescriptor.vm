@@ -10,7 +10,7 @@ service {
   maxAllowedInstances $maxAllowedInstances
   
   lifecycle {
-    init {}
+    init $initCommand
     install "install.groovy"
     postInstall {}
     start "start.groovy"
@@ -20,7 +20,6 @@ service {
       $startDetectionCommand
     }
 #end
-    postStart $postStartCommand
     preStop {}
     stop "stop.groovy"
     shutdown $shutdownCommand

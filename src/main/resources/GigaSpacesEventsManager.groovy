@@ -47,7 +47,7 @@ public class GigaSpacesEventsManager {
   def putEvent(def application, def service, def instanceId, def event) {
       println ">>> putEvent application=${application} service=${service} instanceId=${instanceId} event=${event}"
       SpaceDocument document = new SpaceDocument("alien4cloud.paas.cloudify2.events.AlienEvent");
-      fillEventDocument(application, service, instanceId, event, INSTANCE_STATE_TYPE, document)
+      fillEventDocument(application, service, instanceId, event, document)
       gigaSpace.write(document, DEFAULT_LEASE);
       putNodeInstanceStateEvent(application, service, instanceId, event)
   }
@@ -55,7 +55,7 @@ public class GigaSpacesEventsManager {
   def putBlockStorageEvent(def application, def service, def instanceId, def event, def volumeId) {
       println ">>> putBlockStorageEvent application=${application} service=${service} instanceId=${instanceId} event=${event} volumeId=${volumeId}"
       SpaceDocument document = new SpaceDocument("alien4cloud.paas.cloudify2.events.BlockStorageEvent");
-      fillEventDocument(application, service, instanceId, event, BLOCKSTORAGE_TYPE, document);
+      fillEventDocument(application, service, instanceId, event, document);
       if(volumeId && volumeId != null) {
           document.setProperty("volumeId", volumeId as String);
       }
@@ -73,7 +73,7 @@ public class GigaSpacesEventsManager {
       gigaSpace.write(document);
   }
   
-  def fillEventDocument(def application, def service, def instanceId, def event, def type, def document) {
+  def fillEventDocument(def application, def service, def instanceId, def event, def document) {
       SQLQuery<SpaceDocument> template = new SQLQuery<SpaceDocument>(
           "alien4cloud.paas.cloudify2.events.AlienEvent"
           , String.format("applicationName='%s' and serviceName='%s' and instanceId='%s' ORDER BY eventIndex DESC", application, service, instanceId)
@@ -89,7 +89,6 @@ public class GigaSpacesEventsManager {
       document.setProperty("serviceName", service as String);
       document.setProperty("instanceId", instanceId as String);
       document.setProperty("event", event as String);
-      document.setProperty("type", type as String);
       document.setProperty("eventIndex", new Integer(lastIndex + 1));
       document.setProperty("dateTimestamp", new Date());
       

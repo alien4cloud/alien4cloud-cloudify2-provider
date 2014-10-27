@@ -87,12 +87,11 @@ public class GenericTestCase {
 
         cleanAlienFiles();
 
-        // String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        String cloudifyURL = null;
-        cloudifyURL = cloudifyURL == null ? "http://129.185.67.27:8100/" : cloudifyURL;
+        String cloudifyURL = System.getenv("CLOUDIFY_URL");
+        // String cloudifyURL = null;
+        cloudifyURL = cloudifyURL == null ? "http://129.185.67.86:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL);
-        pluginConfigurationBean.getComputeTemplates().add(new ComputeTemplate("MEDIUM_LINUX", 1, 1000, 1600, "x86_64", "linux", "ubuntu", "ubuntu", null));
         pluginConfigurationBean.setSynchronousDeployment(true);
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setVersion("2.7.1");
         cloudifyPaaSPovider.setConfiguration(pluginConfigurationBean);
@@ -201,14 +200,25 @@ public class GenericTestCase {
         }
     }
 
-    public void assertHttpCodeEquals(String applicationId, String serviceName, String port, String path, int expectedCode) throws RestClientException,
-            IOException {
-        log.info("Checking path <" + path.concat(":").concat(port) + ">");
+    public void assertHttpCodeEquals(String applicationId, String serviceName, String port, String path, int expectedCode, Integer timeoutInMillis)
+            throws RestClientException, IOException, InterruptedException {
+        log.info("About to check path <:" + port.concat("/").concat(path) + ">");
         CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
         ServiceInstanceDetails instanceDetails = restClient.getServiceInstanceDetails(applicationId, serviceName, 1);
         String instancePublicIp = instanceDetails.getPublicIp();
         String urlString = "http://" + instancePublicIp + ":" + port + "/" + path;
-        int httpResponseCode = this.getResponseCode(urlString);
+        log.info("Full URL is: " + urlString);
+        int httpResponseCode = 0;
+        if (expectedCode == 404) {
+            httpResponseCode = this.getResponseCode(urlString);
+        } else {
+            long now = System.currentTimeMillis();
+            long finalTimeout = timeoutInMillis != null ? timeoutInMillis : 0L;
+            do {
+                Thread.sleep(1000L);
+                httpResponseCode = this.getResponseCode(urlString);
+            } while (System.currentTimeMillis() - now < finalTimeout && httpResponseCode == 404);
+        }
         Assert.assertEquals("Expected Response code " + expectedCode + " got " + httpResponseCode, expectedCode, httpResponseCode);
     }
 
@@ -217,6 +227,7 @@ public class GenericTestCase {
         HttpURLConnection huc = (HttpURLConnection) u.openConnection();
         huc.setRequestMethod("GET");
         huc.connect();
+        huc.getResponseCode();
         return huc.getResponseCode();
     }
 

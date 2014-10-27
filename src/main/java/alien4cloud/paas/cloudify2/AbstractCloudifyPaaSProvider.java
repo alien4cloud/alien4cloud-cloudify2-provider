@@ -163,9 +163,9 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         statusByDeployments.put(deploymentId, deploymentInfo);
     }
 
-    protected void updateStatusAndRegisterEvent(String deploymentId, DeploymentStatus undeployed) {
-        updateStatus(deploymentId, DeploymentStatus.UNDEPLOYED);
-        registerDeploymentStatus(deploymentId, DeploymentStatus.UNDEPLOYED);
+    protected void updateStatusAndRegisterEvent(String deploymentId, DeploymentStatus status) {
+        updateStatus(deploymentId, status);
+        registerDeploymentStatus(deploymentId, status);
     }
 
     protected void deployOnCloudify(String deploymentId, Path applicationZipPath) throws URISyntaxException, IOException {

@@ -61,12 +61,19 @@ public class RecipeGeneratorConstants {
 
     public static final String CONTEXT_THIS_INSTANCE_ATTRIBUTES = "context.attributes.thisInstance";
 
+    /** BlockStorages **/
     public static final String VOLUME_ID_KEY = "volumeId";
     public static final String PATH_KEY = "path";
     public static final String DEVICE_KEY = "device";
+    public static final String FS_KEY = "fileSystem";
 
     /** Name of the service property that contains a poststart script. */
     public static final String POSTSTART_COMMAND = "postStartCommand";
+
+    /** Name of the service property that contains a init script. */
+    public static final String INIT_COMMAND = "initCommand";
+
+    public static final String INIT_LIFECYCLE = "init";
 
     /** Name of the velocity property for formating a volume. */
     public static final String FORMAT_VOLUME_COMMAND = "formatVolumeCommand";
@@ -75,4 +82,5 @@ public class RecipeGeneratorConstants {
 
     /** Name of the service property that contains a shutdown script. */
     public static final String SHUTDOWN_COMMAND = "shutdownCommand";
+    public static final String SHUTDOWN_LIFECYCLE = "shutdown";
 }

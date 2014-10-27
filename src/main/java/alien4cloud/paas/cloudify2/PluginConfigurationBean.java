@@ -27,7 +27,7 @@ public class PluginConfigurationBean {
     /** List of the compute templates defined in Cloudify. */
     @FormLabel("CLOUDS.DRIVER.CLOUDIFY.COMPUTE_TEMPLATES")
     private List<ComputeTemplate> computeTemplates = Lists.newArrayList(
-            new ComputeTemplate("LINUX", 1, 1000, 2048, "x86_64", "linux", "ubuntu", "ubuntu", null),
+            new ComputeTemplate("MEDIUM_LINUX", 1, 1000, 2048, "x86_64", "linux", "ubuntu", "ubuntu", null),
             new ComputeTemplate("CENTOS", 1, 1000, 2048, "x86_64", "linux", "centos", "centos", null),
             new ComputeTemplate("POSTGRES", 1, 1000, 2048, "x86_64", "linux", "centos", "postgre", null),
             new ComputeTemplate("OPENVPN", 1, 1000, 2048, "x86_64", "linux", "centos", "openvpn", null));

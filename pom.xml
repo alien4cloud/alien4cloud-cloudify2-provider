@@ -71,20 +71,16 @@
 		<!-- Cloudify Custom events-->
 		<dependency>
 			<groupId>alien4cloud</groupId>
-			<artifactId>alien4cloud-cloudify-events-rest</artifactId>
+			<artifactId>alien4cloud-cloudify-events-model</artifactId>
 			<version>${a4c-cdfy-custom-event.version}</version>
 		</dependency>
-
+		
 		<!-- gigaSpaces -->
 		<dependency>
 			<groupId>com.gigaspaces</groupId>
 			<artifactId>gs-runtime</artifactId>
 			<version>${gigaspaces.version}</version>
 			<exclusions>
-				<exclusion>
-					<groupId>com.gigaspaces</groupId>
-					<artifactId>gs-openspaces</artifactId>
-				</exclusion>
 				<exclusion>
 					<artifactId>tools</artifactId>
 					<groupId>com.sun</groupId>
