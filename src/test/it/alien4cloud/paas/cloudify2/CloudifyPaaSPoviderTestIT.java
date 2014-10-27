@@ -248,24 +248,24 @@ public class CloudifyPaaSPoviderTestIT extends GenericTestCase {
 
         String cloudifyURL2 = "http://129.185.67.36:8100/";
         final int initialCTCount = new PluginConfigurationBean().getComputeTemplates().size();
-
-        assertEquals(initialCTCount + 1, cloudifyPaaSPovider.getRecipeGenerator().getComputeTemplateMatcher().getComputeTemplates().size());
-        String cloudifyURL = cloudifyPaaSPovider.getCloudifyRestClientManager().getCloudifyURL().toString();
+        final int ProviderCTCount = cloudifyPaaSPovider.getRecipeGenerator().getComputeTemplateMatcher().getComputeTemplates().size();
+        final String cloudifyURL = cloudifyPaaSPovider.getCloudifyRestClientManager().getCloudifyURL().toString();
 
         PluginConfigurationBean pluginConfigurationBean2 = anotherCloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean2.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL2);
         pluginConfigurationBean2.setSynchronousDeployment(true);
         pluginConfigurationBean2.getCloudifyConnectionConfiguration().setVersion("2.7.1");
+        pluginConfigurationBean2.getComputeTemplates().add(new ComputeTemplate());
         try {
             anotherCloudifyPaaSPovider.setConfiguration(pluginConfigurationBean2);
         } catch (Exception e) {
         }
 
-        assertEquals(initialCTCount, anotherCloudifyPaaSPovider.getRecipeGenerator().getComputeTemplateMatcher().getComputeTemplates().size());
+        assertEquals(initialCTCount + 1, anotherCloudifyPaaSPovider.getRecipeGenerator().getComputeTemplateMatcher().getComputeTemplates().size());
         assertEquals(cloudifyURL2, anotherCloudifyPaaSPovider.getCloudifyRestClientManager().getCloudifyURL().toString());
 
         // check the config of the other one still the same
-        assertEquals(initialCTCount + 1, cloudifyPaaSPovider.getRecipeGenerator().getComputeTemplateMatcher().getComputeTemplates().size());
+        assertEquals(ProviderCTCount, cloudifyPaaSPovider.getRecipeGenerator().getComputeTemplateMatcher().getComputeTemplates().size());
         assertEquals(cloudifyURL, cloudifyPaaSPovider.getCloudifyRestClientManager().getCloudifyURL().toString());
 
     }

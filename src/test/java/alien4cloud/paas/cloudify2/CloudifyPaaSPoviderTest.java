@@ -4,7 +4,6 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.Resource;
@@ -78,7 +77,8 @@ public class CloudifyPaaSPoviderTest {
         try {
             storageTemplateMatcher.getTemplate(nodeTemp);
         } catch (ResourceMatchingFailedException e) {
-            storageTemplateMatcher.configure(Mockito.mock(ArrayList.class));
+            List<StorageTemplate> lists = Lists.newArrayList();
+            storageTemplateMatcher.configure(lists);
             try {
                 storageTemplateMatcher.getTemplate(nodeTemp);
             } catch (ResourceMatchingFailedException e1) {
