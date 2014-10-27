@@ -21,6 +21,9 @@ import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.events.NodeInstanceState;
 import alien4cloud.rest.utils.JsonUtil;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 @Slf4j
 public class CloudifyEventsListener {
 
@@ -85,7 +88,9 @@ public class CloudifyEventsListener {
                 .addParameter(SERVICE_KEY, service).addParameter("lastIndex", "0");
 
         String response = doGet(builder);
-        return JsonUtil.toList(response, AlienEvent.class);
+        return new ObjectMapper().readValue(response, new TypeReference<List<AlienEvent>>() {
+        });
+        // return JsonUtil.toList(response, AlienEvent.class);
     }
 
     public List<AlienEvent> getEventsSince(Date date, int maxEvents) throws URISyntaxException, IOException {
@@ -95,7 +100,9 @@ public class CloudifyEventsListener {
                 "maxEvents", Integer.toString(maxEvents));
 
         String response = this.doGet(builder);
-        return JsonUtil.toList(response, AlienEvent.class);
+        return new ObjectMapper().readValue(response, new TypeReference<List<AlienEvent>>() {
+        });
+        // return JsonUtil.toList(response, AlienEvent.class);
     }
 
     public List<NodeInstanceState> getNodeInstanceStates(String topologyId) throws URISyntaxException, IOException {
@@ -115,8 +122,8 @@ public class CloudifyEventsListener {
                 .addParameter(SERVICE_KEY, service).addParameter("lastIndex", Integer.toString(this.currentEventIndex + 1));
 
         final String response = this.doGet(builder);
-
-        List<AlienEvent> events = JsonUtil.toList(response, AlienEvent.class);
+        List<AlienEvent> events = new ObjectMapper().readValue(response, new TypeReference<List<AlienEvent>>() {
+        });
         if (events != null && !events.isEmpty()) {
             this.currentEventIndex = events.get(events.size() - 1).getEventIndex();
         }
@@ -130,7 +137,8 @@ public class CloudifyEventsListener {
 
         final String response = this.doGet(builder);
         if (StringUtils.isNotEmpty(response)) {
-            AlienEvent events = JsonUtil.readObject(response, AlienEvent.class);
+            AlienEvent events = new ObjectMapper().readValue(response, new TypeReference<AlienEvent>() {
+            });
             return events;
         }
         return null;
