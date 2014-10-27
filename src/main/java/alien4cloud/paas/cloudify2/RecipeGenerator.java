@@ -249,7 +249,7 @@ public class RecipeGenerator {
         this.artifactCopier.copyAllArtifacts(context, computeNode);
 
         // check for blockStorage
-        generateBlockStorageScript(context, computeNode);
+        generateInitShutdownScripts(context, computeNode);
 
         // Generate installation workflow scripts
         StartEvent creationPlanStart = PaaSPlanGenerator.buildNodeCreationPlan(computeNode);
@@ -276,50 +276,61 @@ public class RecipeGenerator {
         generateServiceDescriptor(context, serviceId, computeTemplate, computeNode.getScalingPolicy());
     }
 
-    private void generateBlockStorageScript(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate computeNode) throws IOException {
+    private void generateInitShutdownScripts(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate computeNode) throws IOException {
         PaaSNodeTemplate blockStorageNode = computeNode.getAttachedNode();
         String initCommand = "{}";
         String shutdownCommand = "{}";
         if (blockStorageNode != null) {
             Map<String, String> velocityProps = Maps.newHashMap();
-            List<String> initExecutions = Lists.newArrayList();
-            List<String> shutdownExecutions = Lists.newArrayList();
+            List<String> executions = Lists.newArrayList();
 
-            generateInitVolumeIdsScript(context, blockStorageNode, initExecutions);
+            generateInitStartUpStorageScripts(context, blockStorageNode, velocityProps, executions);
+            // generate the final init script
+            generateScriptWorkflow(context.getServicePath(), scriptDescriptorPath, INIT_LIFECYCLE, executions, null);
 
-            // events
-            // FIXME hack for the blockstorage to be in state started on the ui. try manage it via plan generator
-            velocityProps.put("creatingEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_CREATING));
-            velocityProps.put("createdEvent",
-                    cloudifyCommandGen.getFireBlockStorageEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_CREATED, VOLUME_ID_VAR));
-            velocityProps.put("startingEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STARTING));
-            velocityProps.put("startedEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STARTED));
-
-            // need for setting up the storage
-            velocityProps.put(NormativeBlockStorageConstants.DEVICE, DEFAULT_BLOCKSTORAGE_DEVICE);
-            velocityProps.put(FS_KEY, DEFAULT_BLOCKSTORAGE_FS);
-            velocityProps.put(PATH_KEY, DEFAULT_BLOCKSTORAGE_PATH);
-
-            // generate startup
-            generateScriptWorkflow(context.getServicePath(), startupBlockStorageScriptDescriptorPath, STORAGE_STARTUP_FILE_NAME, null, velocityProps);
-            initExecutions.add(cloudifyCommandGen.getGroovyCommand(STORAGE_STARTUP_FILE_NAME.concat(".groovy")));
-            // generate the final ini script
-            generateScriptWorkflow(context.getServicePath(), scriptDescriptorPath, INIT_LIFECYCLE, initExecutions, null);
-
-            // generate hutdown BS
+            executions.clear();
             velocityProps.clear();
-            velocityProps.put("stoppingEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STOPPING));
-            velocityProps.put("stoppedEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STOPPED));
-            generateScriptWorkflow(context.getServicePath(), shutdownBlockStorageScriptDescriptorPath, STORAGE_SHUTDOWN_FILE_NAME, null, velocityProps);
-            shutdownExecutions.add(cloudifyCommandGen.getGroovyCommand(STORAGE_SHUTDOWN_FILE_NAME.concat(".groovy")));
+
+            generateShutdownStorageScripts(context, blockStorageNode, velocityProps, executions);
             // generate the final shutdown script
-            generateScriptWorkflow(context.getServicePath(), scriptDescriptorPath, SHUTDOWN_LIFECYCLE, shutdownExecutions, null);
+            generateScriptWorkflow(context.getServicePath(), scriptDescriptorPath, SHUTDOWN_LIFECYCLE, executions, null);
 
             initCommand = "\"" + INIT_LIFECYCLE + ".groovy\"";
             shutdownCommand = "\"" + SHUTDOWN_LIFECYCLE + ".groovy\"";
         }
         context.getAdditionalProperties().put(INIT_COMMAND, initCommand);
         context.getAdditionalProperties().put(SHUTDOWN_COMMAND, shutdownCommand);
+    }
+
+    private void generateShutdownStorageScripts(final RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode,
+            Map<String, String> velocityProps, List<String> shutdownExecutions) throws IOException {
+        // generate hutdown BS
+        velocityProps.put("stoppingEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STOPPING));
+        velocityProps.put("stoppedEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STOPPED));
+        generateScriptWorkflow(context.getServicePath(), shutdownBlockStorageScriptDescriptorPath, STORAGE_SHUTDOWN_FILE_NAME, null, velocityProps);
+        shutdownExecutions.add(cloudifyCommandGen.getGroovyCommand(STORAGE_SHUTDOWN_FILE_NAME.concat(".groovy")));
+    }
+
+    private void generateInitStartUpStorageScripts(final RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode,
+            Map<String, String> velocityProps, List<String> initExecutions) throws IOException {
+        generateInitVolumeIdsScript(context, blockStorageNode, initExecutions);
+
+        // events
+        // FIXME hack for the blockstorage to be in state started on the ui. try manage it via plan generator
+        velocityProps.put("creatingEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_CREATING));
+        velocityProps.put("createdEvent",
+                cloudifyCommandGen.getFireBlockStorageEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_CREATED, VOLUME_ID_VAR));
+        velocityProps.put("startingEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STARTING));
+        velocityProps.put("startedEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STARTED));
+
+        // need for setting up the storage
+        velocityProps.put(NormativeBlockStorageConstants.DEVICE, DEFAULT_BLOCKSTORAGE_DEVICE);
+        velocityProps.put(FS_KEY, DEFAULT_BLOCKSTORAGE_FS);
+        velocityProps.put(PATH_KEY, DEFAULT_BLOCKSTORAGE_PATH);
+
+        // generate startup BS
+        generateScriptWorkflow(context.getServicePath(), startupBlockStorageScriptDescriptorPath, STORAGE_STARTUP_FILE_NAME, null, velocityProps);
+        initExecutions.add(cloudifyCommandGen.getGroovyCommand(STORAGE_STARTUP_FILE_NAME.concat(".groovy")));
     }
 
     private void generateInitVolumeIdsScript(RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode, List<String> executions)
