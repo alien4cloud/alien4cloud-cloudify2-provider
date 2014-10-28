@@ -235,7 +235,7 @@ public class GenericTestCase {
             CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException {
         String appName = "CloudifyPaaSProvider-IT " + topologyFileName;
         Topology topology = this.createAlienApplication(appName, topologyFileName, isYamlTopologyFile);
-        log.info("\n TESTS: Deploying topology <{}>. Deployment id is <{}>. \n", topologyFileName, topology.getId());
+        log.info("\n\n TESTS: Deploying topology <{}>. Deployment id is <{}>. \n", topologyFileName, topology.getId());
         deployedCloudifyAppIds.add(topology.getId());
         cloudifyPaaSPovider.deploy(appName, topology.getId(), topology, null);
         return topology.getId();

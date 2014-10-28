@@ -151,7 +151,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         }
     }
 
-    protected void updateStatus(String deploymentId, DeploymentStatus status) {
+    protected boolean updateStatus(String deploymentId, DeploymentStatus status) {
         DeploymentInfo deploymentInfo = statusByDeployments.get(deploymentId);
         if (deploymentInfo == null) {
             deploymentInfo = new DeploymentInfo();
@@ -159,8 +159,13 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         if (deploymentInfo.topology == null) {
             deploymentInfo.topology = alienMonitorDao.findById(Topology.class, deploymentId);
         }
-        deploymentInfo.deploymentStatus = status;
-        statusByDeployments.put(deploymentId, deploymentInfo);
+        if (deploymentInfo.topology != null) {
+            deploymentInfo.deploymentStatus = status;
+            statusByDeployments.put(deploymentId, deploymentInfo);
+            return true;
+        } else {
+            return false;
+        }
     }
 
     protected void updateStatusAndRegisterEvent(String deploymentId, DeploymentStatus status) {
@@ -243,9 +248,10 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             UninstallApplicationResponse uninstallApplication = restClient.uninstallApplication(deploymentId, (int) TIMEOUT_IN_MILLIS);
             if (getPluginConfigurationBean().isSynchronousDeployment()) {
                 log.info("Synchronous deployment. Waiting for deployment <" + deploymentId + "> to be totally undeployed");
-                String deploymentID = uninstallApplication.getDeploymentID();
-                this.waitUndeployApplication(deploymentID);
+                String cdfyDeploymentId = uninstallApplication.getDeploymentID();
+                this.waitUndeployApplication(cdfyDeploymentId);
             }
+            updateStatusAndRegisterEvent(deploymentId, DeploymentStatus.UNDEPLOYED);
         } catch (RestClientResponseException e) {
             throw new PaaSDeploymentException("Couldn't uninstall topology '" + deploymentId + "'. Cause: " + e.getMessageFormattedText(), e);
         } catch (RestClientException e) {
@@ -557,6 +563,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
 
         List<AbstractMonitorEvent> events = Lists.newArrayList();
         try {
+            CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, "", "");
             // get message events
             AbstractMonitorEvent queuedMonitorEvent;
             int count = 0;
@@ -564,13 +571,6 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
                 events.add(queuedMonitorEvent);
                 count++;
             }
-
-            // get instance status events
-            CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, "", "");
-            List<AlienEvent> instanceEvents = listener.getEventsSince(date, maxEvents);
-
-            Set<String> processedDeployments = Sets.newHashSet();
-            processEvents(events, instanceEvents, processedDeployments);
 
             // get deployment status events
             CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
@@ -582,19 +582,25 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             }
 
             List<String> appUnknownStatuses = Lists.newArrayList(statusByDeployments.keySet());
-            processUnkwonStatuses(events, applicationDescriptions, appUnknownStatuses);
+            processUnknownStatuses(events, applicationDescriptions, appUnknownStatuses);
 
             // cleanup statuses
             if (appUnknownStatuses.size() > 0) {
                 cleanupUnknownApplicationsStatuses(listener, appUnknownStatuses);
             }
+
+            // get instance status events
+            List<AlienEvent> instanceEvents = listener.getEventsSince(date, maxEvents);
+
+            Set<String> processedDeployments = Sets.newHashSet();
+            processEvents(events, instanceEvents, processedDeployments);
         } catch (Exception e) {
             throw new PaaSTechnicalException("Error while getting deployment events.", e);
         }
         return events.toArray(new AbstractMonitorEvent[events.size()]);
     }
 
-    private void processUnkwonStatuses(List<AbstractMonitorEvent> events, List<ApplicationDescription> applicationDescriptions, List<String> appUnknownStatuses) {
+    private void processUnknownStatuses(List<AbstractMonitorEvent> events, List<ApplicationDescription> applicationDescriptions, List<String> appUnknownStatuses) {
         for (ApplicationDescription applicationDescription : applicationDescriptions) {
             log.debug("GetEvents: PROCESSING UNKWON STATUSES...");
             DeploymentStatus status = getStatusFromApplicationDescription(applicationDescription);
@@ -602,33 +608,35 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             DeploymentInfo info = this.statusByDeployments.get(applicationDescription.getApplicationName());
             DeploymentStatus oldStatus = info == null ? null : info.deploymentStatus;
             if (!status.equals(oldStatus)) {
-                PaaSDeploymentStatusMonitorEvent dsMonitorEvent = new PaaSDeploymentStatusMonitorEvent();
-                dsMonitorEvent.setDeploymentId(applicationDescription.getApplicationName());
-                dsMonitorEvent.setDeploymentStatus(status);
-                dsMonitorEvent.setDate(new Date().getTime());
+                boolean found = updateStatus(applicationDescription.getApplicationName(), status);
+                if (found) {
+                    PaaSDeploymentStatusMonitorEvent dsMonitorEvent = new PaaSDeploymentStatusMonitorEvent();
+                    dsMonitorEvent.setDeploymentId(applicationDescription.getApplicationName());
+                    dsMonitorEvent.setDeploymentStatus(status);
+                    dsMonitorEvent.setDate(new Date().getTime());
 
-                // update the local status.
-                log.debug("{} has changed status {}", applicationDescription.getApplicationName(), status);
-                updateStatus(applicationDescription.getApplicationName(), status);
-                events.add(dsMonitorEvent);
+                    // update the local status.
+                    log.debug("{} has changed status {}", applicationDescription.getApplicationName(), status);
+                    events.add(dsMonitorEvent);
+                }
             }
-
             appUnknownStatuses.remove(applicationDescription.getApplicationName());
         }
     }
 
     private void processEvents(List<AbstractMonitorEvent> events, List<AlienEvent> instanceEvents, Set<String> processedDeployments) {
         for (AlienEvent alienEvent : instanceEvents) {
+            if (!statusByDeployments.containsKey(alienEvent.getApplicationName())) {
+                continue;
+            }
             InstanceDeploymentInfo currentInstanceDeploymentInfo;
             if (processedDeployments.add(alienEvent.getApplicationName())) {
                 currentInstanceDeploymentInfo = new InstanceDeploymentInfo();
                 DeploymentInfo deploymentInfo = statusByDeployments.get(alienEvent.getApplicationName());
-                if (deploymentInfo != null) {
-                    // application is undeployed but we can still get events as polling them is Async
-                    currentInstanceDeploymentInfo.instanceInformations = getInstancesInformation(alienEvent.getApplicationName(), deploymentInfo.topology);
-                    generateDeleteEvents(alienEvent.getApplicationName(), instanceStatusByDeployments.get(alienEvent.getApplicationName()),
-                            currentInstanceDeploymentInfo);
-                }
+                // application is undeployed but we can still get events as polling them is Async
+                currentInstanceDeploymentInfo.instanceInformations = getInstancesInformation(alienEvent.getApplicationName(), deploymentInfo.topology);
+                generateDeleteEvents(alienEvent.getApplicationName(), instanceStatusByDeployments.get(alienEvent.getApplicationName()),
+                        currentInstanceDeploymentInfo);
                 instanceStatusByDeployments.put(alienEvent.getApplicationName(), currentInstanceDeploymentInfo);
             } else {
                 currentInstanceDeploymentInfo = instanceStatusByDeployments.get(alienEvent.getApplicationName());
