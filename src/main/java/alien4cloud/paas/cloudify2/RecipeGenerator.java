@@ -29,6 +29,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import alien4cloud.component.model.IndexedToscaElement;
+import alien4cloud.model.cloud.ComputeTemplate;
 import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.exception.PaaSTechnicalException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
@@ -134,15 +135,16 @@ public class RecipeGenerator {
     }
 
     public Path generateRecipe(final String deploymentName, final String topologyId, final Map<String, PaaSNodeTemplate> nodeTemplates,
-            final List<PaaSNodeTemplate> roots) throws IOException {
+            final List<PaaSNodeTemplate> roots, Map<String, ComputeTemplate> cloudResourcesMapping) throws IOException {
         // cleanup/create the topology recipe directory
         Path recipePath = cleanupDirectory(topologyId);
         List<String> serviceIds = Lists.newArrayList();
 
         for (PaaSNodeTemplate root : roots) {
             String nodeName = root.getId();
+            ComputeTemplate template = cloudResourcesMapping.get(nodeName);
             String serviceId = serviceIdFromNodeTemplateId(nodeName);
-            generateService(nodeTemplates, recipePath, serviceId, nodeName, root);
+            generateService(nodeTemplates, recipePath, serviceId, root, template);
             serviceIds.add(serviceId);
         }
 
@@ -158,7 +160,7 @@ public class RecipeGenerator {
     /**
      * Find the name of the cloudify service that host the given node template.
      *
-     * @param nodeTemplate The node template for which to get the service name.
+     * @param paaSNodeTemplate The node template for which to get the service name.
      * @return The id of the service that contains the node template.
      *
      * @throws PaaSDeploymentException if the node is not declared as hosted on a compute
@@ -174,7 +176,7 @@ public class RecipeGenerator {
     /**
      * Find the name of the cloudify service that host the given node template.
      *
-     * @param nodeTemplate The node template for which to get the service name.
+     * @param paaSNodeTemplate The node template for which to get the service name.
      * @return The id of the service that contains the node template.
      *
      */
@@ -226,10 +228,10 @@ public class RecipeGenerator {
         return recipeDirectoryPath.resolve(recipePath.getFileName() + "-application.zip");
     }
 
-    protected void generateService(final Map<String, PaaSNodeTemplate> nodeTemplates, final Path recipePath, final String serviceId, final String serviceName,
-            final PaaSNodeTemplate computeNode) throws IOException {
+    protected void generateService(final Map<String, PaaSNodeTemplate> nodeTemplates, final Path recipePath, final String serviceId,
+            final PaaSNodeTemplate computeNode, ComputeTemplate template) throws IOException {
         // find the compute template for this service
-        String computeTemplate = computeTemplateMatcher.getTemplate(computeNode);
+        String computeTemplate = computeTemplateMatcher.getTemplate(template);
 
         // create service directory
         Path servicePath = recipePath.resolve(serviceId);
@@ -670,8 +672,8 @@ public class RecipeGenerator {
     /**
      * Compute the path of the node type of a node template relative to the service root directory.
      *
-     * @param paaSNodeTemplate The PaaS Node template for which to generate and get it's directory relative path.
-     * @return The relative path of the node tempalte's type artifacts in the service directory.
+     * @param indexedToscaElement The element for which to generate and get it's directory relative path.
+     * @return The relative path of the node template's type artifacts in the service directory.
      */
     public static String getNodeTypeRelativePath(final IndexedToscaElement indexedToscaElement) {
         return indexedToscaElement.getElementId() + "-" + indexedToscaElement.getArchiveVersion();
