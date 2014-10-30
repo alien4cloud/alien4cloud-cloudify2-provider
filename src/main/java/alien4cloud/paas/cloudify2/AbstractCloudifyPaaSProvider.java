@@ -133,11 +133,11 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             DeploymentInfo deploymentInfo = new DeploymentInfo();
             deploymentInfo.topology = topology;
             deploymentInfo.paaSNodeTemplates = nodeTemplates;
-            statusByDeployments.put(deploymentId, deploymentInfo);
-            registerDeploymentStatus(deploymentId, DeploymentStatus.DEPLOYMENT_IN_PROGRESS);
             Path cfyZipPath = recipeGenerator.generateRecipe(deploymentName, deploymentId, nodeTemplates, roots, deploymentSetup.getCloudResourcesMapping());
-            log.info("Deploy application from recipe at <{}>", cfyZipPath);
+            statusByDeployments.put(deploymentId, deploymentInfo);
+            log.info("Deploying application from recipe at <{}>", cfyZipPath);
             this.deployOnCloudify(deploymentId, cfyZipPath);
+            registerDeploymentStatus(deploymentId, DeploymentStatus.DEPLOYMENT_IN_PROGRESS);
         } catch (Exception e) {
             log.error("Deployment failed. Status will move to undeployed.", e);
             updateStatusAndRegisterEvent(deploymentId, DeploymentStatus.UNDEPLOYED);
