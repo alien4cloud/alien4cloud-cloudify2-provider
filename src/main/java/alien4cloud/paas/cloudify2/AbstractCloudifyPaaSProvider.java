@@ -241,17 +241,19 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             } catch (IOException e) {
                 log.info("Failed to delete deployment recipe directory <" + deploymentId + ">.");
             }
-
+            // say undeployment triggered
             updateStatusAndRegisterEvent(deploymentId, DeploymentStatus.UNDEPLOYMENT_IN_PROGRESS);
 
+            // trigger undeplyment cloudify side
             RestClient restClient = cloudifyRestClientManager.getRestClient();
             UninstallApplicationResponse uninstallApplication = restClient.uninstallApplication(deploymentId, (int) TIMEOUT_IN_MILLIS);
+
+            // if synchronous mode, wait for the real end of undeployment
             if (getPluginConfigurationBean().isSynchronousDeployment()) {
                 log.info("Synchronous deployment. Waiting for deployment <" + deploymentId + "> to be totally undeployed");
                 String cdfyDeploymentId = uninstallApplication.getDeploymentID();
                 this.waitUndeployApplication(cdfyDeploymentId);
             }
-            updateStatusAndRegisterEvent(deploymentId, DeploymentStatus.UNDEPLOYED);
         } catch (RestClientResponseException e) {
             throw new PaaSDeploymentException("Couldn't uninstall topology '" + deploymentId + "'. Cause: " + e.getMessageFormattedText(), e);
         } catch (RestClientException e) {
@@ -607,7 +609,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
 
             DeploymentInfo info = this.statusByDeployments.get(applicationDescription.getApplicationName());
             DeploymentStatus oldStatus = info == null ? null : info.deploymentStatus;
-            if (!status.equals(oldStatus)) {
+            if (!isUndeploymentTriggered(oldStatus) && !status.equals(oldStatus)) {
                 boolean found = updateStatus(applicationDescription.getApplicationName(), status);
                 if (found) {
                     PaaSDeploymentStatusMonitorEvent dsMonitorEvent = new PaaSDeploymentStatusMonitorEvent();
@@ -660,6 +662,10 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         }
     }
 
+    private boolean isUndeploymentTriggered(DeploymentStatus status) {
+        return DeploymentStatus.UNDEPLOYMENT_IN_PROGRESS.equals(status) || DeploymentStatus.UNDEPLOYED.equals(status);
+    }
+
     private synchronized void cleanupUnknownApplicationsStatuses(CloudifyEventsListener listener, List<String> appUnknownStatuses) throws URISyntaxException,
             IOException {
         for (String appUnknownStatus : appUnknownStatuses) {
@@ -667,11 +673,14 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
                 DeploymentInfo deploymentInfo = statusByDeployments.get(appUnknownStatus);
                 if (deploymentInfo.deploymentDate + MAX_DEPLOYMENT_TIMEOUT_MILLIS < new Date().getTime()) {
                     log.info("Deployment has timed out... setting as undeployed...");
+                    registerDeploymentStatus(appUnknownStatus, DeploymentStatus.UNDEPLOYED);
                     cleanupUnmanagedApplicationInfos(listener, appUnknownStatus, true);
                 }
             } else {
+                registerDeploymentStatus(appUnknownStatus, DeploymentStatus.UNDEPLOYED);
                 cleanupUnmanagedApplicationInfos(listener, appUnknownStatus, true);
             }
+
         }
     }
 
