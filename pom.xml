@@ -39,7 +39,7 @@
 		<java.version>1.7</java.version>
 
 		<alien4cloud.version>0.0.15-SNAPSHOT</alien4cloud.version>
-		<a4c-cdfy-custom-event.version>0.0.2-SNAPSHOT</a4c-cdfy-custom-event.version>
+		<a4c-cdfy2-extension.version>0.0.2-SNAPSHOT</a4c-cdfy2-extension.version>
 		<cloudify.version>2.7.0-5996-RELEASE</cloudify.version>
 		<gigaspaces.version>9.7.0-10496-RELEASE</gigaspaces.version>
 		
@@ -72,7 +72,7 @@
 		<dependency>
 			<groupId>alien4cloud</groupId>
 			<artifactId>alien4cloud-cloudify-events-model</artifactId>
-			<version>${a4c-cdfy-custom-event.version}</version>
+			<version>${a4c-cdfy2-extension.version}</version>
 		</dependency>
 		
 		<!-- gigaSpaces -->
