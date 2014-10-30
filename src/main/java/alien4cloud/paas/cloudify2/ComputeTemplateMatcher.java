@@ -1,6 +1,5 @@
 package alien4cloud.paas.cloudify2;
 
-import java.util.List;
 import java.util.Map;
 
 import lombok.AccessLevel;
@@ -13,7 +12,6 @@ import org.springframework.stereotype.Component;
 
 import alien4cloud.model.cloud.CloudResourceMatcherConfig;
 import alien4cloud.model.cloud.ComputeTemplate;
-import alien4cloud.model.cloud.MatchedComputeTemplate;
 
 import com.google.common.collect.Maps;
 
@@ -39,11 +37,6 @@ public class ComputeTemplateMatcher {
     }
 
     public synchronized void configure(CloudResourceMatcherConfig config) {
-        List<MatchedComputeTemplate> templateList = config.getMatchedComputeTemplates();
-        if (templateList != null && !templateList.isEmpty()) {
-            for (MatchedComputeTemplate template : templateList) {
-                alienTemplateToCloudifyTemplateMapping.put(template.getComputeTemplate(), template.getPaaSResourceId());
-            }
-        }
+        alienTemplateToCloudifyTemplateMapping = config.getComputeTemplateMapping();
     }
 }
