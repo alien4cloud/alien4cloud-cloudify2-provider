@@ -41,9 +41,9 @@ import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.cloudifysource.restclient.exceptions.RestClientResponseException;
 
-import alien4cloud.cloud.DeploymentService;
 import alien4cloud.dao.IGenericSearchDAO;
 import alien4cloud.exception.TechnicalException;
+import alien4cloud.model.application.DeploymentSetup;
 import alien4cloud.paas.AbstractPaaSProvider;
 import alien4cloud.paas.IConfigurablePaaSProvider;
 import alien4cloud.paas.cloudify2.events.AlienEvent;
@@ -86,8 +86,6 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     protected RecipeGenerator recipeGenerator;
     @Resource(name = "alien-monitor-es-dao")
     private IGenericSearchDAO alienMonitorDao;
-    @Resource
-    private DeploymentService deploymentService;
 
     private static final long TIMEOUT_IN_MILLIS = 1000L * 60L * 10L; // 10 minutes
     private static final long MAX_DEPLOYMENT_TIMEOUT_MILLIS = 1000L * 60L * 5L; // 5 minutes
@@ -120,14 +118,13 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
      * Method called by @PostConstruct at initialization step.
      */
     protected void configureDefault() {
-        log.info("Setting default configuration for templates matchers");
-        recipeGenerator.getComputeTemplateMatcher().configure(getPluginConfigurationBean().getComputeTemplates());
+        log.info("Setting default configuration for storage templates matchers");
         recipeGenerator.getStorageTemplateMatcher().configure(getPluginConfigurationBean().getStorageTemplates());
     }
 
     @Override
     protected synchronized void doDeploy(String deploymentName, String deploymentId, Topology topology, List<PaaSNodeTemplate> roots,
-            Map<String, PaaSNodeTemplate> nodeTemplates) {
+            Map<String, PaaSNodeTemplate> nodeTemplates, DeploymentSetup deploymentSetup) {
         if (statusByDeployments.get(deploymentId) != null && !DeploymentStatus.UNDEPLOYED.equals(statusByDeployments.get(deploymentId))) {
             log.info("Application with deploymentId <" + deploymentId + "> is already deployed");
             throw new PaaSAlreadyDeployedException("Application is already deployed.");
@@ -138,7 +135,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             deploymentInfo.paaSNodeTemplates = nodeTemplates;
             statusByDeployments.put(deploymentId, deploymentInfo);
             registerDeploymentStatus(deploymentId, DeploymentStatus.DEPLOYMENT_IN_PROGRESS);
-            Path cfyZipPath = recipeGenerator.generateRecipe(deploymentName, deploymentId, nodeTemplates, roots);
+            Path cfyZipPath = recipeGenerator.generateRecipe(deploymentName, deploymentId, nodeTemplates, roots, deploymentSetup.getCloudResourcesMapping());
             log.info("Deploy application from recipe at <{}>", cfyZipPath);
             this.deployOnCloudify(deploymentId, cfyZipPath);
         } catch (Exception e) {

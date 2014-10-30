@@ -24,13 +24,6 @@ public class PluginConfigurationBean {
     /** True if the undeployment must be performed synchronously, false if not. */
     @FormLabel("CLOUDS.DRIVER.CLOUDIFY.SYNCHRONOUS_DEPLOYMENT")
     private boolean synchronousDeployment = false;
-    /** List of the compute templates defined in Cloudify. */
-    @FormLabel("CLOUDS.DRIVER.CLOUDIFY.COMPUTE_TEMPLATES")
-    private List<ComputeTemplate> computeTemplates = Lists.newArrayList(
-            new ComputeTemplate("MEDIUM_LINUX", 1, 1000, 2048, "x86_64", "linux", "ubuntu", "ubuntu", null),
-            new ComputeTemplate("CENTOS", 1, 1000, 2048, "x86_64", "linux", "centos", "centos", null),
-            new ComputeTemplate("POSTGRES", 1, 1000, 2048, "x86_64", "linux", "centos", "postgre", null),
-            new ComputeTemplate("OPENVPN", 1, 1000, 2048, "x86_64", "linux", "centos", "openvpn", null));
     /** List of the storage templates defined in Cloudify. */
     @FormLabel("CLOUDS.DRIVER.CLOUDIFY.STORAGE_TEMPLATES")
     private List<StorageTemplate> storageTemplates = Lists.newArrayList(
