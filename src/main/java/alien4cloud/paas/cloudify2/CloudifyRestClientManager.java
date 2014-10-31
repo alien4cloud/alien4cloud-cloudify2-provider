@@ -15,8 +15,6 @@ import org.springframework.stereotype.Component;
 
 import alien4cloud.paas.exception.PluginConfigurationException;
 
-import com.j_spaces.kernel.CloudifyVersion;
-
 @Component
 @Scope(BeanDefinition.SCOPE_PROTOTYPE)
 @Slf4j
@@ -26,14 +24,14 @@ public class CloudifyRestClientManager {
     private String username;
     private String password;
 
-    private String version = new CloudifyVersion().getVersion();
+    private String version = "2.7.1";
 
     private CloudifyRestClient restClient;
     private URI restEventEndpoint;
 
     /**
      * Get the cloudify rest client.
-     * 
+     *
      * @return An instance of the cloudify rest client.
      * @throws RestClientException In case of an error while creating the cloudify rest client.
      */
@@ -46,7 +44,7 @@ public class CloudifyRestClientManager {
 
     /**
      * Set the configuration of the cloudify connection.
-     * 
+     *
      * @param cloudifyConnectionConfiguration The configuration elements of the cloudify configuration.
      * @throws PluginConfigurationException In case the connection configuration is not correct.
      */
@@ -73,7 +71,7 @@ public class CloudifyRestClientManager {
 
     /**
      * Get the endpoint of the cloudify events extension API.
-     * 
+     *
      * @return The URI endpoint for the cloudify events extension.
      */
     public URI getRestEventEndpoint() {

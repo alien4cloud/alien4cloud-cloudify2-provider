@@ -40,6 +40,10 @@ import alien4cloud.component.repository.CsarFileRepository;
 import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
 import alien4cloud.dao.ElasticSearchDAO;
 import alien4cloud.model.application.Application;
+import alien4cloud.model.application.DeploymentSetup;
+import alien4cloud.model.cloud.CloudResourceMatcherConfig;
+import alien4cloud.model.cloud.ComputeTemplate;
+import alien4cloud.model.cloud.MatchedComputeTemplate;
 import alien4cloud.paas.cloudify2.exception.A4CCloudifyDriverITException;
 import alien4cloud.paas.exception.PluginConfigurationException;
 import alien4cloud.tosca.container.archive.CsarUploadService;
@@ -52,6 +56,8 @@ import alien4cloud.utils.YamlParserUtil;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 @ContextConfiguration("classpath:application-context-testit.xml")
 @Slf4j
@@ -61,6 +67,7 @@ public class GenericTestCase {
 
     protected static final String CSAR_SOURCE_PATH = "src/test/resources/csars/";
     private static final String TOPOLOGIES_PATH = "src/test/resources/topologies/";
+    private static final String DEFAULT_COMPUTE_TEMPLATE_ID = "MEDIUM_LINUX";
 
     @Resource
     protected CsarUploadService csarUploadService;
@@ -96,7 +103,10 @@ public class GenericTestCase {
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setVersion("2.7.1");
         cloudifyPaaSPovider.setConfiguration(pluginConfigurationBean);
         cloudifyRestClientManager = cloudifyPaaSPovider.getCloudifyRestClientManager();
-
+        CloudResourceMatcherConfig matcherConf = new CloudResourceMatcherConfig();
+        matcherConf.setMatchedComputeTemplates(Lists.newArrayList(new MatchedComputeTemplate(new ComputeTemplate(null, DEFAULT_COMPUTE_TEMPLATE_ID),
+                DEFAULT_COMPUTE_TEMPLATE_ID)));
+        cloudifyPaaSPovider.updateMatcherConfig(matcherConf);
         // cloudifyPaaSPovider.setCloudifyRestClientManager(new CloudifyRestClientManager());
     }
 
@@ -231,13 +241,20 @@ public class GenericTestCase {
         return huc.getResponseCode();
     }
 
-    public String deployTopology(String topologyFileName, boolean isYamlTopologyFile) throws IOException, JsonParseException, JsonMappingException,
-            CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException {
+    public String deployTopology(String topologyFileName, String[] computesId, boolean isYamlTopologyFile) throws IOException, JsonParseException,
+            JsonMappingException, CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException {
+        DeploymentSetup setup = new DeploymentSetup();
+        setup.setCloudResourcesMapping(Maps.<String, ComputeTemplate> newHashMap());
+        if (computesId != null) {
+            for (String string : computesId) {
+                setup.getCloudResourcesMapping().put(string, new ComputeTemplate(null, DEFAULT_COMPUTE_TEMPLATE_ID));
+            }
+        }
         String appName = "CloudifyPaaSProvider-IT " + topologyFileName;
         Topology topology = this.createAlienApplication(appName, topologyFileName, isYamlTopologyFile);
         log.info("\n\n TESTS: Deploying topology <{}>. Deployment id is <{}>. \n", topologyFileName, topology.getId());
         deployedCloudifyAppIds.add(topology.getId());
-        cloudifyPaaSPovider.deploy(appName, topology.getId(), topology, null);
+        cloudifyPaaSPovider.deploy(appName, topology.getId(), topology, setup);
         return topology.getId();
     }
 

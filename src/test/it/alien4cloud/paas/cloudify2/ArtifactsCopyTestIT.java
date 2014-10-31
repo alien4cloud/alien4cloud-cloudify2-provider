@@ -39,7 +39,8 @@ public class ArtifactsCopyTestIT extends GenericTestCase {
 
         String artifactId = "helloWorld2.war";
         artifactRepository.storeFile(artifactId, Files.newInputStream(Paths.get("src/test/resources/data/helloWorld2.war")));
-        cloudifyAppId = deployTopology("tomcatWar", true);
+        String[] computes = new String[] { "comp_tomcat_war" };
+        cloudifyAppId = deployTopology("tomcatWar", computes, true);
         assertApplicationIsInstalled(cloudifyAppId);
 
         String serviceName = "comp_tomcat_war";

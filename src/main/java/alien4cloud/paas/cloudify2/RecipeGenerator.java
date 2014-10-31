@@ -32,6 +32,7 @@ import alien4cloud.component.model.IndexedToscaElement;
 import alien4cloud.model.cloud.ComputeTemplate;
 import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.exception.PaaSTechnicalException;
+import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
 import alien4cloud.paas.plan.OperationCallActivity;
@@ -142,7 +143,7 @@ public class RecipeGenerator {
 
         for (PaaSNodeTemplate root : roots) {
             String nodeName = root.getId();
-            ComputeTemplate template = cloudResourcesMapping.get(nodeName);
+            ComputeTemplate template = getComputeTemplateOrDie(cloudResourcesMapping, root);
             String serviceId = serviceIdFromNodeTemplateId(nodeName);
             generateService(nodeTemplates, recipePath, serviceId, root, template);
             serviceIds.add(serviceId);
@@ -151,6 +152,15 @@ public class RecipeGenerator {
         generateApplicationDescriptor(recipePath, topologyId, deploymentName, serviceIds);
 
         return createZip(recipePath);
+    }
+
+    private ComputeTemplate getComputeTemplateOrDie(Map<String, ComputeTemplate> cloudResourcesMapping, PaaSNodeTemplate node) {
+        computeTemplateMatcher.verifyNode(node);
+        ComputeTemplate template = cloudResourcesMapping.get(node.getId());
+        if (template != null) {
+            return template;
+        }
+        throw new ResourceMatchingFailedException("Failed to find a compute template for node <" + node.getId() + ">");
     }
 
     public static String serviceIdFromNodeTemplateId(final String nodeTemplateId) {
@@ -232,7 +242,7 @@ public class RecipeGenerator {
             final PaaSNodeTemplate computeNode, ComputeTemplate template) throws IOException {
         // find the compute template for this service
         String computeTemplate = computeTemplateMatcher.getTemplate(template);
-
+        log.info("Compute template ID for node <{}> is: [{}]", computeNode.getId(), computeTemplate);
         // create service directory
         Path servicePath = recipePath.resolve(serviceId);
         Files.createDirectories(servicePath);

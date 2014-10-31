@@ -10,8 +10,12 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import alien4cloud.component.model.IndexedNodeType;
 import alien4cloud.model.cloud.CloudResourceMatcherConfig;
 import alien4cloud.model.cloud.ComputeTemplate;
+import alien4cloud.paas.exception.ResourceMatchingFailedException;
+import alien4cloud.paas.model.PaaSNodeTemplate;
+import alien4cloud.tosca.container.model.NormativeComputeConstants;
 
 import com.google.common.collect.Maps;
 
@@ -28,7 +32,7 @@ public class ComputeTemplateMatcher {
 
     /**
      * Match a cloudify template based on the compute node.
-     * 
+     *
      * @param computeNode The compute node.
      * @return The template that matches the given compute node.
      */
@@ -38,5 +42,18 @@ public class ComputeTemplateMatcher {
 
     public synchronized void configure(CloudResourceMatcherConfig config) {
         alienTemplateToCloudifyTemplateMapping = config.getComputeTemplateMapping();
+    }
+
+    /**
+     * Validate if a NodeTemplate is a Compute type
+     *
+     * @param node
+     */
+    public void verifyNode(PaaSNodeTemplate node) {
+        IndexedNodeType indexedNodeType = node.getIndexedNodeType();
+        if (!AlienUtils.isFromNodeType(indexedNodeType, NormativeComputeConstants.COMPUTE_TYPE)) {
+            throw new ResourceMatchingFailedException("Failed to match type <" + indexedNodeType.getElementId() + "> only <"
+                    + NormativeComputeConstants.COMPUTE_TYPE + "> type is supported");
+        }
     }
 }

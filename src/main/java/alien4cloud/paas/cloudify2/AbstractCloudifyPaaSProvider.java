@@ -148,7 +148,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         }
     }
 
-    protected boolean updateStatus(String deploymentId, DeploymentStatus status) {
+    private boolean updateStatus(String deploymentId, DeploymentStatus status) {
         DeploymentInfo deploymentInfo = statusByDeployments.get(deploymentId);
         if (deploymentInfo == null) {
             deploymentInfo = new DeploymentInfo();
@@ -165,7 +165,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         }
     }
 
-    protected void updateStatusAndRegisterEvent(String deploymentId, DeploymentStatus status) {
+    private void updateStatusAndRegisterEvent(String deploymentId, DeploymentStatus status) {
         updateStatus(deploymentId, status);
         registerDeploymentStatus(deploymentId, status);
     }

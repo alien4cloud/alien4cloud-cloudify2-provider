@@ -57,18 +57,19 @@ public class CloudifyPaaSPoviderTestIT extends GenericTestCase {
     public CloudifyPaaSPoviderTestIT() {
     }
 
-    // @Override
-    // public void after() {
-    // // TODO Auto-generated method stub
-    // // super.after();
-    // }
+    @Override
+    public void after() {
+        // TODO Auto-generated method stub
+        // super.after();
+    }
 
     @Test(expected = ResourceMatchingFailedException.class)
     public void deployATopologyWhenNoComputeAreDefinedShouldFail() throws JsonParseException, JsonMappingException, CSARParsingException,
             CSARVersionAlreadyExistsException, IOException, CSARValidationException {
-        this.initElasticSearch(new String[] { "apache-lb-types", "tomcat-types", "tomcatGroovy-types" }, new String[] { "0.1", "0.1", "0.1" });
+        this.initElasticSearch(new String[] { "tosca-base-types", "apache-lb-types", "tomcat-types", "tomcatGroovy-types" }, new String[] { "1.0", "0.1",
+                "0.1", "0.1" });
 
-        deployTopology("petclinic-nocompute", false);
+        deployTopology("petclinic-nocompute", null, false);
     }
 
     @Test
@@ -79,7 +80,8 @@ public class CloudifyPaaSPoviderTestIT extends GenericTestCase {
         this.initElasticSearch(new String[] { "tosca-base-types", "fastconnect-base-types", "apache-lb-types", "tomcat-types", "tomcatGroovy-types" },
                 new String[] { "1.0", "0.1", "0.1", "0.1", "0.1" });
         try {
-            cloudifyAppId = deployTopology("tomcat", false);
+            String[] computesId = new String[] { "ComputeTomcat" };
+            cloudifyAppId = deployTopology("tomcat", computesId, false);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "computetomcat", 1000L * 120);
@@ -115,7 +117,8 @@ public class CloudifyPaaSPoviderTestIT extends GenericTestCase {
         this.initElasticSearch(new String[] { "tosca-base-types", "fastconnect-base-types", "apache-types", "tomcat-test-types" }, new String[] { "1.0", "0.1",
                 "0.1.1", "0.1.1" });
         try {
-            cloudifyAppId = deployTopology("tomcatShApache", true);
+            String[] computesId = new String[] { "serveur_web" };
+            cloudifyAppId = deployTopology("tomcatShApache", computesId, true);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "serveur_web", 1000L * 120);
@@ -151,7 +154,8 @@ public class CloudifyPaaSPoviderTestIT extends GenericTestCase {
         this.initElasticSearch(new String[] { "tosca-base-types", "fastconnect-base-types", "tomcat-test-types" },
                 new String[] { "1.0", "0.1", "0.2-snapshot" });
         try {
-            cloudifyAppId = deployTopology("customCmd", true);
+            String[] computesId = new String[] { "serveur_web" };
+            cloudifyAppId = deployTopology("customCmd", computesId, true);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "serveur_web", 1000L * 120);
@@ -177,7 +181,8 @@ public class CloudifyPaaSPoviderTestIT extends GenericTestCase {
         this.initElasticSearch(new String[] { "tosca-normative-types", "fastconnect-base-types", "tomcat-test-types" }, new String[] { "1.0.0-wd02-SNAPSHOT",
                 "0.1.1", "0.3-snapshot" });
         try {
-            cloudifyAppId = deployTopology("computeBlockStorageWithVolumeId", true);
+            String[] computesId = new String[] { "serveur_web" };
+            cloudifyAppId = deployTopology("computeBlockStorageWithVolumeId", computesId, true);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "serveur_web", 1000L * 120);
@@ -222,7 +227,9 @@ public class CloudifyPaaSPoviderTestIT extends GenericTestCase {
         this.initElasticSearch(new String[] { "tosca-normative-types", "fastconnect-base-types", "tomcat-test-types" }, new String[] { "1.0.0-wd02-SNAPSHOT",
                 "0.1.1", "0.3-snapshot" });
         try {
-            cloudifyAppId = deployTopology("computeBlockStorageWithSize", true);
+
+            String[] computesId = new String[] { "serveur_web" };
+            cloudifyAppId = deployTopology("computeBlockStorageWithSize", computesId, true);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "serveur_web", 1000L * 120);
@@ -237,8 +244,8 @@ public class CloudifyPaaSPoviderTestIT extends GenericTestCase {
     @Test(expected = PaaSAlreadyDeployedException.class)
     public void applicationAlreadyDeployedTest() throws Exception {
         this.initElasticSearch(new String[] { "tosca-base-types" }, new String[] { "1.0" });
-
-        String cloudifyAppId = deployTopology("compute_only", true);
+        String[] computesId = new String[] { "compute" };
+        String cloudifyAppId = deployTopology("compute_only", computesId, true);
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
         cloudifyPaaSPovider.deploy("lol", cloudifyAppId, topo, null);
     }
@@ -247,25 +254,25 @@ public class CloudifyPaaSPoviderTestIT extends GenericTestCase {
     public void testConfiguringTwoPaaSProvider() throws Throwable {
 
         String cloudifyURL2 = "http://129.185.67.36:8100/";
-        final int initialCTCount = new PluginConfigurationBean().getComputeTemplates().size();
-        final int ProviderCTCount = cloudifyPaaSPovider.getRecipeGenerator().getComputeTemplateMatcher().getComputeTemplates().size();
+        final int configInitialSTCount = new PluginConfigurationBean().getStorageTemplates().size();
+        final int providerCTCount = cloudifyPaaSPovider.getRecipeGenerator().getStorageTemplateMatcher().getStorageTemplates().size();
         final String cloudifyURL = cloudifyPaaSPovider.getCloudifyRestClientManager().getCloudifyURL().toString();
 
         PluginConfigurationBean pluginConfigurationBean2 = anotherCloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean2.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL2);
         pluginConfigurationBean2.setSynchronousDeployment(true);
         pluginConfigurationBean2.getCloudifyConnectionConfiguration().setVersion("2.7.1");
-        pluginConfigurationBean2.getComputeTemplates().add(new ComputeTemplate());
+        pluginConfigurationBean2.getStorageTemplates().add(new StorageTemplate());
         try {
             anotherCloudifyPaaSPovider.setConfiguration(pluginConfigurationBean2);
         } catch (Exception e) {
         }
 
-        assertEquals(initialCTCount + 1, anotherCloudifyPaaSPovider.getRecipeGenerator().getComputeTemplateMatcher().getComputeTemplates().size());
+        assertEquals(configInitialSTCount + 1, anotherCloudifyPaaSPovider.getRecipeGenerator().getStorageTemplateMatcher().getStorageTemplates().size());
         assertEquals(cloudifyURL2, anotherCloudifyPaaSPovider.getCloudifyRestClientManager().getCloudifyURL().toString());
 
         // check the config of the other one still the same
-        assertEquals(ProviderCTCount, cloudifyPaaSPovider.getRecipeGenerator().getComputeTemplateMatcher().getComputeTemplates().size());
+        assertEquals(providerCTCount, cloudifyPaaSPovider.getRecipeGenerator().getStorageTemplateMatcher().getStorageTemplates().size());
         assertEquals(cloudifyURL, cloudifyPaaSPovider.getCloudifyRestClientManager().getCloudifyURL().toString());
 
     }
