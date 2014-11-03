@@ -38,12 +38,6 @@ node_templates:
         requirement_name: host
         requirement_type: alien4cloud.capabilities.WarHosting
         targeted_capability_name: war_host
-    artifacts:
-      war_file:
-        artifact_type: fastconnect.artifacts.WarFile
-        artifact_ref: helloWorld2.war
-        artifact_repository: alien_repository
-
 
 dependencies:
   - name: tosca-normative-types

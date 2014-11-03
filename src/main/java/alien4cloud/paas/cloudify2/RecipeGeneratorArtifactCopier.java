@@ -95,7 +95,7 @@ public class RecipeGeneratorArtifactCopier {
                     DeploymentArtifact tempArti = overrideArtifacts.get(artifactEntry.getKey());
                     if (tempArti != null && ArtifactRepositoryConstants.ALIEN_ARTIFACT_REPOSITORY.equals(tempArti.getArtifactRepository())) {
                         artifact = tempArti;
-                        artifactTarget = OVERRIDES_DIR_NAME + "-" + nodeId + File.separator + artifact.getArtifactRef();
+                        artifactTarget = OVERRIDES_DIR_NAME + "-" + nodeId + File.separator + artifact.getArtifactName();
                     }
                 }
                 if (artifact == null) {

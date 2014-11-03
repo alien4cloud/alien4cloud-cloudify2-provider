@@ -243,6 +243,11 @@ public class GenericTestCase {
 
     public String deployTopology(String topologyFileName, String[] computesId, boolean isYamlTopologyFile) throws IOException, JsonParseException,
             JsonMappingException, CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException {
+        Topology topology = this.createAlienApplication(topologyFileName, topologyFileName, isYamlTopologyFile);
+        return deployTopology(computesId, topology, topologyFileName);
+    }
+
+    public String deployTopology(String[] computesId, Topology topology, String topologyFileName) {
         DeploymentSetup setup = new DeploymentSetup();
         setup.setCloudResourcesMapping(Maps.<String, ComputeTemplate> newHashMap());
         if (computesId != null) {
@@ -250,15 +255,13 @@ public class GenericTestCase {
                 setup.getCloudResourcesMapping().put(string, new ComputeTemplate(null, DEFAULT_COMPUTE_TEMPLATE_ID));
             }
         }
-        String appName = "CloudifyPaaSProvider-IT " + topologyFileName;
-        Topology topology = this.createAlienApplication(appName, topologyFileName, isYamlTopologyFile);
         log.info("\n\n TESTS: Deploying topology <{}>. Deployment id is <{}>. \n", topologyFileName, topology.getId());
         deployedCloudifyAppIds.add(topology.getId());
-        cloudifyPaaSPovider.deploy(appName, topology.getId(), topology, setup);
+        cloudifyPaaSPovider.deploy(topologyFileName, topology.getId(), topology, setup);
         return topology.getId();
     }
 
-    private Topology createAlienApplication(String applicationName, String topologyFileName, boolean isYamlTopologyFile) throws IOException,
+    protected Topology createAlienApplication(String applicationName, String topologyFileName, boolean isYamlTopologyFile) throws IOException,
             JsonParseException, JsonMappingException, CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException {
 
         Topology topology = isYamlTopologyFile ? parseYamlTopology(topologyFileName) : parseJsonTopology(topologyFileName);
