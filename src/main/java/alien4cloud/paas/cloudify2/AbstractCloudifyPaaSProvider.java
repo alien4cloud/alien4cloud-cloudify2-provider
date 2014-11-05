@@ -41,11 +41,14 @@ import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.cloudifysource.restclient.exceptions.RestClientResponseException;
 
-import alien4cloud.cloud.DeploymentService;
 import alien4cloud.dao.IGenericSearchDAO;
 import alien4cloud.exception.TechnicalException;
+import alien4cloud.model.application.DeploymentSetup;
 import alien4cloud.paas.AbstractPaaSProvider;
 import alien4cloud.paas.IConfigurablePaaSProvider;
+import alien4cloud.paas.cloudify2.events.AlienEvent;
+import alien4cloud.paas.cloudify2.events.BlockStorageEvent;
+import alien4cloud.paas.cloudify2.events.NodeInstanceState;
 import alien4cloud.paas.exception.OperationExecutionException;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.PaaSDeploymentException;
@@ -58,6 +61,7 @@ import alien4cloud.paas.model.InstanceStatus;
 import alien4cloud.paas.model.NodeOperationExecRequest;
 import alien4cloud.paas.model.PaaSDeploymentStatusMonitorEvent;
 import alien4cloud.paas.model.PaaSInstanceStateMonitorEvent;
+import alien4cloud.paas.model.PaaSInstanceStorageMonitorEvent;
 import alien4cloud.paas.model.PaaSMessageMonitorEvent;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.plan.PlanGeneratorConstants;
@@ -82,8 +86,6 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     protected RecipeGenerator recipeGenerator;
     @Resource(name = "alien-monitor-es-dao")
     private IGenericSearchDAO alienMonitorDao;
-    @Resource
-    private DeploymentService deploymentService;
 
     private static final long TIMEOUT_IN_MILLIS = 1000L * 60L * 10L; // 10 minutes
     private static final long MAX_DEPLOYMENT_TIMEOUT_MILLIS = 1000L * 60L * 5L; // 5 minutes
@@ -116,14 +118,13 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
      * Method called by @PostConstruct at initialization step.
      */
     protected void configureDefault() {
-        log.info("Setting default configuration for templates matchers");
-        recipeGenerator.getComputeTemplateMatcher().configure(getPluginConfigurationBean().getComputeTemplates());
+        log.info("Setting default configuration for storage templates matchers");
         recipeGenerator.getStorageTemplateMatcher().configure(getPluginConfigurationBean().getStorageTemplates());
     }
 
     @Override
     protected synchronized void doDeploy(String deploymentName, String deploymentId, Topology topology, List<PaaSNodeTemplate> roots,
-            Map<String, PaaSNodeTemplate> nodeTemplates) {
+            Map<String, PaaSNodeTemplate> nodeTemplates, DeploymentSetup deploymentSetup) {
         if (statusByDeployments.get(deploymentId) != null && !DeploymentStatus.UNDEPLOYED.equals(statusByDeployments.get(deploymentId))) {
             log.info("Application with deploymentId <" + deploymentId + "> is already deployed");
             throw new PaaSAlreadyDeployedException("Application is already deployed.");
@@ -132,11 +133,11 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             DeploymentInfo deploymentInfo = new DeploymentInfo();
             deploymentInfo.topology = topology;
             deploymentInfo.paaSNodeTemplates = nodeTemplates;
+            Path cfyZipPath = recipeGenerator.generateRecipe(deploymentName, deploymentId, nodeTemplates, roots, deploymentSetup.getCloudResourcesMapping());
             statusByDeployments.put(deploymentId, deploymentInfo);
-            registerDeploymentStatus(deploymentId, DeploymentStatus.DEPLOYMENT_IN_PROGRESS);
-            Path cfyZipPath = recipeGenerator.generateRecipe(deploymentName, deploymentId, nodeTemplates, roots);
-            log.info("Deploy application from recipe at <{}>", cfyZipPath);
+            log.info("Deploying application from recipe at <{}>", cfyZipPath);
             this.deployOnCloudify(deploymentId, cfyZipPath);
+            registerDeploymentStatus(deploymentId, DeploymentStatus.DEPLOYMENT_IN_PROGRESS);
         } catch (Exception e) {
             log.error("Deployment failed. Status will move to undeployed.", e);
             updateStatusAndRegisterEvent(deploymentId, DeploymentStatus.UNDEPLOYED);
@@ -147,8 +148,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         }
     }
 
-
-    protected void updateStatus(String deploymentId, DeploymentStatus status) {
+    private boolean updateStatus(String deploymentId, DeploymentStatus status) {
         DeploymentInfo deploymentInfo = statusByDeployments.get(deploymentId);
         if (deploymentInfo == null) {
             deploymentInfo = new DeploymentInfo();
@@ -156,13 +156,18 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         if (deploymentInfo.topology == null) {
             deploymentInfo.topology = alienMonitorDao.findById(Topology.class, deploymentId);
         }
-        deploymentInfo.deploymentStatus = status;
-        statusByDeployments.put(deploymentId, deploymentInfo);
+        if (deploymentInfo.topology != null) {
+            deploymentInfo.deploymentStatus = status;
+            statusByDeployments.put(deploymentId, deploymentInfo);
+            return true;
+        } else {
+            return false;
+        }
     }
 
-    protected void updateStatusAndRegisterEvent(String deploymentId, DeploymentStatus undeployed) {
-        updateStatus(deploymentId, DeploymentStatus.UNDEPLOYED);
-        registerDeploymentStatus(deploymentId, DeploymentStatus.UNDEPLOYED);
+    private void updateStatusAndRegisterEvent(String deploymentId, DeploymentStatus status) {
+        updateStatus(deploymentId, status);
+        registerDeploymentStatus(deploymentId, status);
     }
 
     protected void deployOnCloudify(String deploymentId, Path applicationZipPath) throws URISyntaxException, IOException {
@@ -233,15 +238,18 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             } catch (IOException e) {
                 log.info("Failed to delete deployment recipe directory <" + deploymentId + ">.");
             }
-
+            // say undeployment triggered
             updateStatusAndRegisterEvent(deploymentId, DeploymentStatus.UNDEPLOYMENT_IN_PROGRESS);
 
+            // trigger undeplyment cloudify side
             RestClient restClient = cloudifyRestClientManager.getRestClient();
             UninstallApplicationResponse uninstallApplication = restClient.uninstallApplication(deploymentId, (int) TIMEOUT_IN_MILLIS);
+
+            // if synchronous mode, wait for the real end of undeployment
             if (getPluginConfigurationBean().isSynchronousDeployment()) {
                 log.info("Synchronous deployment. Waiting for deployment <" + deploymentId + "> to be totally undeployed");
-                String deploymentID = uninstallApplication.getDeploymentID();
-                this.waitUndeployApplication(deploymentID);
+                String cdfyDeploymentId = uninstallApplication.getDeploymentID();
+                this.waitUndeployApplication(cdfyDeploymentId);
             }
         } catch (RestClientResponseException e) {
             throw new PaaSDeploymentException("Couldn't uninstall topology '" + deploymentId + "'. Cause: " + e.getMessageFormattedText(), e);
@@ -315,10 +323,10 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             // get the current number of instances
             int currentPlannedInstances = getPlannedInstancesCount(nodeTempalteEntry.getKey(), topology);
             for (int i = 1; i <= currentPlannedInstances; i++) {
-                Map<String, String> properties = nodeTempalteEntry.getValue().getProperties() == null ? null : Maps
-                        .newHashMap(nodeTempalteEntry.getValue().getProperties());
-                Map<String, String> attributes = nodeTempalteEntry.getValue().getAttributes() == null ? null : Maps
-                        .newHashMap(nodeTempalteEntry.getValue().getAttributes());
+                Map<String, String> properties = nodeTempalteEntry.getValue().getProperties() == null ? null : Maps.newHashMap(nodeTempalteEntry.getValue()
+                        .getProperties());
+                Map<String, String> attributes = nodeTempalteEntry.getValue().getAttributes() == null ? null : Maps.newHashMap(nodeTempalteEntry.getValue()
+                        .getAttributes());
                 // Map<String, String> runtimeProperties = Maps.newHashMap();
                 InstanceInformation instanceInfo = new InstanceInformation(PlanGeneratorConstants.STATE_UNKNOWN, InstanceStatus.PROCESSING, properties,
                         attributes, null);
@@ -554,6 +562,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
 
         List<AbstractMonitorEvent> events = Lists.newArrayList();
         try {
+            CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, "", "");
             // get message events
             AbstractMonitorEvent queuedMonitorEvent;
             int count = 0;
@@ -561,13 +570,6 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
                 events.add(queuedMonitorEvent);
                 count++;
             }
-
-            // get instance status events
-            CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, "", "");
-            List<CloudifyEvent> instanceEvents = listener.getEventsSince(date, maxEvents);
-
-            Set<String> processedDeployments = Sets.newHashSet();
-            processEvents(events, instanceEvents, processedDeployments);
 
             // get deployment status events
             CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
@@ -579,91 +581,108 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             }
 
             List<String> appUnknownStatuses = Lists.newArrayList(statusByDeployments.keySet());
-            processUnkwonStatuses(events, applicationDescriptions, appUnknownStatuses);
+            processUnknownStatuses(events, applicationDescriptions, appUnknownStatuses);
 
             // cleanup statuses
             if (appUnknownStatuses.size() > 0) {
                 cleanupUnknownApplicationsStatuses(listener, appUnknownStatuses);
             }
+
+            // get instance status events
+            List<AlienEvent> instanceEvents = listener.getEventsSince(date, maxEvents);
+
+            Set<String> processedDeployments = Sets.newHashSet();
+            processEvents(events, instanceEvents, processedDeployments);
         } catch (Exception e) {
             throw new PaaSTechnicalException("Error while getting deployment events.", e);
         }
         return events.toArray(new AbstractMonitorEvent[events.size()]);
     }
 
-    private void processUnkwonStatuses(List<AbstractMonitorEvent> events, List<ApplicationDescription> applicationDescriptions, List<String> appUnknownStatuses) {
+    private void processUnknownStatuses(List<AbstractMonitorEvent> events, List<ApplicationDescription> applicationDescriptions, List<String> appUnknownStatuses) {
         for (ApplicationDescription applicationDescription : applicationDescriptions) {
             log.debug("GetEvents: PROCESSING UNKWON STATUSES...");
             DeploymentStatus status = getStatusFromApplicationDescription(applicationDescription);
 
             DeploymentInfo info = this.statusByDeployments.get(applicationDescription.getApplicationName());
             DeploymentStatus oldStatus = info == null ? null : info.deploymentStatus;
-            if (!status.equals(oldStatus)) {
-                PaaSDeploymentStatusMonitorEvent dsMonitorEvent = new PaaSDeploymentStatusMonitorEvent();
-                dsMonitorEvent.setDeploymentId(applicationDescription.getApplicationName());
-                dsMonitorEvent.setDeploymentStatus(status);
-                dsMonitorEvent.setDate(new Date().getTime());
+            if (!isUndeploymentTriggered(oldStatus) && !status.equals(oldStatus)) {
+                boolean found = updateStatus(applicationDescription.getApplicationName(), status);
+                if (found) {
+                    PaaSDeploymentStatusMonitorEvent dsMonitorEvent = new PaaSDeploymentStatusMonitorEvent();
+                    dsMonitorEvent.setDeploymentId(applicationDescription.getApplicationName());
+                    dsMonitorEvent.setDeploymentStatus(status);
+                    dsMonitorEvent.setDate(new Date().getTime());
 
-                // update the local status.
-                log.debug("{} has changed status {}", applicationDescription.getApplicationName(), status);
-                updateStatus(applicationDescription.getApplicationName(), status);
-                events.add(dsMonitorEvent);
+                    // update the local status.
+                    log.debug("{} has changed status {}", applicationDescription.getApplicationName(), status);
+                    events.add(dsMonitorEvent);
+                }
             }
-
             appUnknownStatuses.remove(applicationDescription.getApplicationName());
         }
     }
 
-    private void processEvents(List<AbstractMonitorEvent> events, List<CloudifyEvent> instanceEvents, Set<String> processedDeployments) {
-        for (CloudifyEvent cloudifyEvent : instanceEvents) {
+    private void processEvents(List<AbstractMonitorEvent> events, List<AlienEvent> instanceEvents, Set<String> processedDeployments) {
+        for (AlienEvent alienEvent : instanceEvents) {
+            if (!statusByDeployments.containsKey(alienEvent.getApplicationName())) {
+                continue;
+            }
             InstanceDeploymentInfo currentInstanceDeploymentInfo;
-            if (processedDeployments.add(cloudifyEvent.getApplicationName())) {
+            if (processedDeployments.add(alienEvent.getApplicationName())) {
                 currentInstanceDeploymentInfo = new InstanceDeploymentInfo();
-                DeploymentInfo deploymentInfo = statusByDeployments.get(cloudifyEvent.getApplicationName());
-                if (deploymentInfo != null) {
-                    // application is undeployed but we can still get events as polling them is Async
-                    currentInstanceDeploymentInfo.instanceInformations = getInstancesInformation(cloudifyEvent.getApplicationName(),
-                            deploymentInfo.topology);
-                    generateDeleteEvents(cloudifyEvent.getApplicationName(), instanceStatusByDeployments.get(cloudifyEvent.getApplicationName()),
-                            currentInstanceDeploymentInfo);
-                }
-                instanceStatusByDeployments.put(cloudifyEvent.getApplicationName(), currentInstanceDeploymentInfo);
+                DeploymentInfo deploymentInfo = statusByDeployments.get(alienEvent.getApplicationName());
+                // application is undeployed but we can still get events as polling them is Async
+                currentInstanceDeploymentInfo.instanceInformations = getInstancesInformation(alienEvent.getApplicationName(), deploymentInfo.topology);
+                generateDeleteEvents(alienEvent.getApplicationName(), instanceStatusByDeployments.get(alienEvent.getApplicationName()),
+                        currentInstanceDeploymentInfo);
+                instanceStatusByDeployments.put(alienEvent.getApplicationName(), currentInstanceDeploymentInfo);
             } else {
-                currentInstanceDeploymentInfo = instanceStatusByDeployments.get(cloudifyEvent.getApplicationName());
+                currentInstanceDeploymentInfo = instanceStatusByDeployments.get(alienEvent.getApplicationName());
+            }
+            PaaSInstanceStateMonitorEvent monitorEvent;
+            if (alienEvent instanceof BlockStorageEvent) {
+                monitorEvent = new PaaSInstanceStorageMonitorEvent(((BlockStorageEvent) alienEvent).getVolumeId());
+            } else {
+                monitorEvent = new PaaSInstanceStateMonitorEvent();
             }
 
-            PaaSInstanceStateMonitorEvent isMonitorEvent = new PaaSInstanceStateMonitorEvent();
+            monitorEvent.setDeploymentId(alienEvent.getApplicationName());
+            monitorEvent.setNodeTemplateId(alienEvent.getServiceName());
+            monitorEvent.setInstanceId(alienEvent.getInstanceId());
+            monitorEvent.setDate(alienEvent.getDateTimestamp().getTime());
+            monitorEvent.setInstanceState(alienEvent.getEvent());
 
-            isMonitorEvent.setDeploymentId(cloudifyEvent.getApplicationName());
-            isMonitorEvent.setNodeTemplateId(cloudifyEvent.getServiceName());
-            isMonitorEvent.setInstanceId(cloudifyEvent.getInstanceId());
-            isMonitorEvent.setDate(cloudifyEvent.getDateTimestamp().getTime());
-            isMonitorEvent.setInstanceState(cloudifyEvent.getEvent());
+            generateInstanceStateEvent(monitorEvent, currentInstanceDeploymentInfo, alienEvent.getServiceName(), Integer.parseInt(alienEvent.getInstanceId()));
 
-            generateInstanceStateEvent(isMonitorEvent, currentInstanceDeploymentInfo, cloudifyEvent.getServiceName(),
-                    Integer.parseInt(cloudifyEvent.getInstanceId()));
-
-            events.add(isMonitorEvent);
+            events.add(monitorEvent);
         }
     }
 
+    private boolean isUndeploymentTriggered(DeploymentStatus status) {
+        return DeploymentStatus.UNDEPLOYMENT_IN_PROGRESS.equals(status) || DeploymentStatus.UNDEPLOYED.equals(status);
+    }
+
     private synchronized void cleanupUnknownApplicationsStatuses(CloudifyEventsListener listener, List<String> appUnknownStatuses) throws URISyntaxException,
-    IOException {
+            IOException {
         for (String appUnknownStatus : appUnknownStatuses) {
             if (DeploymentStatus.DEPLOYMENT_IN_PROGRESS.equals(statusByDeployments.get(appUnknownStatus).deploymentStatus)) {
                 DeploymentInfo deploymentInfo = statusByDeployments.get(appUnknownStatus);
                 if (deploymentInfo.deploymentDate + MAX_DEPLOYMENT_TIMEOUT_MILLIS < new Date().getTime()) {
                     log.info("Deployment has timed out... setting as undeployed...");
+                    registerDeploymentStatus(appUnknownStatus, DeploymentStatus.UNDEPLOYED);
                     cleanupUnmanagedApplicationInfos(listener, appUnknownStatus, true);
                 }
             } else {
+                registerDeploymentStatus(appUnknownStatus, DeploymentStatus.UNDEPLOYED);
                 cleanupUnmanagedApplicationInfos(listener, appUnknownStatus, true);
             }
+
         }
     }
 
     private void cleanupUnmanagedApplicationInfos(CloudifyEventsListener listener, String deploymentId, boolean deleteRecipe) throws URISyntaxException,
-    IOException {
+            IOException {
         if (deleteRecipe) {
             log.info("Cleanup unmanaged application <" + deploymentId + ">.");
             statusByDeployments.remove(deploymentId);
@@ -801,7 +820,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         if (MapUtils.isEmpty(invocationResult)) {
             return;
         }
-        if(INVOCATION_SUCCESS.equals(invocationResult.get(INVOCATION_SUCCESS_KEY))) {
+        if (INVOCATION_SUCCESS.equals(invocationResult.get(INVOCATION_SUCCESS_KEY))) {
             operationResponse.put(invocationResult.get(INVOCATION_INSTANCE_ID_KEY), invocationResult.get(INVOCATION_RESULT_KEY));
             return;
         }
@@ -821,7 +840,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             // statusByDeployments.put(deploymentId, deploymentInfo);
         }
         PaaSNodeTemplate nodeTemplate = deploymentInfo.paaSNodeTemplates.get(nodeTemplateName);
-        return recipeGenerator.serviceIfFromNodeTemplate(nodeTemplate);
+        return recipeGenerator.cfyServiceNameFromNodeTemplate(nodeTemplate);
     }
 
     private String operationFQN(String serviceName, NodeOperationExecRequest request) {

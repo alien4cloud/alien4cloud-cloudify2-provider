@@ -17,7 +17,12 @@ import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.util.EntityUtils;
 
+import alien4cloud.paas.cloudify2.events.AlienEvent;
+import alien4cloud.paas.cloudify2.events.NodeInstanceState;
 import alien4cloud.rest.utils.JsonUtil;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Slf4j
 public class CloudifyEventsListener {
@@ -67,7 +72,7 @@ public class CloudifyEventsListener {
 
     /**
      * Validate that the connection can be established.
-     * 
+     *
      * @return "is running" string.
      * @throws ClientProtocolException
      * @throws URISyntaxException
@@ -78,22 +83,26 @@ public class CloudifyEventsListener {
         return doGet(builder);
     }
 
-    public List<CloudifyEvent> getEvents() throws IOException, URISyntaxException {
-        URIBuilder builder = new URIBuilder(endpoint.resolve(GET_EVENTS_END_POINT)).addParameter(APPLICATION_KEY, application).addParameter(SERVICE_KEY, service)
-                .addParameter("lastIndex", "0");
+    public List<AlienEvent> getEvents() throws IOException, URISyntaxException {
+        URIBuilder builder = new URIBuilder(endpoint.resolve(GET_EVENTS_END_POINT)).addParameter(APPLICATION_KEY, application)
+                .addParameter(SERVICE_KEY, service).addParameter("lastIndex", "0");
 
         String response = doGet(builder);
-        return JsonUtil.toList(response, CloudifyEvent.class);
+        return new ObjectMapper().readValue(response, new TypeReference<List<AlienEvent>>() {
+        });
+        // return JsonUtil.toList(response, AlienEvent.class);
     }
 
-    public List<CloudifyEvent> getEventsSince(Date date, int maxEvents) throws URISyntaxException, IOException {
+    public List<AlienEvent> getEventsSince(Date date, int maxEvents) throws URISyntaxException, IOException {
         long dateAsLong = date.getTime();
 
         URIBuilder builder = new URIBuilder(endpoint.resolve("/events/getEventsSince")).addParameter("dateAsLong", Long.toString(dateAsLong)).addParameter(
                 "maxEvents", Integer.toString(maxEvents));
 
         String response = this.doGet(builder);
-        return JsonUtil.toList(response, CloudifyEvent.class);
+        return new ObjectMapper().readValue(response, new TypeReference<List<AlienEvent>>() {
+        });
+        // return JsonUtil.toList(response, AlienEvent.class);
     }
 
     public List<NodeInstanceState> getNodeInstanceStates(String topologyId) throws URISyntaxException, IOException {
@@ -108,13 +117,13 @@ public class CloudifyEventsListener {
         this.doDelete(builder);
     }
 
-    public List<CloudifyEvent> getNextEvents() throws URISyntaxException, IOException {
-        URIBuilder builder = new URIBuilder(endpoint.resolve(GET_EVENTS_END_POINT)).addParameter(APPLICATION_KEY, application).addParameter(SERVICE_KEY, service)
-                .addParameter("lastIndex", Integer.toString(this.currentEventIndex + 1));
+    public List<AlienEvent> getNextEvents() throws URISyntaxException, IOException {
+        URIBuilder builder = new URIBuilder(endpoint.resolve(GET_EVENTS_END_POINT)).addParameter(APPLICATION_KEY, application)
+                .addParameter(SERVICE_KEY, service).addParameter("lastIndex", Integer.toString(this.currentEventIndex + 1));
 
         final String response = this.doGet(builder);
-
-        List<CloudifyEvent> events = JsonUtil.toList(response, CloudifyEvent.class);
+        List<AlienEvent> events = new ObjectMapper().readValue(response, new TypeReference<List<AlienEvent>>() {
+        });
         if (events != null && !events.isEmpty()) {
             this.currentEventIndex = events.get(events.size() - 1).getEventIndex();
         }
@@ -122,13 +131,14 @@ public class CloudifyEventsListener {
         return events;
     }
 
-    public CloudifyEvent getLatestEvent(String application, String service, String instanceId) throws URISyntaxException, IOException {
+    public AlienEvent getLatestEvent(String application, String service, String instanceId) throws URISyntaxException, IOException {
         URIBuilder builder = new URIBuilder(endpoint.resolve("/events/getLatestEvent")).addParameter(APPLICATION_KEY, application)
                 .addParameter(SERVICE_KEY, service).addParameter("instanceId", instanceId);
 
         final String response = this.doGet(builder);
         if (StringUtils.isNotEmpty(response)) {
-            CloudifyEvent events = JsonUtil.readObject(response, CloudifyEvent.class);
+            AlienEvent events = new ObjectMapper().readValue(response, new TypeReference<AlienEvent>() {
+            });
             return events;
         }
         return null;

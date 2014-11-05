@@ -14,6 +14,8 @@ public class GigaSpacesEventsManager {
 
   def DEFAULT_LEASE = 1000 * 60 * 60;
   def DEFAULT_LOCATOR = "localhost:4176"
+  def BLOCKSTORAGE_TYPE = "BLOCKSTORAGE"
+  def INSTANCE_STATE_TYPE = "INSTANCE_STATE"
   GigaSpace gigaSpace
   UrlSpaceConfigurer spaceConfigurer
 
@@ -41,11 +43,39 @@ public class GigaSpacesEventsManager {
       this.spaceConfigurer.destroy()
       println "[GigaSpacesEventsManager] Alien4Cloud event manager destroyed."
   }
-
+  
   def putEvent(def application, def service, def instanceId, def event) {
       println ">>> putEvent application=${application} service=${service} instanceId=${instanceId} event=${event}"
+      SpaceDocument document = new SpaceDocument("alien4cloud.paas.cloudify2.events.AlienEvent");
+      fillEventDocument(application, service, instanceId, event, document)
+      gigaSpace.write(document, DEFAULT_LEASE);
+      putNodeInstanceStateEvent(application, service, instanceId, event)
+  }
+  
+  def putBlockStorageEvent(def application, def service, def instanceId, def event, def volumeId) {
+      println ">>> putBlockStorageEvent application=${application} service=${service} instanceId=${instanceId} event=${event} volumeId=${volumeId}"
+      SpaceDocument document = new SpaceDocument("alien4cloud.paas.cloudify2.events.BlockStorageEvent");
+      fillEventDocument(application, service, instanceId, event, document);
+      if(volumeId && volumeId != null) {
+          document.setProperty("volumeId", volumeId as String);
+      }
+      gigaSpace.write(document, DEFAULT_LEASE)
+      putNodeInstanceStateEvent(application, service, instanceId, event)
+  }
+  
+  def putNodeInstanceStateEvent(def application, def service, def instanceId, def event) {
+      def document = new SpaceDocument("alien4cloud.paas.cloudify2.events.NodeInstanceState");
+      document.setProperty("id", application + "-" + service + "-" + instanceId);
+      document.setProperty("topologyId", application as String);
+      document.setProperty("nodeTemplateId", service as String);
+      document.setProperty("instanceId", instanceId as String);
+      document.setProperty("instanceState", event as String);
+      gigaSpace.write(document);
+  }
+  
+  def fillEventDocument(def application, def service, def instanceId, def event, def document) {
       SQLQuery<SpaceDocument> template = new SQLQuery<SpaceDocument>(
-          "fr.fastconnect.events.rest.CloudifyEvent"
+          "alien4cloud.paas.cloudify2.events.AlienEvent"
           , String.format("applicationName='%s' and serviceName='%s' and instanceId='%s' ORDER BY eventIndex DESC", application, service, instanceId)
           , QueryResultType.DOCUMENT);
 
@@ -54,23 +84,14 @@ public class GigaSpacesEventsManager {
       if (readMultiple != null && readMultiple.length > 0) {
           lastIndex = readMultiple[0].getProperty("eventIndex");
       }
-
-      SpaceDocument document = new SpaceDocument("fr.fastconnect.events.rest.CloudifyEvent");
+      
       document.setProperty("applicationName", application as String);
       document.setProperty("serviceName", service as String);
       document.setProperty("instanceId", instanceId as String);
       document.setProperty("event", event as String);
       document.setProperty("eventIndex", new Integer(lastIndex + 1));
       document.setProperty("dateTimestamp", new Date());
-      gigaSpace.write(document, DEFAULT_LEASE);
       
-      document = new SpaceDocument("fr.fastconnect.events.rest.NodeInstanceState");
-      document.setProperty("id", application + "-" + service + "-" + instanceId);
-      document.setProperty("topologyId", application as String);
-      document.setProperty("nodeTemplateId", service as String);
-      document.setProperty("instanceId", instanceId as String);
-      document.setProperty("instanceState", event as String);
-      gigaSpace.write(document);
   }
 
   def waitFor(def applicationName, def serviceName, def instanceId, def event) {
@@ -82,7 +103,7 @@ public class GigaSpacesEventsManager {
       String query = String.format("applicationName='%s' and serviceName='%s' and instanceId='%s' and eventIndex >= '%s' ORDER BY eventIndex"
         , applicationName, serviceName, instanceId, lastIndex + 1)
 
-      SQLQuery<SpaceDocument> sqlQuery = new SQLQuery<SpaceDocument>("fr.fastconnect.events.rest.CloudifyEvent", query, QueryResultType.DOCUMENT)
+      SQLQuery<SpaceDocument> sqlQuery = new SQLQuery<SpaceDocument>("alien4cloud.paas.cloudify2.events.AlienEvent", query, QueryResultType.DOCUMENT)
       SpaceDocument[] readMultiple = gigaSpace.readMultiple(sqlQuery)
 
       if (readMultiple != null) {

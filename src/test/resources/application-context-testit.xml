@@ -29,7 +29,7 @@
 			alien4cloud.application,
 			alien4cloud.component.dao,
 			alien4cloud.component.repository,
-			alien4cloud.tosca.*,
+			alien4cloud.tosca,
 			alien4cloud.paas,
 			alien4cloud.quicksearch,
 

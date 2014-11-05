@@ -7,7 +7,12 @@ public class CloudifyUtils {
 
   @Synchronized
   static def putEvent(application, service, instanceId, event) {
-    manager.putEvent(application, service, instanceId, event)
+      manager.putEvent(application, service, instanceId, event)
+  }
+  
+  @Synchronized
+  static def putBlockStorageEvent(application, service, instanceId, event, volumeId) {
+    manager.putBlockStorageEvent(application, service, instanceId, event, volumeId)
   }
 
   static def waitFor(cloudifyService, serviceToWait, event) {

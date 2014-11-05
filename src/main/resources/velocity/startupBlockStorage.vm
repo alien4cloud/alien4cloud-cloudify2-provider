@@ -1,0 +1,39 @@
+import org.cloudifysource.utilitydomain.context.ServiceContextFactory
+
+println "startupBlockStorage.groovy : starting startupBlockStorage script"
+
+def context = ServiceContextFactory.getServiceContext()
+def volumeCreated = false
+$creatingEvent
+def volumeId = context.attributes.thisInstance.volumeId
+if(volumeId == null || volumeId.trim().isEmpty()){
+	if(!context.attributes.thisService.storageTemplateId || context.attributes.thisService.storageTemplateId.trim().isEmpty()){
+		throw new IllegalArgumentException("A storage template Id is expected!")
+	}
+	def storageTemplateId = context.attributes.thisService.storageTemplateId
+	volumeId = context.storage.createVolume(storageTemplateId)
+	volumeCreated = true
+}
+$createdEvent
+$startingEvent
+
+println "Storage volume: volumeId <${volumeId}>, device <$device>, path <$path>, fileSystem <$fileSystem>"
+
+println "attaching storage volume... "
+context.storage.attachVolume(volumeId, "$device")
+
+if(volumeCreated) {
+	println "formating the storage volume... "
+	context.storage.format("$device", "$fileSystem")
+}
+
+println "mounting storage volume... "
+context.storage.mount("$device", "$path")
+
+context.attributes.thisInstance.volumeId = volumeId 
+context.attributes.thisInstance.storageDevice = "$device"
+context.attributes.thisInstance.storagePath = "$path"
+context.attributes.thisInstance.storageFileSystem = "$fileSystem"
+$startedEvent
+
+println "startupBlockStorage.groovy : startupBlockStorage script  End"

@@ -1,5 +1,8 @@
 import org.cloudifysource.utilitydomain.context.ServiceContextFactory
 
+
 def context = ServiceContextFactory.getServiceContext()
-context.storage.unmount(context.attributes.thisInstance.device)
+$stoppingEvent
+context.storage.unmount(context.attributes.thisInstance.storageDevice)
 context.storage.detachVolume(context.attributes.thisInstance.volumeId) 
+$stoppedEvent

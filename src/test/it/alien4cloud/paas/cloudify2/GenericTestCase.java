@@ -40,11 +40,10 @@ import alien4cloud.component.repository.CsarFileRepository;
 import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
 import alien4cloud.dao.ElasticSearchDAO;
 import alien4cloud.model.application.Application;
-import alien4cloud.paas.cloudify2.CloudifyPaaSProvider;
-import alien4cloud.paas.cloudify2.CloudifyRestClient;
-import alien4cloud.paas.cloudify2.CloudifyRestClientManager;
-import alien4cloud.paas.cloudify2.ComputeTemplate;
-import alien4cloud.paas.cloudify2.PluginConfigurationBean;
+import alien4cloud.model.application.DeploymentSetup;
+import alien4cloud.model.cloud.CloudResourceMatcherConfig;
+import alien4cloud.model.cloud.ComputeTemplate;
+import alien4cloud.model.cloud.MatchedComputeTemplate;
 import alien4cloud.paas.cloudify2.exception.A4CCloudifyDriverITException;
 import alien4cloud.paas.exception.PluginConfigurationException;
 import alien4cloud.tosca.container.archive.CsarUploadService;
@@ -57,6 +56,8 @@ import alien4cloud.utils.YamlParserUtil;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 @ContextConfiguration("classpath:application-context-testit.xml")
 @Slf4j
@@ -66,6 +67,7 @@ public class GenericTestCase {
 
     protected static final String CSAR_SOURCE_PATH = "src/test/resources/csars/";
     private static final String TOPOLOGIES_PATH = "src/test/resources/topologies/";
+    private static final String DEFAULT_COMPUTE_TEMPLATE_ID = "MEDIUM_LINUX";
 
     @Resource
     protected CsarUploadService csarUploadService;
@@ -92,17 +94,19 @@ public class GenericTestCase {
 
         cleanAlienFiles();
 
-        // String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        String cloudifyURL = null;
-        cloudifyURL = cloudifyURL == null ? "http://129.185.67.33:8100/" : cloudifyURL;
+        String cloudifyURL = System.getenv("CLOUDIFY_URL");
+        // String cloudifyURL = null;
+        cloudifyURL = cloudifyURL == null ? "http://129.185.67.86:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL);
-        pluginConfigurationBean.getComputeTemplates().add(new ComputeTemplate("MEDIUM_LINUX", 1, 1000, 1600, "x86_64", "linux", "ubuntu", "ubuntu", null));
         pluginConfigurationBean.setSynchronousDeployment(true);
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setVersion("2.7.1");
         cloudifyPaaSPovider.setConfiguration(pluginConfigurationBean);
         cloudifyRestClientManager = cloudifyPaaSPovider.getCloudifyRestClientManager();
-
+        CloudResourceMatcherConfig matcherConf = new CloudResourceMatcherConfig();
+        matcherConf.setMatchedComputeTemplates(Lists.newArrayList(new MatchedComputeTemplate(new ComputeTemplate(null, DEFAULT_COMPUTE_TEMPLATE_ID),
+                DEFAULT_COMPUTE_TEMPLATE_ID)));
+        cloudifyPaaSPovider.updateMatcherConfig(matcherConf);
         // cloudifyPaaSPovider.setCloudifyRestClientManager(new CloudifyRestClientManager());
     }
 
@@ -206,14 +210,25 @@ public class GenericTestCase {
         }
     }
 
-    public void assertHttpCodeEquals(String applicationId, String serviceName, String port, String path, int expectedCode) throws RestClientException,
-            IOException {
-        log.info("Checking path <" + path.concat(":").concat(port) + ">");
+    public void assertHttpCodeEquals(String applicationId, String serviceName, String port, String path, int expectedCode, Integer timeoutInMillis)
+            throws RestClientException, IOException, InterruptedException {
+        log.info("About to check path <:" + port.concat("/").concat(path) + ">");
         CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
         ServiceInstanceDetails instanceDetails = restClient.getServiceInstanceDetails(applicationId, serviceName, 1);
         String instancePublicIp = instanceDetails.getPublicIp();
         String urlString = "http://" + instancePublicIp + ":" + port + "/" + path;
-        int httpResponseCode = this.getResponseCode(urlString);
+        log.info("Full URL is: " + urlString);
+        int httpResponseCode = 0;
+        if (expectedCode == 404) {
+            httpResponseCode = this.getResponseCode(urlString);
+        } else {
+            long now = System.currentTimeMillis();
+            long finalTimeout = timeoutInMillis != null ? timeoutInMillis : 0L;
+            do {
+                Thread.sleep(1000L);
+                httpResponseCode = this.getResponseCode(urlString);
+            } while (System.currentTimeMillis() - now < finalTimeout && httpResponseCode == 404);
+        }
         Assert.assertEquals("Expected Response code " + expectedCode + " got " + httpResponseCode, expectedCode, httpResponseCode);
     }
 
@@ -222,16 +237,24 @@ public class GenericTestCase {
         HttpURLConnection huc = (HttpURLConnection) u.openConnection();
         huc.setRequestMethod("GET");
         huc.connect();
+        huc.getResponseCode();
         return huc.getResponseCode();
     }
 
-    public String deployTopology(String topologyFileName, boolean isYamlTopologyFile) throws IOException, JsonParseException, JsonMappingException,
-            CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException {
+    public String deployTopology(String topologyFileName, String[] computesId, boolean isYamlTopologyFile) throws IOException, JsonParseException,
+            JsonMappingException, CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException {
+        DeploymentSetup setup = new DeploymentSetup();
+        setup.setCloudResourcesMapping(Maps.<String, ComputeTemplate> newHashMap());
+        if (computesId != null) {
+            for (String string : computesId) {
+                setup.getCloudResourcesMapping().put(string, new ComputeTemplate(null, DEFAULT_COMPUTE_TEMPLATE_ID));
+            }
+        }
         String appName = "CloudifyPaaSProvider-IT " + topologyFileName;
         Topology topology = this.createAlienApplication(appName, topologyFileName, isYamlTopologyFile);
-        log.info("TESTS: Deploying topology <{}>. Deployment id is <{}>", topologyFileName, topology.getId());
+        log.info("\n\n TESTS: Deploying topology <{}>. Deployment id is <{}>. \n", topologyFileName, topology.getId());
         deployedCloudifyAppIds.add(topology.getId());
-        cloudifyPaaSPovider.deploy(appName, topology.getId(), topology, null);
+        cloudifyPaaSPovider.deploy(appName, topology.getId(), topology, setup);
         return topology.getId();
     }
 

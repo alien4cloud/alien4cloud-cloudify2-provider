@@ -7,6 +7,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
@@ -33,13 +34,13 @@ public class StorageTemplateMatcher {
 
     /**
      * Match a cloudify storage template based on the blockstorage node.
-     * 
+     *
      * @param blockStorageNode The blockstorage node.
      * @return The template that matches the given compute node.
      */
     public String getTemplate(PaaSNodeTemplate blockStorageNode) {
         log.info("Matching template for storage node [{}]", blockStorageNode.getId());
-        if (storageTemplates == null || storageTemplates.size() == 0) {
+        if (CollectionUtils.isEmpty(storageTemplates)) {
             throw new ResourceMatchingFailedException("Failed to find a storage that matches the expressed requirements for node <" + blockStorageNode.getId()
                     + ">. No storage templates are configured.");
         }
@@ -50,6 +51,20 @@ public class StorageTemplateMatcher {
         // filter based on size
 
         return filterOnIntegerPropertiesOrDie(blockStorageNode, candidates);
+    }
+
+    /**
+     * Get the default storage template. It is the template with the lowest size
+     *
+     * @return The defaul template Id
+     */
+    public String getDefaultTemplate() {
+        if (CollectionUtils.isEmpty(storageTemplates)) {
+            throw new ResourceMatchingFailedException("Failed to get the a defaut storage. No storage templates are configured.");
+        }
+        List<StorageTemplate> candidates = Lists.newArrayList(storageTemplates);
+        Collections.sort(candidates);
+        return candidates.get(0).getId();
     }
 
     private String filterOnIntegerPropertiesOrDie(PaaSNodeTemplate blockstorageNode, List<StorageTemplate> candidates) {
@@ -64,8 +79,8 @@ public class StorageTemplateMatcher {
             });
             if (candidates.size() == 0) {
                 log.info("No more candidates.");
-                throw new ResourceMatchingFailedException(
-                        "Failed to find a storage that matches the expressed requirements (size) for node <" + blockstorageNode.getId() + ">");
+                throw new ResourceMatchingFailedException("Failed to find a storage that matches the expressed requirements (size) for node <"
+                        + blockstorageNode.getId() + ">");
             }
             log.info("Valid candidate is [{}].", candidates.get(0).getId());
             return candidates.get(0).getId();

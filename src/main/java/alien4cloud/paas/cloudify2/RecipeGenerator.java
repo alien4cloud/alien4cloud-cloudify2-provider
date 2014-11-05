@@ -1,27 +1,6 @@
 package alien4cloud.paas.cloudify2;
 
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.AND_OPERATOR;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.APPLICATION_NAME;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.APPLICATION_SERVICES;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.CONTEXT_THIS_INSTANCE_ATTRIBUTES;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.FORMAT_VOLUME_COMMAND;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.GET_VOLUMEID_COMMAND;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.LOCATORS;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.OR_OPERATOR;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.PATH_KEY;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.POSTSTART_COMMAND;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.SCRIPTS;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.SCRIPT_LIFECYCLE;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.SERVICE_COMPUTE_TEMPLATE_NAME;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.SERVICE_CUSTOM_COMMANDS;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.SERVICE_DETECTION_COMMAND;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.SERVICE_MAX_ALLOWED_INSTANCES;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.SERVICE_MIN_ALLOWED_INSTANCES;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.SERVICE_NAME;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.SERVICE_NUM_INSTANCES;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.SERVICE_START_DETECTION_COMMAND;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.SERVICE_STOP_DETECTION_COMMAND;
-import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.SHUTDOWN_COMMAND;
+import static alien4cloud.paas.cloudify2.RecipeGeneratorConstants.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -50,9 +29,10 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import alien4cloud.component.model.IndexedToscaElement;
-import alien4cloud.paas.exception.MissingPropertyException;
+import alien4cloud.model.cloud.ComputeTemplate;
 import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.exception.PaaSTechnicalException;
+import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
 import alien4cloud.paas.plan.OperationCallActivity;
@@ -73,6 +53,7 @@ import alien4cloud.tosca.container.model.type.Operation;
 import alien4cloud.utils.FileUtil;
 import alien4cloud.utils.MapUtil;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -89,6 +70,7 @@ public class RecipeGenerator {
     private static final String DEFAULT_BLOCKSTORAGE_DEVICE = "/dev/vdb";
     private static final String DEFAULT_BLOCKSTORAGE_PATH = "/mountedStorage";
     private static final String DEFAULT_BLOCKSTORAGE_FS = "ext4";
+    private static final String VOLUME_ID_VAR = "volumeId";
 
     private static final String SHELL_ARTIFACT_TYPE = "tosca.artifacts.ShellScript";
     private static final String GROOVY_ARTIFACT_TYPE = "tosca.artifacts.GroovyScript";
@@ -101,8 +83,13 @@ public class RecipeGenerator {
 
     private static final String START_DETECTION_SCRIPT_FILE_NAME = "startDetection";
     private static final String STOP_DETECTION_SCRIPT_FILE_NAME = "stopDetection";
+    private static final String INIT_STORAGE_SCRIPT_FILE_NAME = "initStorage";
+
+    private String STORAGE_STARTUP_FILE_NAME = "startupBlockStorage";
+    private String STORAGE_SHUTDOWN_FILE_NAME = "shutdownBlockStorage";
 
     private Path recipeDirectoryPath;
+    private ObjectMapper jsonMapper;
 
     @Resource
     @Getter
@@ -123,8 +110,9 @@ public class RecipeGenerator {
     private Path serviceDescriptorPath;
     private Path scriptDescriptorPath;
     private Path detectionScriptDescriptorPath;
-    private Path attachBlockStorageScriptDescriptorPath;
-    private Path detachBlockStorageScriptDescriptorPath;
+    private Path startupBlockStorageScriptDescriptorPath;
+    private Path shutdownBlockStorageScriptDescriptorPath;
+    private Path initStorageScriptDescriptorPath;
 
     @PostConstruct
     public void initialize() throws IOException {
@@ -140,20 +128,24 @@ public class RecipeGenerator {
         serviceDescriptorPath = recipePropertiesGenerator.loadResourceFromClasspath("classpath:velocity/ServiceDescriptor.vm");
         scriptDescriptorPath = recipePropertiesGenerator.loadResourceFromClasspath("classpath:velocity/ScriptDescriptor.vm");
         detectionScriptDescriptorPath = recipePropertiesGenerator.loadResourceFromClasspath("classpath:velocity/detectionScriptDescriptor.vm");
-        attachBlockStorageScriptDescriptorPath = recipePropertiesGenerator.loadResourceFromClasspath("classpath:velocity/attachBlockStorage.vm");
-        detachBlockStorageScriptDescriptorPath = recipePropertiesGenerator.loadResourceFromClasspath("classpath:velocity/detachBlockStorage.vm");
+        startupBlockStorageScriptDescriptorPath = recipePropertiesGenerator.loadResourceFromClasspath("classpath:velocity/startupBlockStorage.vm");
+        shutdownBlockStorageScriptDescriptorPath = recipePropertiesGenerator.loadResourceFromClasspath("classpath:velocity/shutdownBlockStorage.vm");
+        initStorageScriptDescriptorPath = recipePropertiesGenerator.loadResourceFromClasspath("classpath:velocity/initStorage.vm");
+
+        jsonMapper = new ObjectMapper();
     }
 
     public Path generateRecipe(final String deploymentName, final String topologyId, final Map<String, PaaSNodeTemplate> nodeTemplates,
-            final List<PaaSNodeTemplate> roots) throws IOException {
+            final List<PaaSNodeTemplate> roots, Map<String, ComputeTemplate> cloudResourcesMapping) throws IOException {
         // cleanup/create the topology recipe directory
         Path recipePath = cleanupDirectory(topologyId);
         List<String> serviceIds = Lists.newArrayList();
 
         for (PaaSNodeTemplate root : roots) {
-            String serviceName = root.getId();
-            String serviceId = serviceIdFromNodeTemplateId(serviceName);
-            generateService(nodeTemplates, recipePath, serviceId, serviceName, root);
+            String nodeName = root.getId();
+            ComputeTemplate template = getComputeTemplateOrDie(cloudResourcesMapping, root);
+            String serviceId = serviceIdFromNodeTemplateId(nodeName);
+            generateService(nodeTemplates, recipePath, serviceId, root, template);
             serviceIds.add(serviceId);
         }
 
@@ -162,21 +154,30 @@ public class RecipeGenerator {
         return createZip(recipePath);
     }
 
+    private ComputeTemplate getComputeTemplateOrDie(Map<String, ComputeTemplate> cloudResourcesMapping, PaaSNodeTemplate node) {
+        computeTemplateMatcher.verifyNode(node);
+        ComputeTemplate template = cloudResourcesMapping.get(node.getId());
+        if (template != null) {
+            return template;
+        }
+        throw new ResourceMatchingFailedException("Failed to find a compute template for node <" + node.getId() + ">");
+    }
+
     public static String serviceIdFromNodeTemplateId(final String nodeTemplateId) {
         return nodeTemplateId.toLowerCase().replaceAll(" ", "-");
     }
 
     /**
      * Find the name of the cloudify service that host the given node template.
-     * 
-     * @param nodeTemplate The node template for which to get the service name.
+     *
+     * @param paaSNodeTemplate The node template for which to get the service name.
      * @return The id of the service that contains the node template.
-     * 
+     *
      * @throws PaaSDeploymentException if the node is not declared as hosted on a compute
      */
     private String serviceIdFromNodeTemplateOrDie(final PaaSNodeTemplate paaSNodeTemplate) {
         try {
-            return serviceIfFromNodeTemplate(paaSNodeTemplate);
+            return cfyServiceNameFromNodeTemplate(paaSNodeTemplate);
         } catch (Exception e) {
             throw new PaaSDeploymentException("Failed to generate cloudify recipe.", e);
         }
@@ -184,12 +185,13 @@ public class RecipeGenerator {
 
     /**
      * Find the name of the cloudify service that host the given node template.
-     * 
-     * @param nodeTemplate The node template for which to get the service name.
+     *
+     * @param paaSNodeTemplate The node template for which to get the service name.
      * @return The id of the service that contains the node template.
-     * 
+     *
      */
-    public String serviceIfFromNodeTemplate(final PaaSNodeTemplate paaSNodeTemplate) {
+
+    public String cfyServiceNameFromNodeTemplate(final PaaSNodeTemplate paaSNodeTemplate) {
         PaaSNodeTemplate parent = paaSNodeTemplate;
         while (parent != null) {
             if (AlienUtils.isFromNodeType(parent.getIndexedNodeType(), NormativeComputeConstants.COMPUTE_TYPE)) {
@@ -236,11 +238,11 @@ public class RecipeGenerator {
         return recipeDirectoryPath.resolve(recipePath.getFileName() + "-application.zip");
     }
 
-    protected void generateService(final Map<String, PaaSNodeTemplate> nodeTemplates, final Path recipePath, final String serviceId, final String serviceName,
-            final PaaSNodeTemplate computeNode) throws IOException {
+    protected void generateService(final Map<String, PaaSNodeTemplate> nodeTemplates, final Path recipePath, final String serviceId,
+            final PaaSNodeTemplate computeNode, ComputeTemplate template) throws IOException {
         // find the compute template for this service
-        String computeTemplate = computeTemplateMatcher.getTemplate(computeNode);
-
+        String computeTemplate = computeTemplateMatcher.getTemplate(template);
+        log.info("Compute template ID for node <{}> is: [{}]", computeNode.getId(), computeTemplate);
         // create service directory
         Path servicePath = recipePath.resolve(serviceId);
         Files.createDirectories(servicePath);
@@ -259,7 +261,7 @@ public class RecipeGenerator {
         this.artifactCopier.copyAllArtifacts(context, computeNode);
 
         // check for blockStorage
-        generateBlockStorageScript(context, computeNode);
+        generateInitShutdownScripts(context, computeNode);
 
         // Generate installation workflow scripts
         StartEvent creationPlanStart = PaaSPlanGenerator.buildNodeCreationPlan(computeNode);
@@ -286,49 +288,89 @@ public class RecipeGenerator {
         generateServiceDescriptor(context, serviceId, computeTemplate, computeNode.getScalingPolicy());
     }
 
-    private void generateBlockStorageScript(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate computeNode) throws IOException {
+    private void generateInitShutdownScripts(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate computeNode) throws IOException {
         PaaSNodeTemplate blockStorageNode = computeNode.getAttachedNode();
-        String postStartCommand = "{}";
+        String initCommand = "{}";
         String shutdownCommand = "{}";
         if (blockStorageNode != null) {
-            Map<String, String> properties = blockStorageNode.getNodeTemplate().getProperties();
-            if (MapUtils.isNotEmpty(properties)) {
-                // case a volumeId is provided
-                Map<String, String> velocityProps = Maps.newHashMap();
-                // FIXME hack for the blockstorage to be in state started on the ui.
-                // try manage it via plan generator
-                velocityProps.put("creatingEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_CREATING));
-                velocityProps.put("createdEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_CREATED));
-                velocityProps.put("startingEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STARTING));
-                velocityProps.put("startedEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STARTED));
-                if (StringUtils.isNotBlank(properties.get(NormativeBlockStorageConstants.VOLUME_ID))) {
-                    velocityProps.put(GET_VOLUMEID_COMMAND, "\"" + properties.get(NormativeBlockStorageConstants.VOLUME_ID) + "\"");
+            Map<String, String> velocityProps = Maps.newHashMap();
+            List<String> executions = Lists.newArrayList();
 
-                } else if (StringUtils.isNotBlank(properties.get(NormativeBlockStorageConstants.SIZE))) {
-                    // if not, case a size s provided
-                    String storageTemplate = storageTemplateMatcher.getTemplate(blockStorageNode);
-                    velocityProps.put(GET_VOLUMEID_COMMAND, cloudifyCommandGen.getCreateVolumeCommand(storageTemplate));
-                    velocityProps.put(FORMAT_VOLUME_COMMAND, cloudifyCommandGen.getFormatVolumeCommand(DEFAULT_BLOCKSTORAGE_DEVICE, DEFAULT_BLOCKSTORAGE_FS));
+            generateInitStartUpStorageScripts(context, blockStorageNode, velocityProps, executions);
+            // generate the final init script
+            generateScriptWorkflow(context.getServicePath(), scriptDescriptorPath, INIT_LIFECYCLE, executions, null);
 
-                } else {
-                    throw new MissingPropertyException("Neither <" + NormativeBlockStorageConstants.VOLUME_ID + ">, nor <"
-                            + NormativeBlockStorageConstants.SIZE + "> properties are found in BlockStorage node <" + blockStorageNode.getId()
-                            + ">. Please, provide one of them. ");
-                }
+            executions.clear();
+            velocityProps.clear();
 
-                velocityProps.put(NormativeBlockStorageConstants.DEVICE, DEFAULT_BLOCKSTORAGE_DEVICE);
-                velocityProps.put(PATH_KEY, DEFAULT_BLOCKSTORAGE_PATH);
-                generateScriptWorkflow(context.getServicePath(), attachBlockStorageScriptDescriptorPath, "postStart", null, velocityProps);
-                postStartCommand = "\"postStart.groovy\"";
-                generateScriptWorkflow(context.getServicePath(), detachBlockStorageScriptDescriptorPath, "shutdown", null, null);
-                shutdownCommand = "\"shutdown.groovy\"";
-            } else {
-                throw new MissingPropertyException("Neither <" + NormativeBlockStorageConstants.VOLUME_ID + ">, nor <" + NormativeBlockStorageConstants.SIZE
-                        + "> properties are found in BlockStorage node <" + blockStorageNode.getId() + ">. Please, provide one of them. ");
-            }
+            generateShutdownStorageScripts(context, blockStorageNode, velocityProps, executions);
+            // generate the final shutdown script
+            generateScriptWorkflow(context.getServicePath(), scriptDescriptorPath, SHUTDOWN_LIFECYCLE, executions, null);
+
+            initCommand = "\"" + INIT_LIFECYCLE + ".groovy\"";
+            shutdownCommand = "\"" + SHUTDOWN_LIFECYCLE + ".groovy\"";
         }
-        context.getAdditionalProperties().put(POSTSTART_COMMAND, postStartCommand);
+        context.getAdditionalProperties().put(INIT_COMMAND, initCommand);
         context.getAdditionalProperties().put(SHUTDOWN_COMMAND, shutdownCommand);
+    }
+
+    private void generateShutdownStorageScripts(final RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode,
+            Map<String, String> velocityProps, List<String> shutdownExecutions) throws IOException {
+        // generate hutdown BS
+        velocityProps.put("stoppingEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STOPPING));
+        velocityProps.put("stoppedEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STOPPED));
+        generateScriptWorkflow(context.getServicePath(), shutdownBlockStorageScriptDescriptorPath, STORAGE_SHUTDOWN_FILE_NAME, null, velocityProps);
+        shutdownExecutions.add(cloudifyCommandGen.getGroovyCommand(STORAGE_SHUTDOWN_FILE_NAME.concat(".groovy")));
+    }
+
+    private void generateInitStartUpStorageScripts(final RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode,
+            Map<String, String> velocityProps, List<String> initExecutions) throws IOException {
+        generateInitVolumeIdsScript(context, blockStorageNode, initExecutions);
+
+        // events
+        // FIXME hack for the blockstorage to be in state started on the ui. try manage it via plan generator
+        velocityProps.put("creatingEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_CREATING));
+        velocityProps.put("createdEvent",
+                cloudifyCommandGen.getFireBlockStorageEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_CREATED, VOLUME_ID_VAR));
+        velocityProps.put("startingEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STARTING));
+        velocityProps.put("startedEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STARTED));
+
+        // need for setting up the storage
+        velocityProps.put(NormativeBlockStorageConstants.DEVICE, DEFAULT_BLOCKSTORAGE_DEVICE);
+        velocityProps.put(FS_KEY, DEFAULT_BLOCKSTORAGE_FS);
+        velocityProps.put(PATH_KEY, DEFAULT_BLOCKSTORAGE_PATH);
+
+        // generate startup BS
+        generateScriptWorkflow(context.getServicePath(), startupBlockStorageScriptDescriptorPath, STORAGE_STARTUP_FILE_NAME, null, velocityProps);
+        initExecutions.add(cloudifyCommandGen.getGroovyCommand(STORAGE_STARTUP_FILE_NAME.concat(".groovy")));
+    }
+
+    private void generateInitVolumeIdsScript(RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode, List<String> executions)
+            throws IOException {
+        Map<String, String> velocityProps = Maps.newHashMap();
+        Map<String, String> properties = blockStorageNode.getNodeTemplate().getProperties();
+        String size = null;
+        String volumeIds = null;
+        if (properties != null) {
+            size = properties.get(NormativeBlockStorageConstants.SIZE);
+            volumeIds = properties.get(NormativeBlockStorageConstants.VOLUME_ID);
+        }
+
+        // setting the storage template ID to be used when creating new volume for this application
+        String storageTemplate = StringUtils.isNotBlank(size) ? storageTemplateMatcher.getTemplate(blockStorageNode) : storageTemplateMatcher
+                .getDefaultTemplate();
+        velocityProps.put("storageTemplateId", storageTemplate);
+
+        // setting the volumes Ids array for instances
+        String volumeIdsAsArrayString = "null";
+        if (StringUtils.isNotBlank(volumeIds)) {
+            String[] volumesIdsArray = volumeIds.split(",");
+            volumeIdsAsArrayString = jsonMapper.writeValueAsString(volumesIdsArray);
+        }
+        velocityProps.put("instancesVolumeIds", volumeIdsAsArrayString);
+
+        generateScriptWorkflow(context.getServicePath(), initStorageScriptDescriptorPath, INIT_STORAGE_SCRIPT_FILE_NAME, null, velocityProps);
+        executions.add(cloudifyCommandGen.getGroovyCommand(INIT_STORAGE_SCRIPT_FILE_NAME.concat(".groovy")));
     }
 
     private void manageGlobalStartDetection(final RecipeGeneratorServiceContext context) throws IOException {
@@ -353,7 +395,7 @@ public class RecipeGenerator {
                     MapUtil.newHashMap(new String[] { SERVICE_DETECTION_COMMAND, "is" + stepName }, new Object[] { detectioncommand, true }));
 
             String detectionFilePath = stepName + ".groovy";
-            String groovyCommandForClosure = cloudifyCommandGen.getClosureGroovyCommand(detectionFilePath, null);
+            String groovyCommandForClosure = cloudifyCommandGen.getClosureGroovyCommand(detectionFilePath);
             String globalDectctionClosure = cloudifyCommandGen.getReturnGroovyCommand(groovyCommandForClosure);
             context.getAdditionalProperties().put(stepCommandName, globalDectctionClosure);
         }
@@ -371,7 +413,6 @@ public class RecipeGenerator {
             for (Entry<String, Operation> entry : operations.entrySet()) {
                 String key = entry.getKey();
                 String relativePath = getNodeTypeRelativePath(nodeTemplate.getIndexedNodeType());
-                // TODO copy implementation artifact.
                 String artifactRef = relativePath + "/" + entry.getValue().getImplementationArtifact().getArtifactRef();
                 String artifactType = entry.getValue().getImplementationArtifact().getArtifactType();
                 String command;
@@ -477,8 +518,6 @@ public class RecipeGenerator {
         } else {
             generateRelationshipOperationCall(context, operationCall, executions, paaSNodeTemplate);
         }
-
-        // TODO copy implementation artifact
     }
 
     private void addLoppedCommandToExecutions(final String command, final List<String> executions) {
@@ -513,7 +552,6 @@ public class RecipeGenerator {
             if (operation != null) {
                 String[] parameters = new String[] { serviceIdFromNodeTemplateId(nodeTemplate.getId()), serviceIdFromNodeTemplateOrDie(nodeTemplate) };
                 String relativePath = getNodeTypeRelativePath(nodeTemplate.getIndexedNodeType());
-                // TODO copy implementation artifact.
                 command = getCommandFromOperation(nodeTemplate.getId(), relativePath, operation.getImplementationArtifact(), closureCommand, parameters);
             }
         }
@@ -614,7 +652,6 @@ public class RecipeGenerator {
 
         String scriptPath = relativePath + "/" + artifact.getArtifactRef();
         String command;
-        // TODO copy implementation artifact.
         if (GROOVY_ARTIFACT_TYPE.equals(artifact.getArtifactType())) {
             command = closureCommand ? cloudifyCommandGen.getClosureGroovyCommand(scriptPath, parameters) : cloudifyCommandGen.getGroovyCommand(scriptPath,
                     parameters);
@@ -644,9 +681,9 @@ public class RecipeGenerator {
 
     /**
      * Compute the path of the node type of a node template relative to the service root directory.
-     * 
-     * @param paaSNodeTemplate The PaaS Node template for which to generate and get it's directory relative path.
-     * @return The relative path of the node tempalte's type artifacts in the service directory.
+     *
+     * @param indexedToscaElement The element for which to generate and get it's directory relative path.
+     * @return The relative path of the node template's type artifacts in the service directory.
      */
     public static String getNodeTypeRelativePath(final IndexedToscaElement indexedToscaElement) {
         return indexedToscaElement.getElementId() + "-" + indexedToscaElement.getArchiveVersion();

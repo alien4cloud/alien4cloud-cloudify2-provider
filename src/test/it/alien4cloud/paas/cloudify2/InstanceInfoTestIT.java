@@ -29,7 +29,8 @@ public class InstanceInfoTestIT extends GenericTestCase {
         this.initElasticSearch(new String[] { "tosca-base-types", "fastconnect-base-types", "tomcat-test-types" },
                 new String[] { "1.0", "0.1", "0.2-snapshot" });
 
-        cloudifyAppId = deployTopology("compTomcatScaling", true);
+        String[] computes = new String[] { "serveur_web" };
+        cloudifyAppId = deployTopology("compTomcatScaling", computes, true);
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
         Map<String, Map<Integer, InstanceInformation>> instancesInformations = cloudifyPaaSPovider.getInstancesInformation(cloudifyAppId, topo);
         printStatuses(instancesInformations);
