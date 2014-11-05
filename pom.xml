@@ -3,7 +3,7 @@
 
 	<groupId>alien4cloud</groupId>
 	<artifactId>alien4cloud-cloudify2-provider</artifactId>
-	<version>0.2.3</version>
+	<version>0.2.4-SNAPSHOT</version>
 
 	<name>Cloudify 2.x PaaS Provider for Alien 4 Cloud</name>
 
