@@ -12,9 +12,11 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.Resource;
@@ -94,9 +96,9 @@ public class GenericTestCase {
 
         cleanAlienFiles();
 
-        String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        // String cloudifyURL = null;
-        cloudifyURL = cloudifyURL == null ? "http://129.185.67.86:8100/" : cloudifyURL;
+        // String cloudifyURL = System.getenv("CLOUDIFY_URL");
+        String cloudifyURL = null;
+        cloudifyURL = cloudifyURL == null ? "http://129.185.67.83:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL);
         pluginConfigurationBean.setSynchronousDeployment(true);
@@ -300,5 +302,15 @@ public class GenericTestCase {
         for (ServiceDescription service : servicesDescription) {
             Assert.assertEquals("Service " + service.getServiceName() + " is not in STARTED state", DeploymentState.STARTED, service.getServiceState());
         }
+    }
+
+    public Set<String> getMissingEvents(Set<String> expectedEvents, Set<String> currentEvents) {
+        Set<String> missing = new HashSet<>();
+        for (String event : expectedEvents) {
+            if (!currentEvents.contains(event)) {
+                missing.add(event);
+            }
+        }
+        return missing;
     }
 }

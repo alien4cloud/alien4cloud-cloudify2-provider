@@ -73,12 +73,12 @@ public class InstanceInfoTestIT extends GenericTestCase {
     // }
     // }
 
-    private void scale(String nodeID, int instances, String appId, Topology topo) {
-        int plannedInstance = topo.getScalingPolicies().get(nodeID).getInitialInstances() + instances;
-        log.info("Scaling to " + instances);
+    private void scale(String nodeID, int nbToAdd, String appId, Topology topo) {
+        int plannedInstance = topo.getScalingPolicies().get(nodeID).getInitialInstances() + nbToAdd;
+        log.info("Scaling to " + nbToAdd);
         topo.getScalingPolicies().get(nodeID).setInitialInstances(plannedInstance);
         alienDAO.save(topo);
-        cloudifyPaaSPovider.scale(appId, nodeID, instances);
+        cloudifyPaaSPovider.scale(appId, nodeID, nbToAdd);
     }
 
     private void printStatuses(Map<String, Map<Integer, InstanceInformation>> instancesInformations) {
@@ -95,7 +95,7 @@ public class InstanceInfoTestIT extends GenericTestCase {
             }
         }
 
-        System.out.println(sb.toString());
+        log.info(sb.toString());
     }
 
     private void assertStartedInstance(String nodeID, int expectedInstances, Map<String, Map<Integer, InstanceInformation>> instancesInformations) {
