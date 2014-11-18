@@ -96,9 +96,9 @@ public class GenericTestCase {
 
         cleanAlienFiles();
 
-        // String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        String cloudifyURL = null;
-        cloudifyURL = cloudifyURL == null ? "http://129.185.67.83:8100/" : cloudifyURL;
+        String cloudifyURL = System.getenv("CLOUDIFY_URL");
+        // String cloudifyURL = null;
+        cloudifyURL = cloudifyURL == null ? "http://129.185.67.64:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL);
         pluginConfigurationBean.setSynchronousDeployment(true);
