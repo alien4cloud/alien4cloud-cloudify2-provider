@@ -15,6 +15,7 @@ import alien4cloud.model.cloud.CloudResourceMatcherConfig;
 import alien4cloud.model.cloud.ComputeTemplate;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
+import alien4cloud.tosca.ToscaUtils;
 import alien4cloud.tosca.container.model.NormativeComputeConstants;
 
 import com.google.common.collect.Maps;
@@ -51,7 +52,7 @@ public class ComputeTemplateMatcher {
      */
     public void verifyNode(PaaSNodeTemplate node) {
         IndexedNodeType indexedNodeType = node.getIndexedNodeType();
-        if (!AlienUtils.isFromNodeType(indexedNodeType, NormativeComputeConstants.COMPUTE_TYPE)) {
+        if (!ToscaUtils.isFromType(NormativeComputeConstants.COMPUTE_TYPE, indexedNodeType)) {
             throw new ResourceMatchingFailedException("Failed to match type <" + indexedNodeType.getElementId() + "> only <"
                     + NormativeComputeConstants.COMPUTE_TYPE + "> type is supported");
         }

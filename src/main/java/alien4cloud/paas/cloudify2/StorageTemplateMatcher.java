@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 import alien4cloud.component.model.IndexedNodeType;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
+import alien4cloud.tosca.ToscaUtils;
 import alien4cloud.tosca.container.model.NormativeBlockStorageConstants;
 
 import com.google.common.collect.Lists;
@@ -92,7 +93,7 @@ public class StorageTemplateMatcher {
 
     private void verifyNode(PaaSNodeTemplate computeNode) {
         IndexedNodeType indexedNodeType = computeNode.getIndexedNodeType();
-        if (!AlienUtils.isFromNodeType(indexedNodeType, NormativeBlockStorageConstants.BLOCKSTORAGE_TYPE)) {
+        if (!ToscaUtils.isFromType(NormativeBlockStorageConstants.BLOCKSTORAGE_TYPE, indexedNodeType)) {
             throw new ResourceMatchingFailedException("Failed to match type <" + indexedNodeType.getElementId() + "> only <"
                     + NormativeBlockStorageConstants.BLOCKSTORAGE_TYPE + "> type is supported");
         }
@@ -114,7 +115,7 @@ public class StorageTemplateMatcher {
 
     /**
      * Configure the template matcher with some templates.
-     * 
+     *
      * @param storageTemplates The list of storage templates to be used in the matcher.
      */
     public void configure(List<StorageTemplate> storageTemplates) {

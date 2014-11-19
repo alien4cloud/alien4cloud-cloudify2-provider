@@ -44,6 +44,7 @@ import alien4cloud.paas.plan.StartEvent;
 import alien4cloud.paas.plan.StateUpdateEvent;
 import alien4cloud.paas.plan.StopEvent;
 import alien4cloud.paas.plan.WorkflowStep;
+import alien4cloud.tosca.ToscaUtils;
 import alien4cloud.tosca.container.model.NormativeBlockStorageConstants;
 import alien4cloud.tosca.container.model.NormativeComputeConstants;
 import alien4cloud.tosca.container.model.topology.ScalingPolicy;
@@ -194,7 +195,7 @@ public class RecipeGenerator {
     public String cfyServiceNameFromNodeTemplate(final PaaSNodeTemplate paaSNodeTemplate) {
         PaaSNodeTemplate parent = paaSNodeTemplate;
         while (parent != null) {
-            if (AlienUtils.isFromNodeType(parent.getIndexedNodeType(), NormativeComputeConstants.COMPUTE_TYPE)) {
+            if (ToscaUtils.isFromType(NormativeComputeConstants.COMPUTE_TYPE, parent.getIndexedNodeType())) {
                 return serviceIdFromNodeTemplateId(parent.getId());
             }
             parent = parent.getParent();
