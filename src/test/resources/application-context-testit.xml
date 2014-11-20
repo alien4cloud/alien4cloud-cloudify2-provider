@@ -9,18 +9,14 @@
         http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.0.xsd">
 
 	<context:annotation-config />
-	<!-- <aop:aspectj-autoproxy proxy-target-class="true"/> -->
-
-	<bean id="alienconfig" class="alien4cloud.spring.config.YamlPropertiesFactoryBean">
-		<property name="resources" value="classpath:alien4cloud-config.yaml" />
-	</bean>
-	<alias name="alienconfig" alias="elasticsearchConfig" />
-	<context:property-placeholder properties-ref="alienconfig" />
+	<bean id="alienconfigFactory" class="alien4cloud.utils.AlienConfigFactory" />
+  <bean id="alienconfig" factory-bean="alienconfigFactory" factory-method="get" />
+  <alias name="alienconfig" alias="elasticsearchConfig" />
+  <context:property-placeholder properties-ref="alienconfig" />
 
 	<context:component-scan
 		base-package="
 			alien4cloud.cloud,
-			alien4cloud.cloud.*,
 			alien4cloud.plugin,
 			alien4cloud.configuration,
 			alien4cloud.dao,
@@ -33,7 +29,7 @@
 			alien4cloud.paas,
 			alien4cloud.quicksearch,
 
-			alien4cloud.csar.*,
+			alien4cloud.csar,
 			alien4cloud.suggestion,
 			alien4cloud.ui.form,
 			alien4cloud.utils.services,
@@ -41,6 +37,6 @@
 			alien4cloud.deployment,
 			alien4cloud.paas.cloudify2.testutils" />
 
-	<bean id="pluginContextConfiguration" class="alien4cloud.paas.cloudify2.PluginContextConfiguration" />
+<!-- 	<bean id="pluginContextConfiguration" class="alien4cloud.paas.cloudify2.PluginContextConfiguration" /> -->
 	<bean id="validator" class="org.springframework.validation.beanvalidation.LocalValidatorFactoryBean" />
 </beans>

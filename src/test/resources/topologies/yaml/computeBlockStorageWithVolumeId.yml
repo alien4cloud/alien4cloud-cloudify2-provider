@@ -1,26 +1,18 @@
 
 node_templates:
-  serveur_web:
+  compute_storage_volumeid:
     type: tosca.nodes.Compute
     properties:
       os_type: linux
       os_distribution: ubuntu
       os_version: ubuntu
-  tomcat:
-    type: fastconnect.nodes.Tomcat
-    relationships:
-      hostedOnServeurWeb:
-        target: serveur_web
-        type: tosca.relationships.HostedOn
-        requirement_name: host
-        requirement_type: tosca.capabilities.Container
   blockstorage:
     type: tosca.nodes.BlockStorage
     properties:
-      volume_id: 62f8493f-24be-410a-94f2-16a875e67626
+      volume_id: 758e985c-a1ac-4eb4-83ce-e1fc516ec18e
     relationships:
       attachToServeurWeb:
-        target: serveur_web
+        target: compute_storage_volumeid
         type: tosca.relationships.AttachTo
         requirement_name: attachment
         requirement_type: tosca.capabilities.Attachment
@@ -37,8 +29,6 @@ scaling_policies:
 dependencies:
   - name: tosca-normative-types
     version: 1.0.0-wd02-SNAPSHOT
-  - name: tomcat-test-types
-    version: 0.3-snapshot
 
 # input_properties:
 

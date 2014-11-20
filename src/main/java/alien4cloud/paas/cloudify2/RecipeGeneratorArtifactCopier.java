@@ -28,6 +28,7 @@ import alien4cloud.component.repository.ArtifactRepositoryConstants;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
 import alien4cloud.tosca.container.model.template.DeploymentArtifact;
+import alien4cloud.tosca.container.model.type.ImplementationArtifact;
 
 import com.google.common.collect.Maps;
 
@@ -53,10 +54,17 @@ public class RecipeGeneratorArtifactCopier {
         for (PaaSRelationshipTemplate relationship : rootNode.getRelationshipTemplates()) {
             copyDeploymentArtifacts(context, relationship.getCsarPath(), null, relationship.getIndexedRelationshipType(), null);
         }
+
+        // process children
         if (rootNode.getChildren() != null) {
             for (PaaSNodeTemplate childNode : rootNode.getChildren()) {
                 copyAllArtifacts(context, childNode);
             }
+        }
+
+        // process attached nodes
+        if (rootNode.getAttachedNode() != null) {
+            copyAllArtifacts(context, rootNode.getAttachedNode());
         }
     }
 
@@ -66,12 +74,13 @@ public class RecipeGeneratorArtifactCopier {
      * @param context The context of the recipe generation that contains the path of the service as well as the list of node types that have been already
      *            managed for this service recipe.
      * @param csarPath Path to the CSAR that contains the node or relationship for which to copy artifacts.
+     * @param nodeId the id of the node processed
      * @param indexedToscaElement The indexed TOSCA element (node or relationship) for which to copy the artifacts.
      * @param overrideArtifacts The map of artifacts that have been overridden in the topology.
      * @return
      * @throws IOException In case there is an IO error while performing the artifacts copy.
      */
-    public void copyDeploymentArtifacts(RecipeGeneratorServiceContext context, Path csarPath, String nodeId, IndexedArtifactToscaElement indexedToscaElement,
+    private void copyDeploymentArtifacts(RecipeGeneratorServiceContext context, Path csarPath, String nodeId, IndexedArtifactToscaElement indexedToscaElement,
             Map<String, DeploymentArtifact> overrideArtifacts) throws IOException {
 
         Map<String, DeploymentArtifact> artifacts = indexedToscaElement.getArtifacts();
@@ -88,9 +97,10 @@ public class RecipeGeneratorArtifactCopier {
             // copy the node type artifacts to the given folder
             artifactsPaths = Maps.newHashMap();
             for (Map.Entry<String, DeploymentArtifact> artifactEntry : artifacts.entrySet()) {
+                DeploymentArtifact artifact = artifactEntry.getValue();
+                String artifactTarget = artifact.getArtifactRef();
+
                 // artifact may be overridden at the template level
-                DeploymentArtifact artifact = null;
-                String artifactTarget = null;
                 if (overrideArtifacts != null) {
                     DeploymentArtifact tempArti = overrideArtifacts.get(artifactEntry.getKey());
                     if (tempArti != null && ArtifactRepositoryConstants.ALIEN_ARTIFACT_REPOSITORY.equals(tempArti.getArtifactRepository())) {
@@ -98,10 +108,7 @@ public class RecipeGeneratorArtifactCopier {
                         artifactTarget = OVERRIDES_DIR_NAME + "-" + nodeId + File.separator + artifact.getArtifactName();
                     }
                 }
-                if (artifact == null) {
-                    artifact = artifactEntry.getValue();
-                    artifactTarget = artifact.getArtifactRef();
-                }
+
                 if (artifact != null && StringUtils.isNotBlank(artifactTarget)) {
                     Path copyPath = copyArtifact(csarPath, nodeTypePath, nodeTypeRelativePath, artifactTarget, artifact);
                     artifactsPaths.put(artifactEntry.getKey(), context.getServicePath().relativize(copyPath));
@@ -114,6 +121,38 @@ public class RecipeGeneratorArtifactCopier {
         if (nodeId != null && MapUtils.isNotEmpty(artifactsPaths)) {
             context.getNodeArtifactsPaths().put(nodeId, artifactsPaths);
         }
+    }
+
+    /**
+     *
+     *
+     * /**
+     * Copy an implementation artifact from the CSAR into the generated cloudify recipe.
+     *
+     * @param context The context of the recipe generation that contains the path of the service as well as the list of node types that have been already
+     *            managed for this service recipe.
+     * @param csarPath Path to the CSAR that contains the node or relationship for which to copy artifacts.
+     * @param nodeTypeRelativePath The relative path of the node in which is defined the implementation artifact to copy
+     * @param implementationArtifact The implementation artifact to copy
+     * @throws IOException In case there is an IO error while performing the artifacts copy
+     */
+    public void copyImplementationArtifact(RecipeGeneratorServiceContext context, Path csarPath, String nodeTypeRelativePath,
+            ImplementationArtifact implementationArtifact) throws IOException {
+
+        Path nodeTypePath = context.getServicePath().resolve(nodeTypeRelativePath);
+        Files.createDirectories(nodeTypePath);
+        // copy the properties file
+        copyPropertiesFile(context.getPropertiesFilePath(), nodeTypePath.resolve(RecipePropertiesGenerator.PROPERTIES_FILE_NAME));
+        DeploymentArtifact artifact = getDeploymentArtifact(implementationArtifact);
+        copyArtifact(csarPath, nodeTypePath, nodeTypeRelativePath, artifact.getArtifactRef(), artifact);
+    }
+
+    private DeploymentArtifact getDeploymentArtifact(ImplementationArtifact implementationArtifact) {
+        DeploymentArtifact deploymentArtifact = new DeploymentArtifact();
+        deploymentArtifact.setArtifactType(implementationArtifact.getArtifactType());
+        deploymentArtifact.setArtifactRef(implementationArtifact.getArtifactRef());
+
+        return deploymentArtifact;
     }
 
     private void copyPropertiesFile(Path source, Path dest) throws IOException {
@@ -147,7 +186,6 @@ public class RecipeGeneratorArtifactCopier {
                 try {
                     csarFileSystem = FileSystems.newFileSystem(csarPath, null);
                     // the artifact is expected to be in the archive
-                    // Path artifactPath = csarFileSystem.getPath(target);
                     Path artifactPath = csarFileSystem.getPath(target);
                     // this may be actually a folder...
                     // TODO refactor this in the FileUtils maybe.

@@ -17,7 +17,6 @@ import org.apache.commons.collections4.map.HashedMap;
 import org.cloudifysource.dsl.rest.response.ApplicationDescription;
 import org.cloudifysource.dsl.rest.response.ServiceDescription;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
@@ -81,15 +80,13 @@ public class StorageAndCommandTestIT extends GenericTestCase {
     @Test
     public void blockStorageVolumeIdProvidedSucessTest() throws Throwable {
         String cloudifyAppId = null;
-        this.initElasticSearch(new String[] { "tosca-normative-types", "fastconnect-base-types", "tomcat-test-types" }, new String[] { "1.0.0-wd02-SNAPSHOT",
-                "0.1.1", "0.3-snapshot" });
+        this.initElasticSearch(new String[] { "tosca-normative-types", "fastconnect-base-types" }, new String[] { "1.0.0-wd02-SNAPSHOT", "0.1.1" });
         try {
-            String[] computesId = new String[] { "serveur_web" };
+            String[] computesId = new String[] { "compute_storage_volumeid" };
             cloudifyAppId = deployTopology("computeBlockStorageWithVolumeId", computesId, true);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
-            waitForServiceToStarts(cloudifyAppId, "serveur_web", 1000L * 120);
-            assertHttpCodeEquals(cloudifyAppId, "serveur_web", "8080", "", HTTP_CODE_OK, null);
+            waitForServiceToStarts(cloudifyAppId, "compute_storage_volumeid", 1000L * 120);
             assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, PlanGeneratorConstants.STATE_CREATED);
 
         } catch (Exception e) {
@@ -99,19 +96,19 @@ public class StorageAndCommandTestIT extends GenericTestCase {
     }
 
     @Test
-    @Ignore
-    public void blockStorageSizeProvidedSucessTest() throws Exception {
+    // @Ignore
+    public void blockStorageSizeProvidedSucessTest() throws Throwable {
         String cloudifyAppId = null;
-        this.initElasticSearch(new String[] { "tosca-normative-types", "fastconnect-base-types", "tomcat-test-types" }, new String[] { "1.0.0-wd02-SNAPSHOT",
-                "0.1.1", "0.3-snapshot" });
+        this.initElasticSearch(new String[] { "tosca-normative-types", "fastconnect-base-types", "deletable-storage-type" }, new String[] {
+                "1.0.0-wd02-SNAPSHOT", "0.1.1", "0.1" });
         try {
 
-            String[] computesId = new String[] { "serveur_web" };
+            String[] computesId = new String[] { "compute_storage_size" };
             cloudifyAppId = deployTopology("computeBlockStorageWithSize", computesId, true);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
-            waitForServiceToStarts(cloudifyAppId, "serveur_web", 1000L * 120);
-            assertHttpCodeEquals(cloudifyAppId, "serveur_web", "8080", "", HTTP_CODE_OK, null);
+            waitForServiceToStarts(cloudifyAppId, "compute_storage_size", 1000L * 120);
+            assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, PlanGeneratorConstants.STATE_CREATED);
 
         } catch (Exception e) {
             log.error("Test Failed", e);

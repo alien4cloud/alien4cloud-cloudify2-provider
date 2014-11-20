@@ -320,6 +320,8 @@ public class RecipeGenerator {
         // generate hutdown BS
         velocityProps.put("stoppingEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STOPPING));
         velocityProps.put("stoppedEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STOPPED));
+        velocityProps.put("deletable",
+                String.valueOf(ToscaUtils.isFromType(NormativeBlockStorageConstants.DELETABLE_BLOCKSTORAGE_TYPE, blockStorageNode.getIndexedNodeType())));
         generateScriptWorkflow(context.getServicePath(), shutdownBlockStorageScriptDescriptorPath, STORAGE_SHUTDOWN_FILE_NAME, null, velocityProps);
         shutdownExecutions.add(cloudifyCommandGen.getGroovyCommand(STORAGE_SHUTDOWN_FILE_NAME.concat(".groovy")));
     }
@@ -355,6 +357,7 @@ public class RecipeGenerator {
         if (properties != null) {
             size = properties.get(NormativeBlockStorageConstants.SIZE);
             volumeIds = properties.get(NormativeBlockStorageConstants.VOLUME_ID);
+            verifyNoVolumeIdForDeletableStorage(blockStorageNode, volumeIds);
         }
 
         // setting the storage template ID to be used when creating new volume for this application
@@ -372,6 +375,14 @@ public class RecipeGenerator {
 
         generateScriptWorkflow(context.getServicePath(), initStorageScriptDescriptorPath, INIT_STORAGE_SCRIPT_FILE_NAME, null, velocityProps);
         executions.add(cloudifyCommandGen.getGroovyCommand(INIT_STORAGE_SCRIPT_FILE_NAME.concat(".groovy")));
+    }
+
+    private void verifyNoVolumeIdForDeletableStorage(PaaSNodeTemplate blockStorageNode, String volumeIds) {
+        if (ToscaUtils.isFromType(NormativeBlockStorageConstants.DELETABLE_BLOCKSTORAGE_TYPE, blockStorageNode.getIndexedNodeType())
+                && StringUtils.isNotBlank(volumeIds)) {
+            throw new PaaSDeploymentException("Failed to generate scripts for BlockStorage <" + blockStorageNode.getId() + " >. A storage of type <"
+                    + NormativeBlockStorageConstants.DELETABLE_BLOCKSTORAGE_TYPE + "> should not be provided with volumeIds.");
+        }
     }
 
     private void manageGlobalStartDetection(final RecipeGeneratorServiceContext context) throws IOException {
@@ -406,20 +417,20 @@ public class RecipeGenerator {
     private void addCustomCommands(final PaaSNodeTemplate nodeTemplate, final RecipeGeneratorServiceContext context) throws IOException {
         Interface customInterface = nodeTemplate.getIndexedNodeType().getInterfaces().get(NODE_CUSTOM_INTERFACE_NAME);
         if (customInterface != null) {
-            // copy resources
-            this.artifactCopier.copyDeploymentArtifacts(context, nodeTemplate.getCsarPath(), nodeTemplate.getId(), nodeTemplate.getIndexedNodeType(),
-                    nodeTemplate.getNodeTemplate().getArtifacts());
             // add the custom commands for each operations
             Map<String, Operation> operations = customInterface.getOperations();
             for (Entry<String, Operation> entry : operations.entrySet()) {
-                String key = entry.getKey();
                 String relativePath = getNodeTypeRelativePath(nodeTemplate.getIndexedNodeType());
+                // copy the implementation artifact of the custom command
+                artifactCopier.copyImplementationArtifact(context, nodeTemplate.getCsarPath(), relativePath, entry.getValue().getImplementationArtifact());
+                String key = entry.getKey();
                 String artifactRef = relativePath + "/" + entry.getValue().getImplementationArtifact().getArtifactRef();
                 String artifactType = entry.getValue().getImplementationArtifact().getArtifactType();
                 String command;
                 if (GROOVY_ARTIFACT_TYPE.equals(artifactType)) {
                     command = cloudifyCommandGen.getClosureGroovyCommandWithArrayParamsName(artifactRef, "args");
                 } else {
+                    // TODO handle SHELL_ARTIFACT_TYPE
                     throw new PaaSDeploymentException("Operation <" + nodeTemplate.getId() + "." + NODE_CUSTOM_INTERFACE_NAME + "." + entry.getKey()
                             + "> is defined using an unsupported artifact type <" + artifactType + ">.");
                 }
@@ -430,8 +441,15 @@ public class RecipeGenerator {
                 context.getCustomCommands().put(key, command);
             }
         }
+
+        // process childs
         for (PaaSNodeTemplate child : nodeTemplate.getChildren()) {
             addCustomCommands(child, context);
+        }
+
+        // process attachedNodes
+        if (nodeTemplate.getAttachedNode() != null) {
+            addCustomCommands(nodeTemplate.getAttachedNode(), context);
         }
     }
 
@@ -562,9 +580,8 @@ public class RecipeGenerator {
 
     private void generateNodeOperationCall(final RecipeGeneratorServiceContext context, final OperationCallActivity operationCall,
             final List<String> executions, final PaaSNodeTemplate paaSNodeTemplate, final boolean isAsynchronous) throws IOException {
-        this.artifactCopier.copyDeploymentArtifacts(context, operationCall.getCsarPath(), paaSNodeTemplate.getId(), paaSNodeTemplate.getIndexedNodeType(),
-                paaSNodeTemplate.getNodeTemplate().getArtifacts());
         String relativePath = getNodeTypeRelativePath(paaSNodeTemplate.getIndexedNodeType());
+        this.artifactCopier.copyImplementationArtifact(context, operationCall.getCsarPath(), relativePath, operationCall.getImplementationArtifact());
         Map<String, Path> copiedArtifactPath = context.getNodeArtifactsPaths().get(paaSNodeTemplate.getId());
         String[] parameters = new String[] { serviceIdFromNodeTemplateId(paaSNodeTemplate.getId()), serviceIdFromNodeTemplateOrDie(paaSNodeTemplate) };
         parameters = addCopiedPathsToParams(copiedArtifactPath, parameters);
@@ -590,9 +607,8 @@ public class RecipeGenerator {
     private void generateRelationshipOperationCall(final RecipeGeneratorServiceContext context, final OperationCallActivity operationCall,
             final List<String> executions, final PaaSNodeTemplate paaSNodeTemplate) throws IOException {
         PaaSRelationshipTemplate paaSRelationshipTemplate = paaSNodeTemplate.getRelationshipTemplate(operationCall.getRelationshipId());
-        this.artifactCopier.copyDeploymentArtifacts(context, operationCall.getCsarPath(), null, paaSRelationshipTemplate.getIndexedRelationshipType(), null);
         String relativePath = getNodeTypeRelativePath(paaSRelationshipTemplate.getIndexedRelationshipType());
-
+        this.artifactCopier.copyImplementationArtifact(context, operationCall.getCsarPath(), relativePath, operationCall.getImplementationArtifact());
         String sourceNodeTemplateId = paaSRelationshipTemplate.getSource();
         String targetNodeTemplateId = paaSRelationshipTemplate.getRelationshipTemplate().getTarget();
         String sourceServiceId = serviceIdFromNodeTemplateOrDie(context.getNodeTemplateById(sourceNodeTemplateId));
