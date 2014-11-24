@@ -1,0 +1,14 @@
+import org.cloudifysource.utilitydomain.context.ServiceContextFactory
+
+def context = ServiceContextFactory.getServiceContext()
+def device = args[0]
+
+if(context.attributes.thisInstance.volumeCreated) {
+	println "formating the attached storage <${device}>... "
+	context.storage.format(device, "$fileSystem")
+}
+
+println "mounting the attached storage <${device}> to <$path>... "
+context.storage.mount(device, "$path")
+
+return "$path"

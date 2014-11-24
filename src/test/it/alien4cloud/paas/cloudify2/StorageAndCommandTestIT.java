@@ -3,10 +3,8 @@ package alien4cloud.paas.cloudify2;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javax.annotation.Resource;
 
@@ -14,16 +12,12 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.map.HashedMap;
-import org.cloudifysource.dsl.rest.response.ApplicationDescription;
-import org.cloudifysource.dsl.rest.response.ServiceDescription;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import alien4cloud.paas.cloudify2.events.AlienEvent;
-import alien4cloud.paas.cloudify2.events.BlockStorageEvent;
 import alien4cloud.paas.exception.OperationExecutionException;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.model.NodeOperationExecRequest;
@@ -31,12 +25,11 @@ import alien4cloud.paas.plan.PlanGeneratorConstants;
 import alien4cloud.tosca.container.model.topology.Topology;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("classpath:application-context-testit.xml")
 @Slf4j
-public class StorageAndCommandTestIT extends GenericTestCase {
+public class StorageAndCommandTestIT extends GenericStorageTestCase {
 
     @Resource(name = "cloudify-paas-provider-bean")
     protected CloudifyPaaSProvider anotherCloudifyPaaSPovider;
@@ -82,11 +75,11 @@ public class StorageAndCommandTestIT extends GenericTestCase {
         String cloudifyAppId = null;
         this.initElasticSearch(new String[] { "tosca-normative-types", "fastconnect-base-types" }, new String[] { "1.0.0-wd02-SNAPSHOT", "0.1.1" });
         try {
-            String[] computesId = new String[] { "compute_storage_volumeid" };
-            cloudifyAppId = deployTopology("computeBlockStorageWithVolumeId", computesId, true);
+            String[] computesId = new String[] { "comp_storage_volumeid" };
+            cloudifyAppId = deployTopology("blockStorageWithVolumeId", computesId, true);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
-            waitForServiceToStarts(cloudifyAppId, "compute_storage_volumeid", 1000L * 120);
+            waitForServiceToStarts(cloudifyAppId, "comp_storage_volumeid", 1000L * 120);
             assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, PlanGeneratorConstants.STATE_CREATED);
 
         } catch (Exception e) {
@@ -103,11 +96,11 @@ public class StorageAndCommandTestIT extends GenericTestCase {
                 "1.0.0-wd02-SNAPSHOT", "0.1.1", "0.1" });
         try {
 
-            String[] computesId = new String[] { "compute_storage_size" };
-            cloudifyAppId = deployTopology("computeBlockStorageWithSize", computesId, true);
+            String[] computesId = new String[] { "comp_storage_size" };
+            cloudifyAppId = deployTopology("deletableBlockStorageWithSize", computesId, true);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
-            waitForServiceToStarts(cloudifyAppId, "compute_storage_size", 1000L * 120);
+            waitForServiceToStarts(cloudifyAppId, "comp_storage_size", 1000L * 120);
             assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, PlanGeneratorConstants.STATE_CREATED);
 
         } catch (Exception e) {
@@ -202,31 +195,6 @@ public class StorageAndCommandTestIT extends GenericTestCase {
 
         log.info("Test result is: \n\t" + result);
         return result;
-    }
-
-    private void assertStorageEventFiredWithVolumeId(String cloudifyAppId, String[] nodeTemplateNames, String... expectedEvents) throws Throwable {
-        ApplicationDescription applicationDescription = cloudifyRestClientManager.getRestClient().getApplicationDescription(cloudifyAppId);
-        for (String nodeName : nodeTemplateNames) {
-            for (ServiceDescription service : applicationDescription.getServicesDescription()) {
-                String applicationName = service.getApplicationName();
-                String serviceName = nodeName;
-                CloudifyEventsListener listener = new CloudifyEventsListener(cloudifyRestClientManager.getRestEventEndpoint(), applicationName, serviceName);
-                List<AlienEvent> allServiceEvents = listener.getEvents();
-
-                Set<String> currentEvents = new HashSet<>();
-                for (AlienEvent alienEvent : allServiceEvents) {
-                    currentEvents.add(alienEvent.getEvent());
-                    if (alienEvent.getEvent().equalsIgnoreCase(PlanGeneratorConstants.STATE_CREATED)) {
-                        assertTrue("Event is supposed to be a BlockStorageEvent instance", alienEvent instanceof BlockStorageEvent);
-                        Assert.assertNotNull(((BlockStorageEvent) alienEvent).getVolumeId());
-                    }
-                }
-                log.info("Application: " + applicationName + "." + serviceName + " got events : " + currentEvents);
-                Assert.assertTrue("Missing events: " + getMissingEvents(Sets.newHashSet(expectedEvents), currentEvents),
-                        currentEvents.containsAll(Sets.newHashSet(expectedEvents)));
-            }
-        }
-
     }
 
 }

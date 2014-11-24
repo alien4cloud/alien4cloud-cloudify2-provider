@@ -166,7 +166,7 @@ public class GenericTestCase {
         }
     }
 
-    public void initElasticSearch(String[] csarNames, String[] versions) throws IOException, CSARParsingException, CSARVersionAlreadyExistsException,
+    protected void initElasticSearch(String[] csarNames, String[] versions) throws IOException, CSARParsingException, CSARVersionAlreadyExistsException,
             CSARValidationException {
         log.info("Initializing ALIEN repository.");
 
@@ -184,14 +184,14 @@ public class GenericTestCase {
         log.info("Types have been added to the repository.");
     }
 
-    public void uploadCsar(String name, String version) throws IOException, CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException {
+    protected void uploadCsar(String name, String version) throws IOException, CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException {
         Path inputPath = Paths.get(CSAR_SOURCE_PATH + name + "/" + version);
         Path zipPath = Files.createTempFile("csar", ".zip");
         FileUtil.zip(inputPath, zipPath);
         csarUploadService.uploadCsar(zipPath);
     }
 
-    public void waitForServiceToStarts(final String applicationId, final String serviceName, final long timeoutInMillis) throws RestClientException {
+    protected void waitForServiceToStarts(final String applicationId, final String serviceName, final long timeoutInMillis) throws RestClientException {
         CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
         DeploymentState serviceState = null;
         long startTime = System.currentTimeMillis();
@@ -212,7 +212,7 @@ public class GenericTestCase {
         }
     }
 
-    public void assertHttpCodeEquals(String applicationId, String serviceName, String port, String path, int expectedCode, Integer timeoutInMillis)
+    protected void assertHttpCodeEquals(String applicationId, String serviceName, String port, String path, int expectedCode, Integer timeoutInMillis)
             throws RestClientException, IOException, InterruptedException {
         log.info("About to check path <:" + port.concat("/").concat(path) + ">");
         CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
@@ -234,7 +234,7 @@ public class GenericTestCase {
         Assert.assertEquals("Expected Response code " + expectedCode + " got " + httpResponseCode, expectedCode, httpResponseCode);
     }
 
-    public int getResponseCode(String urlString) throws IOException {
+    protected int getResponseCode(String urlString) throws IOException {
         URL u = new URL(urlString);
         HttpURLConnection huc = (HttpURLConnection) u.openConnection();
         huc.setRequestMethod("GET");
@@ -243,13 +243,13 @@ public class GenericTestCase {
         return huc.getResponseCode();
     }
 
-    public String deployTopology(String topologyFileName, String[] computesId, boolean isYamlTopologyFile) throws IOException, JsonParseException,
+    protected String deployTopology(String topologyFileName, String[] computesId, boolean isYamlTopologyFile) throws IOException, JsonParseException,
             JsonMappingException, CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException {
         Topology topology = this.createAlienApplication(topologyFileName, topologyFileName, isYamlTopologyFile);
         return deployTopology(computesId, topology, topologyFileName);
     }
 
-    public String deployTopology(String[] computesId, Topology topology, String topologyFileName) {
+    protected String deployTopology(String[] computesId, Topology topology, String topologyFileName) {
         DeploymentSetup setup = new DeploymentSetup();
         setup.setCloudResourcesMapping(Maps.<String, ComputeTemplate> newHashMap());
         if (computesId != null) {
@@ -294,7 +294,7 @@ public class GenericTestCase {
         return topology;
     }
 
-    public void assertApplicationIsInstalled(String applicationId) throws RestClientException {
+    protected void assertApplicationIsInstalled(String applicationId) throws RestClientException {
         log.info("Asserting aplication <" + applicationId + "> installed...");
         RestClient restClient = cloudifyRestClientManager.getRestClient();
         ApplicationDescription appliDesc = restClient.getApplicationDescription(applicationId);
@@ -304,7 +304,7 @@ public class GenericTestCase {
         }
     }
 
-    public Set<String> getMissingEvents(Set<String> expectedEvents, Set<String> currentEvents) {
+    protected Set<String> getMissingEvents(Set<String> expectedEvents, Set<String> currentEvents) {
         Set<String> missing = new HashSet<>();
         for (String event : expectedEvents) {
             if (!currentEvents.contains(event)) {

@@ -1,4 +1,4 @@
-package alien4cloud.paas.cloudify2;
+package alien4cloud.paas.cloudify2.generator;
 
 import java.io.IOException;
 import java.net.URI;
@@ -23,7 +23,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class CloudifyCommandGenerator {
     private final static String[] SERVICE_RECIPE_RESOURCES = new String[] { "chmod-init.groovy", "CloudifyUtils.groovy", "GigaSpacesEventsManager.groovy",
-    "CloudifyExecutorUtils.groovy" };
+            "CloudifyExecutorUtils.groovy" };
 
     private static final String FIRE_EVENT_FORMAT = "CloudifyExecutorUtils.fireEvent(\"%s\", \"%s\")";
     private static final String FIRE_BLOCKSTORAGE_EVENT_FORMAT = "CloudifyExecutorUtils.fireBlockStorageEvent(\"%s\", \"%s\", %s)";
@@ -92,7 +92,7 @@ public class CloudifyCommandGenerator {
      * @return The execution command.
      */
     public String getGroovyCommand(String groovyScriptRelativePath, String... parameters) {
-        if (parameters == null) {
+        if (ArrayUtils.isEmpty(parameters)) {
             return String.format(EXECUTE_GROOVY_FORMAT, groovyScriptRelativePath, "null");
         }
         StringBuilder parametersSb = new StringBuilder();
@@ -107,13 +107,35 @@ public class CloudifyCommandGenerator {
 
     /**
      * Return the execution command for a groovy script as a string.
+     *
+     * @param groovyScriptRelativePath Path to the groovy script relative to the service root directory.
+     *            * @param varParamNames The names of the vars to pass as params for the command. This assumes the var is defined before calling this
+     *            command
+     * @return The execution command.
+     */
+    public String getGroovyCommandWithParamsAsVar(String groovyScriptRelativePath, String... varParamNames) {
+        if (ArrayUtils.isEmpty(varParamNames)) {
+            return String.format(EXECUTE_GROOVY_FORMAT, groovyScriptRelativePath, "null");
+        }
+        StringBuilder parametersSb = new StringBuilder();
+        for (String parameter : varParamNames) {
+            if (parametersSb.length() > 0) {
+                parametersSb.append(", ");
+            }
+            parametersSb.append(parameter);
+        }
+        return String.format(EXECUTE_GROOVY_FORMAT, groovyScriptRelativePath, parametersSb.toString());
+    }
+
+    /**
+     * Return the execution command for a groovy script as a string.
      * The command is made such as it can be run in a closure.
      *
      * @param groovyScriptRelativePath Path to the groovy script relative to the service root directory.
      * @return The execution command.
      */
     public String getClosureGroovyCommand(String groovyScriptRelativePath, String... parameters) {
-        if (parameters == null) {
+        if (ArrayUtils.isEmpty(parameters)) {
             return String.format(EXECUTE_CLOSURE_GROOVY_FORMAT, groovyScriptRelativePath, "null");
         }
         StringBuilder parametersSb = new StringBuilder();
@@ -131,15 +153,22 @@ public class CloudifyCommandGenerator {
      * The command is made such as it can be run in a closure.
      *
      * @param groovyScriptRelativePath Path to the groovy script relative to the service root directory.
-     * @param arrayParamsName Thename of the String array var that contains the args for this command. This assumes the var is defined before calling this
+     * @param varParamNames The names of the vars to pass as params for the command. This assumes the var is defined before calling this
      *            command
      * @return The execution command.
      */
-    public String getClosureGroovyCommandWithArrayParamsName(String groovyScriptRelativePath, String arrayParamsName) {
-        if (arrayParamsName == null) {
+    public String getClosureGroovyCommandWithParamsAsVar(String groovyScriptRelativePath, String... varParamNames) {
+        if (ArrayUtils.isEmpty(varParamNames)) {
             return String.format(EXECUTE_CLOSURE_GROOVY_FORMAT, groovyScriptRelativePath, "null");
         }
-        return String.format(EXECUTE_CLOSURE_GROOVY_FORMAT, groovyScriptRelativePath, arrayParamsName);
+        StringBuilder parametersSb = new StringBuilder();
+        for (String parameter : varParamNames) {
+            if (parametersSb.length() > 0) {
+                parametersSb.append(", ");
+            }
+            parametersSb.append(parameter);
+        }
+        return String.format(EXECUTE_CLOSURE_GROOVY_FORMAT, groovyScriptRelativePath, parametersSb.toString());
     }
 
     /**
@@ -185,8 +214,7 @@ public class CloudifyCommandGenerator {
     public String getLoopedGroovyCommand(String groovyCommand, String loopCondition) {
         if (StringUtils.isBlank(loopCondition)) {
             return String.format(EXECUTE_LOOPED_GROOVY_FORMAT, "!" + groovyCommand, "");
-        }
-        else {
+        } else {
             return String.format(EXECUTE_LOOPED_GROOVY_FORMAT, loopCondition, groovyCommand);
         }
     }
@@ -299,34 +327,4 @@ public class CloudifyCommandGenerator {
         return String.format(WAIT_EVENT_FORMAT, cloudifyService, nodeName, status);
     }
 
-    /**
-     * Return the cloudfy command to create a volume
-     *
-     * @param storageTemplate name of the storage template to use to create the volume
-     * @return
-     */
-    public String getCreateVolumeCommand(String storageTemplate) {
-        return String.format(STORAGE_CREATE_VOLUME_COMMAND_FORMAT, storageTemplate);
-    }
-
-    // /**
-    // * Return the cloudfy command to attach a volume
-    // *
-    // * @param volumeId
-    // * @param device
-    // * @return
-    // */
-    // public String getAttachVolumeCommand(String volumeId, String device) {
-    // return String.format(STORAGE_ATTACH_VOLUME_COMMAND_FORMAT, volumeId, "\"" + device + "\"");
-    // }
-
-    /**
-     * Return the cloudfy command to format a volume
-     *
-     * @param storageTemplate name of the storage template to use to create the volume
-     * @return
-     */
-    public String getFormatVolumeCommand(String device, String fs) {
-        return String.format(STORAGE_FORMAT_VOLUME_COMMAND_FORMAT, device, fs);
-    }
 }

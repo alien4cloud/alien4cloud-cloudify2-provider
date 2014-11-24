@@ -1,0 +1,14 @@
+# This archive contains custom blockstoragetorage.
+name: "custom-storage-types"
+version: "0.1-snapshot"
+license: "Apache v2.0"
+created_by: "alien4cloud"
+dependencies:
+  - name: tosca-normative-types
+    version: 1.0.0-wd02-SNAPSHOT
+  - name: "deletable-storage-type"
+    version: "0.1"
+  
+# List of definitions file in the archive.
+definitions:
+    - /custom-storage-types.yml

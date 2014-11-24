@@ -1,4 +1,4 @@
-package alien4cloud.paas.cloudify2;
+package alien4cloud.paas.cloudify2.generator;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -60,6 +60,7 @@ public class RecipeGeneratorConstants {
     public static final String OR_OPERATOR = "||";
 
     public static final String CONTEXT_THIS_INSTANCE_ATTRIBUTES = "context.attributes.thisInstance";
+    public static final String CONTEXT_THIS_SERVICE_ATTRIBUTES = "context.attributes.thisService";
 
     /** BlockStorages **/
     public static final String VOLUME_ID_KEY = "volumeId";
@@ -72,6 +73,9 @@ public class RecipeGeneratorConstants {
 
     /** Name of the service property that contains a init script. */
     public static final String INIT_COMMAND = "initCommand";
+
+    public static final String CREATE_COMMAND = "createCommand";
+    public static final String CONFIGURE_COMMAND = "configureCommand";
 
     public static final String INIT_LIFECYCLE = "init";
 

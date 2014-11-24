@@ -1,0 +1,44 @@
+tosca_definitions_version: tosca_simple_yaml_1_0
+description: This archive contains a deletable blockstoragetorage.
+
+node_types:
+  alien.test.nodes.UbuntuBlockStorage:
+    derived_from: tosca.nodes.BlockStorage
+    description: >
+      A custom storage for Ubuntu OS.
+    interfaces:
+      lifecycle:
+        operations:
+          create:
+            implementation_artifact:
+              artifact_type: tosca.artifacts.GroovyScript
+              artifact_ref: "scripts/attach.groovy"
+          configure:
+            implementation_artifact:
+              artifact_type: tosca.artifacts.GroovyScript
+              artifact_ref: "scripts/mount.groovy"
+    artifacts:
+      scripts:
+        artifact_type: fastconnect.artifacts.ResourceDirectory
+        artifact_ref: scripts
+        
+  alien.test.nodes.DeletableUbuntuBlockStorage:
+    derived_from: alien.nodes.DeletableBlockStorage
+    description: >
+      A custom storage for Ubuntu OS, to be destroyed at the end of the deployment.
+    interfaces:
+      lifecycle:
+        operations:
+          create:
+            implementation_artifact:
+              artifact_type: tosca.artifacts.GroovyScript
+              artifact_ref: "scripts/deletable-createAttach.groovy"
+          configure:
+            implementation_artifact:
+              artifact_type: tosca.artifacts.GroovyScript
+              artifact_ref: "scripts/deletable-formatMount.groovy"
+    artifacts:
+      scripts:
+        artifact_type: fastconnect.artifacts.ResourceDirectory
+        artifact_ref: scripts
+

@@ -49,6 +49,7 @@ import alien4cloud.paas.IConfigurablePaaSProvider;
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.events.BlockStorageEvent;
 import alien4cloud.paas.cloudify2.events.NodeInstanceState;
+import alien4cloud.paas.cloudify2.generator.RecipeGenerator;
 import alien4cloud.paas.exception.OperationExecutionException;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.PaaSDeploymentException;

@@ -1,9 +1,8 @@
-package alien4cloud.paas.cloudify2;
+package alien4cloud.paas.cloudify2.matcher;
 
 import java.util.Collections;
 import java.util.List;
 
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -14,6 +13,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import alien4cloud.component.model.IndexedNodeType;
+import alien4cloud.paas.cloudify2.StorageTemplate;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.tosca.ToscaUtils;
@@ -27,7 +27,7 @@ import com.google.common.collect.Lists;
 @Slf4j
 @Component
 @Scope(BeanDefinition.SCOPE_PROTOTYPE)
-@Getter(value = AccessLevel.PROTECTED)
+@Getter
 public class StorageTemplateMatcher {
 
     /** List of storage templates sorted by size. */

@@ -1,0 +1,22 @@
+import org.cloudifysource.utilitydomain.context.ServiceContextFactory
+
+def context = ServiceContextFactory.getServiceContext()
+def volumeId = context.attributes.thisInstance.volumeId
+if(volumeId == null || volumeId.trim().isEmpty()){
+	if(!context.attributes.thisService.storageTemplateId || context.attributes.thisService.storageTemplateId.trim().isEmpty()){
+		throw new IllegalArgumentException("A storage template Id is expected!")
+	}
+	def storageTemplateId = context.attributes.thisService.storageTemplateId
+	println "Creating a volume using the storage template <${storageTemplateId}>..."
+	volumeId = context.storage.createVolume(storageTemplateId)
+	context.attributes.thisInstance.volumeCreated = true
+	println "volume created!"
+}
+
+println "Storage volume: volumeId <${volumeId}>, device <$device>"
+
+println "attaching storage volume <${volumeId}> to <$device>... "
+context.storage.attachVolume(volumeId, "$device")
+println "volume attached!"
+
+return [volumeId: volumeId, device: "$device"]

@@ -1,4 +1,4 @@
-package alien4cloud.paas.cloudify2;
+package alien4cloud.paas.cloudify2.generator;
 
 import java.nio.file.Path;
 import java.util.Map;

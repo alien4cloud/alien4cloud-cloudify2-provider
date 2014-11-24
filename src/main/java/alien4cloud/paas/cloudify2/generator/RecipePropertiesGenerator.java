@@ -1,4 +1,4 @@
-package alien4cloud.paas.cloudify2;
+package alien4cloud.paas.cloudify2.generator;
 
 import java.io.IOException;
 import java.net.URI;
@@ -18,6 +18,7 @@ import javax.annotation.Resource;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
+import alien4cloud.paas.cloudify2.VelocityUtil;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
 import alien4cloud.tosca.container.model.template.Capability;

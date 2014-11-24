@@ -1,10 +1,9 @@
-package alien4cloud.paas.cloudify2;
+package alien4cloud.paas.cloudify2.matcher;
 
 import java.util.Map;
 
 import lombok.AccessLevel;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
@@ -23,7 +22,6 @@ import com.google.common.collect.Maps;
 /**
  * Find a valid template based on the TOSCA node compute properties.
  */
-@Slf4j
 @Component
 @Getter(value = AccessLevel.PROTECTED)
 @Scope(BeanDefinition.SCOPE_PROTOTYPE)

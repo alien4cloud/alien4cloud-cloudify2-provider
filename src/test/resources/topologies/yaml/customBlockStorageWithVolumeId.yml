@@ -1,0 +1,37 @@
+
+node_templates:
+  custom_storage_volumeid:
+    type: tosca.nodes.Compute
+    properties:
+      os_type: linux
+      os_distribution: ubuntu
+      os_version: ubuntu
+  blockstorage:
+    type: alien.test.nodes.UbuntuBlockStorage
+    properties:
+      volume_id: 758e985c-a1ac-4eb4-83ce-e1fc516ec18e
+    relationships:
+      attachToServeurWeb:
+        target: custom_storage_volumeid
+        type: tosca.relationships.AttachTo
+        requirement_name: attachment
+        requirement_type: tosca.capabilities.Attachment
+        targeted_capability_name: attach
+
+
+# scaling_policies:
+scaling_policies:
+  serveur_web:
+    min_instances: 1
+    max_instances: 3
+    initial_instances: 1 
+
+dependencies:
+  - name: tosca-normative-types
+    version: 1.0.0-wd02-SNAPSHOT
+  - name: custom-storage-types
+    version: 0.1-snapshot
+
+# input_properties:
+
+# input_artifacts:

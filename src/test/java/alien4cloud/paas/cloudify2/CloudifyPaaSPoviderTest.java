@@ -18,6 +18,8 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import alien4cloud.component.model.IndexedNodeType;
 import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
+import alien4cloud.paas.cloudify2.generator.CloudifyCommandGenerator;
+import alien4cloud.paas.cloudify2.matcher.StorageTemplateMatcher;
 import alien4cloud.paas.cloudify2.testutils.ElasticSearchUtils;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
