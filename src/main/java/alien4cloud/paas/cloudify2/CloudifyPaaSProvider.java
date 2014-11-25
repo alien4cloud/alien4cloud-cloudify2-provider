@@ -33,6 +33,6 @@ public class CloudifyPaaSProvider extends AbstractCloudifyPaaSProvider<PluginCon
 
     @Override
     public void updateMatcherConfig(CloudResourceMatcherConfig cloudResourceMatcherConfig) {
-        this.recipeGenerator.getComputeTemplateMatcher().configure(cloudResourceMatcherConfig);
+        this.recipeGenerator.getPaaSResourceMatcher().configure(cloudResourceMatcherConfig);
     }
 }

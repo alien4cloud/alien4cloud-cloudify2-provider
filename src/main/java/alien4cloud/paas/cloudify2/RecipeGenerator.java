@@ -24,12 +24,12 @@ import org.cloudifysource.dsl.internal.DSLUtils;
 import org.springframework.beans.factory.annotation.Required;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import alien4cloud.component.model.IndexedToscaElement;
 import alien4cloud.model.cloud.ComputeTemplate;
+import alien4cloud.model.cloud.Network;
 import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.exception.PaaSTechnicalException;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
@@ -93,12 +93,10 @@ public class RecipeGenerator {
 
     @Resource
     @Getter
-    private ComputeTemplateMatcher computeTemplateMatcher;
+    private PaaSResourceMatcher paaSResourceMatcher;
     @Resource
     @Getter
     private StorageTemplateMatcher storageTemplateMatcher;
-    @Resource
-    private ApplicationContext applicationContext;
     @Resource
     private CloudifyCommandGenerator cloudifyCommandGen;
     @Resource
@@ -136,7 +134,7 @@ public class RecipeGenerator {
     }
 
     public Path generateRecipe(final String deploymentName, final String topologyId, final Map<String, PaaSNodeTemplate> nodeTemplates,
-            final List<PaaSNodeTemplate> roots, Map<String, ComputeTemplate> cloudResourcesMapping) throws IOException {
+            final List<PaaSNodeTemplate> roots, Map<String, ComputeTemplate> cloudResourcesMapping, Map<String, Network> networkMapping) throws IOException {
         // cleanup/create the topology recipe directory
         Path recipePath = cleanupDirectory(topologyId);
         List<String> serviceIds = Lists.newArrayList();
@@ -144,8 +142,13 @@ public class RecipeGenerator {
         for (PaaSNodeTemplate root : roots) {
             String nodeName = root.getId();
             ComputeTemplate template = getComputeTemplateOrDie(cloudResourcesMapping, root);
+            Network network = null;
+            PaaSNodeTemplate networkNode = root.getNetworkNode();
+            if (networkNode != null) {
+                network = getNetworkTemplateOrDie(networkMapping, networkNode);
+            }
             String serviceId = serviceIdFromNodeTemplateId(nodeName);
-            generateService(nodeTemplates, recipePath, serviceId, root, template);
+            generateService(nodeTemplates, recipePath, serviceId, root, template, network);
             serviceIds.add(serviceId);
         }
 
@@ -154,8 +157,17 @@ public class RecipeGenerator {
         return createZip(recipePath);
     }
 
+    private Network getNetworkTemplateOrDie(Map<String, Network> networkMapping, PaaSNodeTemplate networkNode) {
+        paaSResourceMatcher.verifyNetworkNode(networkNode);
+        Network network = networkMapping.get(networkNode.getId());
+        if (network != null) {
+            return network;
+        }
+        throw new ResourceMatchingFailedException("Failed to find a network for node <" + networkNode.getId() + ">");
+    }
+
     private ComputeTemplate getComputeTemplateOrDie(Map<String, ComputeTemplate> cloudResourcesMapping, PaaSNodeTemplate node) {
-        computeTemplateMatcher.verifyNode(node);
+        paaSResourceMatcher.verifyNode(node);
         ComputeTemplate template = cloudResourcesMapping.get(node.getId());
         if (template != null) {
             return template;
@@ -239,9 +251,13 @@ public class RecipeGenerator {
     }
 
     protected void generateService(final Map<String, PaaSNodeTemplate> nodeTemplates, final Path recipePath, final String serviceId,
-            final PaaSNodeTemplate computeNode, ComputeTemplate template) throws IOException {
+            final PaaSNodeTemplate computeNode, ComputeTemplate template, Network network) throws IOException {
         // find the compute template for this service
-        String computeTemplate = computeTemplateMatcher.getTemplate(template);
+        String computeTemplate = paaSResourceMatcher.getTemplate(template);
+        String networkName = null;
+        if (network != null) {
+            networkName = paaSResourceMatcher.getNetwork(network);
+        }
         log.info("Compute template ID for node <{}> is: [{}]", computeNode.getId(), computeTemplate);
         // create service directory
         Path servicePath = recipePath.resolve(serviceId);
@@ -285,7 +301,7 @@ public class RecipeGenerator {
         // TODO generate specific cloudify supported interfaces (monitoring policies)
 
         // generate the service descriptor
-        generateServiceDescriptor(context, serviceId, computeTemplate, computeNode.getScalingPolicy());
+        generateServiceDescriptor(context, serviceId, computeTemplate, networkName, computeNode.getScalingPolicy());
     }
 
     private void generateInitShutdownScripts(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate computeNode) throws IOException {
@@ -703,13 +719,14 @@ public class RecipeGenerator {
     }
 
     private void generateServiceDescriptor(final RecipeGeneratorServiceContext context, final String serviceName, final String computeTemplate,
-            final ScalingPolicy scalingPolicy) throws IOException {
+            final String networkName, final ScalingPolicy scalingPolicy) throws IOException {
         Path outputPath = context.getServicePath().resolve(context.getServiceId() + DSLUtils.SERVICE_DSL_FILE_NAME_SUFFIX);
 
         // configure and write the service descriptor thanks to velocity.
         HashMap<String, Object> properties = Maps.newHashMap();
         properties.put(SERVICE_NAME, serviceName);
         properties.put(SERVICE_COMPUTE_TEMPLATE_NAME, computeTemplate);
+        properties.put(SERVICE_NETWORK_NAME, networkName);
         if (scalingPolicy != null) {
             properties.put(SERVICE_NUM_INSTANCES, scalingPolicy.getInitialInstances());
             properties.put(SERVICE_MIN_ALLOWED_INSTANCES, scalingPolicy.getMinInstances());

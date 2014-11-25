@@ -23,6 +23,9 @@ public class RecipeGeneratorConstants {
     /** Name of the service compute property string. */
     public static final String SERVICE_COMPUTE_TEMPLATE_NAME = "computeTemplateName";
 
+    /** Name of the service compute property string. */
+    public static final String SERVICE_NETWORK_NAME = "networkName";
+
     /** Name of the service num instances property string. */
     public static final String SERVICE_NUM_INSTANCES = "numInstances";
 
