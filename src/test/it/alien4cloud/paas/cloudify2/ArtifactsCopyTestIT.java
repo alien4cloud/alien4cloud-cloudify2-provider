@@ -5,6 +5,8 @@ import java.nio.file.Paths;
 
 import javax.annotation.Resource;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
@@ -20,6 +22,7 @@ import com.google.common.collect.Maps;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("classpath:application-context-testit.xml")
+@Slf4j
 public class ArtifactsCopyTestIT extends GenericTestCase {
 
     @Resource
