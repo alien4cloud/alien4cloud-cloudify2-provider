@@ -36,6 +36,9 @@ public class ArtifactsCopyTestIT extends GenericTestCase {
 
     @Test
     public void testOverridingArtifacts() throws Exception {
+
+        log.info("\n >> Executing Test testOverridingArtifacts \n");
+
         String cloudifyAppId = null;
 
         this.initElasticSearch(new String[] { "tosca-normative-types", "fastconnect-base-types", "tomcat-test-types" }, new String[] { "1.0.0-wd02-SNAPSHOT",
