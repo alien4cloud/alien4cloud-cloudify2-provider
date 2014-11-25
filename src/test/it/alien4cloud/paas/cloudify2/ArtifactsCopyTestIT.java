@@ -31,16 +31,10 @@ public class ArtifactsCopyTestIT extends GenericTestCase {
     public ArtifactsCopyTestIT() {
     }
 
-    // @Override
-    // public void after() {
-    // // // TODO Auto-generated method stub
-    // // super.after();
-    // }
-
     @Test
     public void testOverridingArtifacts() throws Exception {
 
-        log.info("\n >> Executing Test testOverridingArtifacts \n");
+        log.info("\n\n >> Executing Test testOverridingArtifacts \n");
 
         String cloudifyAppId = null;
 

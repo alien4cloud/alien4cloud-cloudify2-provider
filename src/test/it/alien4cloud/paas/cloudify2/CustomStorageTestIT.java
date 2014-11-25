@@ -22,14 +22,9 @@ public class CustomStorageTestIT extends GenericStorageTestCase {
     public CustomStorageTestIT() {
     }
 
-    // @Override
-    // public void after() {
-    // // TODO Auto-generated method stub
-    // // super.after();
-    // }
-
     @Test
     public void customBlockStorageVolumeIdProvidedSucessTest() throws Throwable {
+        log.info("\n\n >> Executing Test customBlockStorageVolumeIdProvidedSucessTest \n");
         String cloudifyAppId = null;
         this.initElasticSearch(new String[] { "tosca-normative-types", "fastconnect-base-types", "deletable-storage-type", "custom-storage-types" },
                 new String[] { "1.0.0-wd02-SNAPSHOT", "0.1.1", "0.1", "0.1-snapshot" });
@@ -50,6 +45,7 @@ public class CustomStorageTestIT extends GenericStorageTestCase {
     @Test
     // @Ignore
     public void customBlockStorageSizeProvidedSucessTest() throws Throwable {
+        log.info("\n\n >> Executing Test customBlockStorageSizeProvidedSucessTest \n");
         String cloudifyAppId = null;
         this.initElasticSearch(new String[] { "tosca-normative-types", "fastconnect-base-types", "deletable-storage-type", "custom-storage-types" },
                 new String[] { "1.0.0-wd02-SNAPSHOT", "0.1.1", "0.1", "0.1-snapshot" });

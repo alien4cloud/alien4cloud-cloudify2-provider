@@ -47,16 +47,10 @@ public class DeploymentTestIT extends GenericTestCase {
     public DeploymentTestIT() {
     }
 
-    // @Override
-    // public void after() {
-    // // TODO Auto-generated method stub
-    // // super.after();
-    // }
-
     @Test(expected = ResourceMatchingFailedException.class)
     public void deployATopologyWhenNoComputeAreDefinedShouldFail() throws JsonParseException, JsonMappingException, CSARParsingException,
             CSARVersionAlreadyExistsException, IOException, CSARValidationException {
-        log.info("\n >> Executing Test deployATopologyWhenNoComputeAreDefinedShouldFail \n");
+        log.info("\n\n >> Executing Test deployATopologyWhenNoComputeAreDefinedShouldFail \n");
         this.initElasticSearch(new String[] { "tosca-base-types", "apache-lb-types", "tomcat-types", "tomcatGroovy-types" }, new String[] { "1.0", "0.1",
                 "0.1", "0.1" });
 
@@ -65,7 +59,7 @@ public class DeploymentTestIT extends GenericTestCase {
 
     @Test
     public void deployAndUndeployTomcat() throws Exception {
-        log.info("\n >> Executing Test deployAndUndeployTomcat \n");
+        log.info("\n\n >> Executing Test deployAndUndeployTomcat \n");
         String cloudifyAppId = null;
         // uploadCsar("tosca-base-types", "1.0");
         // uploadCsar("fastconnect-base-types", "0.1");
@@ -104,7 +98,7 @@ public class DeploymentTestIT extends GenericTestCase {
 
     @Test
     public void topologyWithShScriptsTests() throws Exception {
-        log.info("\n >> Executing Test topologyWithShScriptsTests \n");
+        log.info("\n\n >> Executing Test topologyWithShScriptsTests \n");
 
         String cloudifyAppId = null;
         this.initElasticSearch(new String[] { "tosca-base-types", "fastconnect-base-types", "apache-types", "tomcat-test-types" }, new String[] { "1.0", "0.1",
@@ -143,7 +137,7 @@ public class DeploymentTestIT extends GenericTestCase {
 
     @Test(expected = PaaSAlreadyDeployedException.class)
     public void applicationAlreadyDeployedTest() throws Exception {
-        log.info("\n >> Executing Test applicationAlreadyDeployedTest \n");
+        log.info("\n\n >> Executing Test applicationAlreadyDeployedTest \n");
 
         this.initElasticSearch(new String[] { "tosca-base-types" }, new String[] { "1.0" });
         String[] computesId = new String[] { "compute" };
@@ -154,7 +148,7 @@ public class DeploymentTestIT extends GenericTestCase {
 
     @Test
     public void testConfiguringTwoPaaSProvider() throws Throwable {
-        log.info("\n >> Executing Test testConfiguringTwoPaaSProvider \n");
+        log.info("\n\n >> Executing Test testConfiguringTwoPaaSProvider \n");
 
         String cloudifyURL2 = "http://129.185.67.36:8100/";
         final int configInitialSTCount = new PluginConfigurationBean().getStorageTemplates().size();

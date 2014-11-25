@@ -31,6 +31,8 @@ import org.cloudifysource.dsl.rest.response.ServiceDescription;
 import org.cloudifysource.dsl.rest.response.ServiceInstanceDetails;
 import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.mapping.ElasticSearchClient;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -40,17 +42,22 @@ import org.springframework.test.context.ContextConfiguration;
 import alien4cloud.application.ApplicationService;
 import alien4cloud.component.repository.CsarFileRepository;
 import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
+import alien4cloud.csar.model.Csar;
 import alien4cloud.dao.ElasticSearchDAO;
 import alien4cloud.model.application.Application;
+import alien4cloud.model.application.ApplicationEnvironment;
+import alien4cloud.model.application.ApplicationVersion;
 import alien4cloud.model.application.DeploymentSetup;
 import alien4cloud.model.cloud.CloudResourceMatcherConfig;
 import alien4cloud.model.cloud.ComputeTemplate;
 import alien4cloud.model.cloud.MatchedComputeTemplate;
+import alien4cloud.model.deployment.Deployment;
 import alien4cloud.paas.cloudify2.exception.A4CCloudifyDriverITException;
-import alien4cloud.paas.exception.PluginConfigurationException;
+import alien4cloud.plugin.PluginConfiguration;
 import alien4cloud.tosca.container.archive.CsarUploadService;
 import alien4cloud.tosca.container.exception.CSARParsingException;
 import alien4cloud.tosca.container.exception.CSARValidationException;
+import alien4cloud.tosca.container.model.ToscaElement;
 import alien4cloud.tosca.container.model.topology.Topology;
 import alien4cloud.utils.FileUtil;
 import alien4cloud.utils.YamlParserUtil;
@@ -83,18 +90,34 @@ public class GenericTestCase {
     protected CloudifyRestClientManager cloudifyRestClientManager;
     @Resource
     private ApplicationService applicationService;
+    @Resource
+    private ElasticSearchClient esClient;
+
     protected List<String> deployedCloudifyAppIds = new ArrayList<>();
+    private List<Class<?>> IndiceClassesToClean;
+
+    public GenericTestCase() {
+        IndiceClassesToClean = Lists.newArrayList();
+        IndiceClassesToClean.add(ApplicationEnvironment.class);
+        IndiceClassesToClean.add(ApplicationVersion.class);
+        IndiceClassesToClean.add(DeploymentSetup.class);
+        IndiceClassesToClean.add(ToscaElement.class);
+        IndiceClassesToClean.add(Application.class);
+        IndiceClassesToClean.add(Csar.class);
+        IndiceClassesToClean.add(Topology.class);
+        IndiceClassesToClean.add(PluginConfiguration.class);
+        IndiceClassesToClean.add(Deployment.class);
+    }
 
     @BeforeClass
     public static void beforeClass() {
-        log.info("In Before Class");
-        cleanAlienFiles();
+        cleanAlienTargetDir();
     }
 
     @Before
-    public void before() throws PluginConfigurationException, CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException, IOException {
-
-        cleanAlienFiles();
+    public void before() throws Throwable {
+        log.info("In beforeTest");
+        cleanESFiles();
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
         // String cloudifyURL = null;
@@ -109,21 +132,39 @@ public class GenericTestCase {
         matcherConf.setMatchedComputeTemplates(Lists.newArrayList(new MatchedComputeTemplate(new ComputeTemplate(null, DEFAULT_COMPUTE_TEMPLATE_ID),
                 DEFAULT_COMPUTE_TEMPLATE_ID)));
         cloudifyPaaSPovider.updateMatcherConfig(matcherConf);
-        // cloudifyPaaSPovider.setCloudifyRestClientManager(new CloudifyRestClientManager());
     }
 
     @After
     public void after() {
+        log.info("In afterTest");
         try {
             undeployAllApplications();
         } catch (RestClientException | IOException e) {
             log.warn("error in after:", e);
         }
-        cleanAlienFiles();
     }
 
-    public static void cleanAlienFiles() {
+    public static void cleanAlienTargetDir() {
         FileUtils.deleteQuietly(new File("target/alien"));
+    }
+
+    public void cleanESFiles() throws Throwable {
+        log.info("Cleaning repositories files");
+        if (Files.exists(Paths.get("target/tmp/"))) {
+            FileUtil.delete(Paths.get("target/tmp/"));
+        }
+        Path csarrepo = Paths.get("target/alien/csar");
+        if (Files.exists(csarrepo)) {
+            FileUtil.delete(csarrepo);
+        }
+
+        Files.createDirectories(csarrepo);
+
+        // Clean elastic search cluster
+        for (Class<?> indiceClass : IndiceClassesToClean) {
+            esClient.getClient().prepareDeleteByQuery(new String[] { indiceClass.getSimpleName().toLowerCase() }).setQuery(QueryBuilders.matchAllQuery())
+                    .execute().get();
+        }
     }
 
     private void undeployAllApplications() throws RestClientException, IOException {
@@ -137,7 +178,6 @@ public class GenericTestCase {
             try {
                 log.info("trying to undeploy aplication <" + id + ">.");
                 restClient.uninstallApplication(id, (int) (1000L * 60L * 10L));
-                // cloudifyPaaSPovider.undeploy(topology.getId());
                 log.info("cloudify app <" + id + "> undeployed.");
             } catch (Throwable t) {
                 log.error("failed to undeploy application <" + id + ">.");
@@ -173,14 +213,6 @@ public class GenericTestCase {
         for (int i = 0; i < csarNames.length; i++) {
             uploadCsar(csarNames[i], versions[i]);
         }
-
-        // uploadCsar("tosca-base-types", "1.0");
-        // uploadCsar("fastconnect-base-types", "0.1");
-        // uploadCsar("apache-types", "0.1");
-        // uploadCsar("apache-lb-types", "0.2");
-        // uploadCsar("tomcat-types", "0.2");
-        // uploadCsar("tomcatGroovy-types", "0.1");
-
         log.info("Types have been added to the repository.");
     }
 

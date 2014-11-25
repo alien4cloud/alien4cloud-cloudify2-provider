@@ -23,7 +23,7 @@ components.search.boost:
   default: 10
 
 elasticSearch:
-  clusterName: alienesclusterunittest
+  clusterName: cdfyprovideresclusterunittest
   local: true
   client: false
   resetData: false

@@ -1,6 +1,5 @@
 package alien4cloud.paas.cloudify2;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
@@ -19,10 +18,8 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import alien4cloud.paas.exception.OperationExecutionException;
-import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.model.NodeOperationExecRequest;
 import alien4cloud.paas.plan.PlanGeneratorConstants;
-import alien4cloud.tosca.container.model.topology.Topology;
 
 import com.google.common.collect.Lists;
 
@@ -37,14 +34,9 @@ public class StorageAndCommandTestIT extends GenericStorageTestCase {
     public StorageAndCommandTestIT() {
     }
 
-    // @Override
-    // public void after() {
-    // // TODO Auto-generated method stub
-    // // super.after();
-    // }
-
     @Test
     public void customCommandTest() throws Exception {
+        log.info("\n\n >> Executing Test customCommandTest \n");
         String cloudifyAppId = null;
         this.initElasticSearch(new String[] { "tosca-base-types", "fastconnect-base-types", "tomcat-test-types" },
                 new String[] { "1.0", "0.1", "0.2-snapshot" });
@@ -72,6 +64,7 @@ public class StorageAndCommandTestIT extends GenericStorageTestCase {
 
     @Test
     public void blockStorageVolumeIdProvidedSucessTest() throws Throwable {
+        log.info("\n\n >> Executing Test blockStorageVolumeIdProvidedSucessTest \n");
         String cloudifyAppId = null;
         this.initElasticSearch(new String[] { "tosca-normative-types", "fastconnect-base-types" }, new String[] { "1.0.0-wd02-SNAPSHOT", "0.1.1" });
         try {
@@ -91,6 +84,7 @@ public class StorageAndCommandTestIT extends GenericStorageTestCase {
     @Test
     // @Ignore
     public void blockStorageSizeProvidedSucessTest() throws Throwable {
+        log.info("\n\n >> Executing Test blockStorageSizeProvidedSucessTest \n");
         String cloudifyAppId = null;
         this.initElasticSearch(new String[] { "tosca-normative-types", "fastconnect-base-types", "deletable-storage-type" }, new String[] {
                 "1.0.0-wd02-SNAPSHOT", "0.1.1", "0.1" });
@@ -107,42 +101,6 @@ public class StorageAndCommandTestIT extends GenericStorageTestCase {
             log.error("Test Failed", e);
             throw e;
         }
-    }
-
-    @Test(expected = PaaSAlreadyDeployedException.class)
-    public void applicationAlreadyDeployedTest() throws Exception {
-        this.initElasticSearch(new String[] { "tosca-base-types" }, new String[] { "1.0" });
-        String[] computesId = new String[] { "compute" };
-        String cloudifyAppId = deployTopology("compute_only", computesId, true);
-        Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
-        cloudifyPaaSPovider.deploy("lol", cloudifyAppId, topo, null);
-    }
-
-    @Test
-    public void testConfiguringTwoPaaSProvider() throws Throwable {
-
-        String cloudifyURL2 = "http://129.185.67.36:8100/";
-        final int configInitialSTCount = new PluginConfigurationBean().getStorageTemplates().size();
-        final int providerCTCount = cloudifyPaaSPovider.getRecipeGenerator().getStorageTemplateMatcher().getStorageTemplates().size();
-        final String cloudifyURL = cloudifyPaaSPovider.getCloudifyRestClientManager().getCloudifyURL().toString();
-
-        PluginConfigurationBean pluginConfigurationBean2 = anotherCloudifyPaaSPovider.getPluginConfigurationBean();
-        pluginConfigurationBean2.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL2);
-        pluginConfigurationBean2.setSynchronousDeployment(true);
-        pluginConfigurationBean2.getCloudifyConnectionConfiguration().setVersion("2.7.1");
-        pluginConfigurationBean2.getStorageTemplates().add(new StorageTemplate());
-        try {
-            anotherCloudifyPaaSPovider.setConfiguration(pluginConfigurationBean2);
-        } catch (Exception e) {
-        }
-
-        assertEquals(configInitialSTCount + 1, anotherCloudifyPaaSPovider.getRecipeGenerator().getStorageTemplateMatcher().getStorageTemplates().size());
-        assertEquals(cloudifyURL2, anotherCloudifyPaaSPovider.getCloudifyRestClientManager().getCloudifyURL().toString());
-
-        // check the config of the other one still the same
-        assertEquals(providerCTCount, cloudifyPaaSPovider.getRecipeGenerator().getStorageTemplateMatcher().getStorageTemplates().size());
-        assertEquals(cloudifyURL, cloudifyPaaSPovider.getCloudifyRestClientManager().getCloudifyURL().toString());
-
     }
 
     private void testCustomCommandFail(String applicationId, String nodeName, Integer instanceId, String command, List<String> params) {
