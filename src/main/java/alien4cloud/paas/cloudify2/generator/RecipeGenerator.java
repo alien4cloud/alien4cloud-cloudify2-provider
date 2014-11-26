@@ -94,6 +94,7 @@ public class RecipeGenerator {
     private String STORAGE_STARTUP_FILE_NAME = "startupBlockStorage";
     private String DEFAULT_STORAGE_CREATE_FILE_NAME = "createAttachStorage";
     private String DEFAULT_STORAGE_MOUNT_FILE_NAME = "formatMountStorage";
+    private String DEFAULT_STORAGE_UNMOUNT_FILE_NAME = "unmountDeleteStorage";
     private String STORAGE_SHUTDOWN_FILE_NAME = "shutdownBlockStorage";
 
     private Path recipeDirectoryPath;
@@ -118,9 +119,10 @@ public class RecipeGenerator {
     private Path serviceDescriptorPath;
     private Path scriptDescriptorPath;
     private Path detectionScriptDescriptorPath;
-    private Path startupBlockStorageScriptDescriptorPath;
     private Path createAttachBlockStorageScriptDescriptorPath;
     private Path formatMountBlockStorageScriptDescriptorPath;
+    private Path startupBlockStorageScriptDescriptorPath;
+    private Path unmountDeleteBlockStorageSCriptDescriptorPath;
     private Path shutdownBlockStorageScriptDescriptorPath;
     private Path initStorageScriptDescriptorPath;
 
@@ -141,6 +143,7 @@ public class RecipeGenerator {
         startupBlockStorageScriptDescriptorPath = recipePropertiesGenerator.loadResourceFromClasspath("classpath:velocity/startupBlockStorage.vm");
         createAttachBlockStorageScriptDescriptorPath = recipePropertiesGenerator.loadResourceFromClasspath("classpath:velocity/CreateAttachStorage.vm");
         formatMountBlockStorageScriptDescriptorPath = recipePropertiesGenerator.loadResourceFromClasspath("classpath:velocity/FormatMountStorage.vm");
+        unmountDeleteBlockStorageSCriptDescriptorPath = recipePropertiesGenerator.loadResourceFromClasspath("classpath:velocity/UnmountDeleteStorage.vm");
         shutdownBlockStorageScriptDescriptorPath = recipePropertiesGenerator.loadResourceFromClasspath("classpath:velocity/shutdownBlockStorage.vm");
         initStorageScriptDescriptorPath = recipePropertiesGenerator.loadResourceFromClasspath("classpath:velocity/initStorage.vm");
 
@@ -328,14 +331,37 @@ public class RecipeGenerator {
 
     private void generateShutdownStorageScripts(final RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode, List<String> shutdownExecutions)
             throws IOException {
-        // generate hutdown BS
+
+        // generate shutdown BS
+
+        String unmountDeleteCommand = getStorageUnmountDeleteCommand(context, blockStorageNode);
         Map<String, String> velocityProps = Maps.newHashMap();
         velocityProps.put("stoppingEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STOPPING));
         velocityProps.put("stoppedEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STOPPED));
-        velocityProps.put("deletable",
-                String.valueOf(ToscaUtils.isFromType(NormativeBlockStorageConstants.DELETABLE_BLOCKSTORAGE_TYPE, blockStorageNode.getIndexedNodeType())));
+        velocityProps.put(SHUTDOWN_COMMAND, unmountDeleteCommand);
         generateScriptWorkflow(context.getServicePath(), shutdownBlockStorageScriptDescriptorPath, STORAGE_SHUTDOWN_FILE_NAME, null, velocityProps);
         shutdownExecutions.add(cloudifyCommandGen.getGroovyCommand(STORAGE_SHUTDOWN_FILE_NAME.concat(".groovy")));
+    }
+
+    private String getStorageUnmountDeleteCommand(RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode) throws IOException {
+        String unmountDeleteCommand = getOperationCommandFromInterface(context, blockStorageNode, NODE_LIFECYCLE_INTERFACE_NAME,
+                PlanGeneratorConstants.DELETE_OPERATION_NAME, false, false, true, "volumeId", "device");
+
+        // if no custom management then generate the default routine
+        if (StringUtils.isBlank(unmountDeleteCommand)) {
+            generateScriptWorkflow(
+                    context.getServicePath(),
+                    unmountDeleteBlockStorageSCriptDescriptorPath,
+                    DEFAULT_STORAGE_UNMOUNT_FILE_NAME,
+                    null,
+                    MapUtil.newHashMap(
+                            new String[] { "deletable" },
+                            new String[] { String.valueOf(ToscaUtils.isFromType(NormativeBlockStorageConstants.DELETABLE_BLOCKSTORAGE_TYPE,
+                                    blockStorageNode.getIndexedNodeType())) }));
+            unmountDeleteCommand = cloudifyCommandGen
+                    .getGroovyCommandWithParamsAsVar(DEFAULT_STORAGE_UNMOUNT_FILE_NAME.concat(".groovy"), "volumeId", "device");
+        }
+        return unmountDeleteCommand;
     }
 
     private void generateInitStartUpStorageScripts(final RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode, List<String> initExecutions)
@@ -356,10 +382,10 @@ public class RecipeGenerator {
         velocityProps.put("startedEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STARTED));
 
         String createAttachCommand = getStorageCreateAttachCommand(context, blockStorageNode);
-        velocityProps.put("createCommand", createAttachCommand);
+        velocityProps.put(CREATE_COMMAND, createAttachCommand);
 
         String formatMountCommant = getStorageFormatMountCommand(context, blockStorageNode);
-        velocityProps.put("configureCommand", formatMountCommant);
+        velocityProps.put(CONFIGURE_COMMAND, formatMountCommant);
 
         // generate startup BS
         generateScriptWorkflow(context.getServicePath(), startupBlockStorageScriptDescriptorPath, STORAGE_STARTUP_FILE_NAME, null, velocityProps);

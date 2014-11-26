@@ -8,14 +8,10 @@ if(context.attributes.thisInstance.volumeId==null || context.attributes.thisInst
   return;
 }
 
-println "Storage volume: volumeId <${context.attributes.thisInstance.volumeId}>, device <${context.attributes.thisInstance.storageDevice}>"
+def volumeId = context.attributes.thisInstance.volumeId
+def device = context.attributes.thisInstance.storageDevice
+
+println "Storage volume: volumeId <${volumeId}>, device <${device}>"
 $stoppingEvent
-println "shutdownBlockStorage.groovy: unmounting storage volume... "
-context.storage.unmount(context.attributes.thisInstance.storageDevice)
-println "shutdownBlockStorage.groovy: detaching storage volume... "
-context.storage.detachVolume(context.attributes.thisInstance.volumeId) 
-#if($deletable == true)
-println "shutdownBlockStorage.groovy: deleting storage volume... "
-context.storage.deleteVolume(context.attributes.thisInstance.volumeId);
-#end
+$shutdownCommand
 $stoppedEvent

@@ -23,7 +23,7 @@ node_types:
         artifact_ref: scripts
         
   alien.test.nodes.DeletableUbuntuBlockStorage:
-    derived_from: alien.nodes.DeletableBlockStorage
+    derived_from: tosca.nodes.BlockStorage
     description: >
       A custom storage for Ubuntu OS, to be destroyed at the end of the deployment.
     interfaces:
@@ -37,6 +37,11 @@ node_types:
             implementation_artifact:
               artifact_type: tosca.artifacts.GroovyScript
               artifact_ref: "scripts/deletable-formatMount.groovy"
+          delete:
+             implementation_artifact:
+              artifact_type: tosca.artifacts.GroovyScript
+              artifact_ref: "scripts/deletable-unmountDelete.groovy"
+           
     artifacts:
       scripts:
         artifact_type: fastconnect.artifacts.ResourceDirectory
