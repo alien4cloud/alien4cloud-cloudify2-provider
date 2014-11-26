@@ -20,11 +20,6 @@ service {
       $startDetectionCommand
     }
 #end
-#if($networkName)
-    network {
-      template $networkName
-    }
-#end
     preStop {}
     stop "stop.groovy"
     shutdown $shutdownCommand
@@ -56,4 +51,10 @@ service {
     #end
   ])
   #end
+
+#if($networkName)
+  network {
+    template "$networkName"
+  }
+#end
 }
