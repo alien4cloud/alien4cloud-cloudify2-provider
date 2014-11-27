@@ -345,7 +345,7 @@ relationship_types:
         type: string
         required: false
 
-artifact_types:
+types:
   tosca.artifacts.Root:
     description: The TOSCA Artifact Type all other TOSCA Artifact Types derive from.
   tosca.artifacts.File:

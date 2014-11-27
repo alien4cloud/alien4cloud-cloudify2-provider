@@ -8,17 +8,15 @@ template_version: 1.0
 imports:
   - tosca-normative-types:1.0.0.wd03-SNAPSHOT
 
-description: Some base types designed by Fastconnect.
+description: Some types for alien 4 cloud driver tests.
 
-artifact_types:
+types:
   tosca.artifacts.GroovyScript:
     description: A groovy script (.groovy file)
-  tosca.artifacts.ShellScript:
-    description: A shell script (.sh file)
-  fastconnect.artifacts.ResourceDirectory:
-    description: A directory that contains resources files that are required for a node to be deployed.
+    file_ext: [ groovy ]
   fastconnect.artifacts.WarFile:
     description: A war file (Web Archive).
+    file_ext: [ war ]
 
 capability_types:
   alien4cloud.capabilities.HttpEndpoint:
