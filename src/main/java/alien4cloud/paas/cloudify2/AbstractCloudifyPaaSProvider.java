@@ -70,7 +70,7 @@ import alien4cloud.tosca.container.ToscaFunctionProcessor;
 import alien4cloud.tosca.container.model.topology.NodeTemplate;
 import alien4cloud.tosca.container.model.topology.ScalingPolicy;
 import alien4cloud.tosca.container.model.topology.Topology;
-import alien4cloud.tosca.container.model.type.PropertyDefinition;
+import alien4cloud.tosca.model.PropertyDefinition;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
