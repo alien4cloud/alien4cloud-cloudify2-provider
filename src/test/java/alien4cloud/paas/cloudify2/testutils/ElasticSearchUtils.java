@@ -10,21 +10,20 @@ import javax.annotation.Resource;
 import org.springframework.stereotype.Component;
 
 import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
-import alien4cloud.tosca.container.archive.CsarUploadService;
-import alien4cloud.tosca.container.exception.CSARParsingException;
-import alien4cloud.tosca.container.exception.CSARValidationException;
+import alien4cloud.tosca.ArchiveUploadService;
+import alien4cloud.tosca.parser.ParsingException;
 import alien4cloud.utils.FileUtil;
 
 @Component
 public class ElasticSearchUtils {
 
     @Resource
-    private CsarUploadService csarUploadService;
+    private ArchiveUploadService archiveUploadService;
 
-    public void uploadCSAR(String path) throws IOException, CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException {
+    public void uploadCSAR(String path) throws IOException, ParsingException, CSARVersionAlreadyExistsException {
         Path inputPath = Paths.get(path);
         Path zipPath = Files.createTempFile("csar", ".zip");
         FileUtil.zip(inputPath, zipPath);
-        csarUploadService.uploadCsar(zipPath);
+        archiveUploadService.upload(zipPath);
     }
 }

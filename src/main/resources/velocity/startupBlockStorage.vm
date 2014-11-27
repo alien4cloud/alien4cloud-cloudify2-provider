@@ -4,7 +4,7 @@ println "startupBlockStorage.groovy : starting startupBlockStorage script"
 
 def context = ServiceContextFactory.getServiceContext()
 
-$creatingEvent
+$initial
 def createResult = $createCommand
 if(createResult == null || !createResult.volumeId || !createResult.device){
 		throw new IllegalStateException("The volume creation script must return a map [\"volumeId\": volumeId, \"device\":device ]containing the created volumeId and the attached device name.")
@@ -13,14 +13,12 @@ def volumeId = createResult.volumeId
 def device = createResult.device
 $createdEvent
 
-$configuringEvent
 def configureResult = $configureCommand
 if(configureResult == null ){
 		throw new IllegalStateException("The volume configuring script must return the mounted path of the volume, \"storagePath\".")
 }
 $configuredEvent
 
-$startingEvent
 println "Storage volume: volumeId <${volumeId}>, device <${device}>, path <${configureResult}>"
 context.attributes.thisInstance.volumeId = volumeId 
 context.attributes.thisInstance.storageDevice = device

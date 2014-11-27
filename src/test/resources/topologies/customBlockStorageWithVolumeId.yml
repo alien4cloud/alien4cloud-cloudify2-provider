@@ -18,8 +18,6 @@ node_templates:
         requirement_type: tosca.capabilities.Attachment
         targeted_capability_name: attach
 
-
-# scaling_policies:
 scaling_policies:
   serveur_web:
     min_instances: 1
@@ -28,10 +26,6 @@ scaling_policies:
 
 dependencies:
   - name: tosca-normative-types
-    version: 1.0.0-wd02-SNAPSHOT
+    version: 1.0.0.wd03-SNAPSHOT
   - name: custom-storage-types
-    version: 0.1-snapshot
-
-# input_properties:
-
-# input_artifacts:
+    version: 1.0-SNAPSHOT

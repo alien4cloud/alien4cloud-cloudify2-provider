@@ -38,12 +38,11 @@ public class ArtifactsCopyTestIT extends GenericTestCase {
 
         String cloudifyAppId = null;
 
-        this.initElasticSearch(new String[] { "tosca-normative-types", "fastconnect-base-types", "tomcat-test-types" }, new String[] { "1.0.0-wd02-SNAPSHOT",
-                "0.1.1", "0.4-snapshot" });
+        this.initElasticSearch(new String[] { "tomcat-test-types" }, new String[] { "1.0-SNAPSHOT" });
         String topologyFileName = "tomcatWar";
         String artifacName = "helloWorld2.war";
         String artifactId = artifactRepository.storeFile(Files.newInputStream(Paths.get("src/test/resources/data/helloWorld2.war")));
-        Topology topology = createAlienApplication(topologyFileName, topologyFileName, true);
+        Topology topology = createAlienApplication(topologyFileName, topologyFileName);
         DeploymentArtifact artifact = new DeploymentArtifact();
         artifact.setArtifactName(artifacName);
         artifact.setArtifactRef(artifactId);

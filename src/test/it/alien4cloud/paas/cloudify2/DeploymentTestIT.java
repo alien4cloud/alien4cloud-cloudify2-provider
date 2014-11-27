@@ -29,9 +29,8 @@ import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.DeploymentStatus;
 import alien4cloud.paas.plan.PlanGeneratorConstants;
-import alien4cloud.tosca.container.exception.CSARParsingException;
-import alien4cloud.tosca.container.exception.CSARValidationException;
 import alien4cloud.tosca.container.model.topology.Topology;
+import alien4cloud.tosca.parser.ParsingException;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -48,52 +47,12 @@ public class DeploymentTestIT extends GenericTestCase {
     }
 
     @Test(expected = ResourceMatchingFailedException.class)
-    public void deployATopologyWhenNoComputeAreDefinedShouldFail() throws JsonParseException, JsonMappingException, CSARParsingException,
-            CSARVersionAlreadyExistsException, IOException, CSARValidationException {
+    public void deployATopologyWhenNoComputeAreDefinedShouldFail() throws JsonParseException, JsonMappingException, ParsingException,
+            CSARVersionAlreadyExistsException, IOException {
         log.info("\n\n >> Executing Test deployATopologyWhenNoComputeAreDefinedShouldFail \n");
-        this.initElasticSearch(new String[] { "tosca-base-types", "apache-lb-types", "tomcat-types", "tomcatGroovy-types" }, new String[] { "1.0", "0.1",
-                "0.1", "0.1" });
+        this.initElasticSearch(new String[] { "tosca-normative-types" }, new String[] { "1.0.0.wd03-SNAPSHOT" });
 
-        deployTopology("petclinic-nocompute", null, false);
-    }
-
-    @Test
-    public void deployAndUndeployTomcat() throws Exception {
-        log.info("\n\n >> Executing Test deployAndUndeployTomcat \n");
-        String cloudifyAppId = null;
-        // uploadCsar("tosca-base-types", "1.0");
-        // uploadCsar("fastconnect-base-types", "0.1");
-        this.initElasticSearch(new String[] { "tosca-base-types", "fastconnect-base-types", "apache-lb-types", "tomcat-types", "tomcatGroovy-types" },
-                new String[] { "1.0", "0.1", "0.1", "0.1", "0.1" });
-        try {
-            String[] computesId = new String[] { "ComputeTomcat" };
-            cloudifyAppId = deployTopology("tomcat", computesId, false);
-
-            this.assertApplicationIsInstalled(cloudifyAppId);
-            waitForServiceToStarts(cloudifyAppId, "computetomcat", 1000L * 120);
-            assertHttpCodeEquals(cloudifyAppId, "computetomcat", "8080", "", HTTP_CODE_OK, null);
-
-            testEvents(cloudifyAppId, new String[] { "ComputeTomcat", "Tomcat" }, PlanGeneratorConstants.STATE_CREATING, PlanGeneratorConstants.STATE_CREATED,
-                    PlanGeneratorConstants.STATE_CONFIGURING, PlanGeneratorConstants.STATE_CONFIGURED, PlanGeneratorConstants.STATE_STARTING,
-                    PlanGeneratorConstants.STATE_STARTED);
-
-            testUndeployment(cloudifyAppId);
-
-            // testEvents(applicationId, new String[] { "ComputeTomcat", "Tomcat" }, PlanGeneratorConstants.STATE_STOPPING,
-            // PlanGeneratorConstants.STATE_STOPPED);
-
-            Iterator<String> idsIter = deployedCloudifyAppIds.iterator();
-            while (idsIter.hasNext()) {
-                if (idsIter.next().equals(cloudifyAppId)) {
-                    idsIter.remove();
-                    break;
-                }
-            }
-
-        } catch (Exception e) {
-            log.error("Test Failed", e);
-            throw e;
-        }
+        deployTopology("noCompute", null);
     }
 
     @Test
@@ -101,20 +60,18 @@ public class DeploymentTestIT extends GenericTestCase {
         log.info("\n\n >> Executing Test topologyWithShScriptsTests \n");
 
         String cloudifyAppId = null;
-        this.initElasticSearch(new String[] { "tosca-base-types", "fastconnect-base-types", "apache-types", "tomcat-test-types" }, new String[] { "1.0", "0.1",
-                "0.1.1", "0.1.1" });
+        this.initElasticSearch(new String[] { "apache-types", "tomcat-test-types" }, new String[] { "0.1", "1.0-SNAPSHOT" });
         try {
             String[] computesId = new String[] { "serveur_web" };
-            cloudifyAppId = deployTopology("tomcatShApache", computesId, true);
+            cloudifyAppId = deployTopology("tomcatShApache", computesId);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "serveur_web", 1000L * 120);
             assertHttpCodeEquals(cloudifyAppId, "serveur_web", "8080", "", HTTP_CODE_OK, null);
             assertHttpCodeEquals(cloudifyAppId, "serveur_web", "80", "", HTTP_CODE_OK, null);
 
-            testEvents(cloudifyAppId, new String[] { "serveur_web", "apache", "tomcat" }, PlanGeneratorConstants.STATE_CREATING,
-                    PlanGeneratorConstants.STATE_CREATED, PlanGeneratorConstants.STATE_CONFIGURING, PlanGeneratorConstants.STATE_CONFIGURED,
-                    PlanGeneratorConstants.STATE_STARTING, PlanGeneratorConstants.STATE_STARTED);
+            testEvents(cloudifyAppId, new String[] { "serveur_web", "apache", "tomcat" }, PlanGeneratorConstants.STATE_INITIAL,
+                    PlanGeneratorConstants.STATE_CREATED, PlanGeneratorConstants.STATE_CONFIGURED, PlanGeneratorConstants.STATE_STARTED);
 
             testUndeployment(cloudifyAppId);
 
@@ -139,9 +96,9 @@ public class DeploymentTestIT extends GenericTestCase {
     public void applicationAlreadyDeployedTest() throws Exception {
         log.info("\n\n >> Executing Test applicationAlreadyDeployedTest \n");
 
-        this.initElasticSearch(new String[] { "tosca-base-types" }, new String[] { "1.0" });
+        this.initElasticSearch(new String[] { "tosca-normative-types" }, new String[] { "1.0.0.wd03-SNAPSHOT" });
         String[] computesId = new String[] { "compute" };
-        String cloudifyAppId = deployTopology("compute_only", computesId, true);
+        String cloudifyAppId = deployTopology("compute_only", computesId);
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
         cloudifyPaaSPovider.deploy("lol", cloudifyAppId, topo, null);
     }

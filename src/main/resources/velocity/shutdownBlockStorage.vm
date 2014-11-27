@@ -12,6 +12,5 @@ def volumeId = context.attributes.thisInstance.volumeId
 def device = context.attributes.thisInstance.storageDevice
 
 println "Storage volume: volumeId <${volumeId}>, device <${device}>"
-$stoppingEvent
 $shutdownCommand
 $stoppedEvent

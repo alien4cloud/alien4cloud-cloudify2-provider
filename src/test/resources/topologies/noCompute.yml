@@ -1,0 +1,17 @@
+node_templates:
+  webServer:
+    type: tosca.nodes.WebServer
+    
+  webApplication:
+    type: tosca.nodes.WebApplication
+    relationships:
+      hostedOnWebServer:
+        type: tosca.relationships.HostedOn
+        target: webServer
+        requirement_name: host
+        requirement_type: tosca.capabilities.Container
+        
+dependencies:
+  - name: tosca-normative-types
+    version: 1.0.0.wd03-SNAPSHOT
+ 

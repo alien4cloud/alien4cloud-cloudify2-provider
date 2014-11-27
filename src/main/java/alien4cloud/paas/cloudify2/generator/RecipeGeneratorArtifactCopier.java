@@ -28,7 +28,7 @@ import alien4cloud.component.repository.ArtifactRepositoryConstants;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
 import alien4cloud.tosca.container.model.template.DeploymentArtifact;
-import alien4cloud.tosca.container.model.type.ImplementationArtifact;
+import alien4cloud.tosca.model.ImplementationArtifact;
 
 import com.google.common.collect.Maps;
 

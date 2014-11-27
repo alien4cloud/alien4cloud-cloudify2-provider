@@ -22,14 +22,15 @@ import alien4cloud.paas.cloudify2.VelocityUtil;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
 import alien4cloud.tosca.container.model.template.Capability;
-import alien4cloud.tosca.container.model.template.PropertyValue;
 import alien4cloud.tosca.container.model.template.Requirement;
+import alien4cloud.tosca.model.AbstractPropertyValue;
+import alien4cloud.tosca.model.ScalarPropertyValue;
 
 import com.google.common.collect.Maps;
 
 /**
  * Generates a properties file from node templates.
- * 
+ *
  * @author luc boutier
  */
 @Component
@@ -41,7 +42,7 @@ public class RecipePropertiesGenerator {
 
     /**
      * Generates a properties file for the service based on a given PaaSNodeTemplate and fill-in the context with the property file path.
-     * 
+     *
      * @param servicePath The path of the service
      * @param serviceRootTemplate The root node of the service.
      * @throws IOException
@@ -133,10 +134,10 @@ public class RecipePropertiesGenerator {
         if (nodeTemplate.getNodeTemplate().getCapabilities() != null) {
             for (Entry<String, Capability> capabilityEntry : nodeTemplate.getNodeTemplate().getCapabilities().entrySet()) {
                 if (capabilityEntry.getValue().getProperties() != null) {
-                    for (Entry<String, PropertyValue> propEntry : capabilityEntry.getValue().getProperties().entrySet()) {
-                        if (propEntry.getValue() != null) {
-                            properties.put(serviceId + ".capabilities." + capabilityEntry.getKey() + "." + propEntry.getKey(), propEntry.getValue()
-                                    .getValue());
+                    for (Entry<String, AbstractPropertyValue> propEntry : capabilityEntry.getValue().getProperties().entrySet()) {
+                        if (propEntry.getValue() != null && propEntry instanceof ScalarPropertyValue) {
+                            properties.put(serviceId + ".capabilities." + capabilityEntry.getKey() + "." + propEntry.getKey(),
+                                    ((ScalarPropertyValue) propEntry.getValue()).getValue());
                         }
                     }
                 }
@@ -148,10 +149,10 @@ public class RecipePropertiesGenerator {
         if (nodeTemplate.getNodeTemplate().getRequirements() != null) {
             for (Entry<String, Requirement> requirementEntry : nodeTemplate.getNodeTemplate().getRequirements().entrySet()) {
                 if (requirementEntry.getValue().getProperties() != null) {
-                    for (Entry<String, PropertyValue> propEntry : requirementEntry.getValue().getProperties().entrySet()) {
-                        if (propEntry.getValue() != null) {
-                            properties.put(serviceId + ".requirements." + requirementEntry.getKey() + "." + propEntry.getKey(), propEntry.getValue()
-                                    .getValue());
+                    for (Entry<String, AbstractPropertyValue> propEntry : requirementEntry.getValue().getProperties().entrySet()) {
+                        if (propEntry.getValue() != null && propEntry.getValue() instanceof ScalarPropertyValue) {
+                            properties.put(serviceId + ".requirements." + requirementEntry.getKey() + "." + propEntry.getKey(),
+                                    ((ScalarPropertyValue) propEntry.getValue()).getValue());
                         }
                     }
                 }

@@ -3,7 +3,6 @@ package alien4cloud.paas.cloudify2;
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.List;
 
 import javax.annotation.Resource;
@@ -17,14 +16,11 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import alien4cloud.component.model.IndexedNodeType;
-import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
 import alien4cloud.paas.cloudify2.generator.CloudifyCommandGenerator;
 import alien4cloud.paas.cloudify2.matcher.StorageTemplateMatcher;
 import alien4cloud.paas.cloudify2.testutils.ElasticSearchUtils;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
-import alien4cloud.tosca.container.exception.CSARParsingException;
-import alien4cloud.tosca.container.exception.CSARValidationException;
 import alien4cloud.tosca.container.model.NormativeBlockStorageConstants;
 import alien4cloud.tosca.container.model.topology.NodeTemplate;
 import alien4cloud.utils.MapUtil;
@@ -34,8 +30,6 @@ import com.google.common.collect.Lists;
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("classpath:mock-context-test.xml")
 public class CloudifyPaaSPoviderTest {
-
-    private static final String CSAR_SOURCE_PATH = "src/test/resources/csars/";
 
     @Resource
     private ElasticSearchUtils elasticSearchUtils;
@@ -53,13 +47,6 @@ public class CloudifyPaaSPoviderTest {
 
     private static void cleanAlienFiles() {
         FileUtils.deleteQuietly(new File("target/alien"));
-    }
-
-    public void initElasticSearch() throws IOException, CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException {
-        elasticSearchUtils.uploadCSAR(CSAR_SOURCE_PATH + "tosca-base-types/1.0");
-        elasticSearchUtils.uploadCSAR(CSAR_SOURCE_PATH + "apache-lb-types/0.1");
-        elasticSearchUtils.uploadCSAR(CSAR_SOURCE_PATH + "tomcat-types/0.1");
-        elasticSearchUtils.uploadCSAR(CSAR_SOURCE_PATH + "tomcatGroovy-types/0.1");
     }
 
     @Test

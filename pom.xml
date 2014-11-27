@@ -85,6 +85,10 @@
 					<artifactId>tools</artifactId>
 					<groupId>com.sun</groupId>
 				</exclusion>
+                <exclusion>
+                    <artifactId>slf4j-api</artifactId>
+                    <groupId>org.slf4j</groupId>
+                </exclusion>
 			</exclusions>
 		</dependency>
 
@@ -173,7 +177,11 @@
 	<build>
 		<resources>
 			<resource>
+				<directory>src/main/resources</directory>
+			</resource>
+			<resource>
 				<directory>src/main/resources/META-INF</directory>
+				<targetPath>META-INF</targetPath>
 				<filtering>true</filtering>
 			</resource>
 		</resources>

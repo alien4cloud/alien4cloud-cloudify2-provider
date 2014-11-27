@@ -26,23 +26,22 @@ import com.google.common.collect.Lists;
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("classpath:application-context-testit.xml")
 @Slf4j
-public class StorageAndCommandTestIT extends GenericStorageTestCase {
+public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
 
     @Resource(name = "cloudify-paas-provider-bean")
     protected CloudifyPaaSProvider anotherCloudifyPaaSPovider;
 
-    public StorageAndCommandTestIT() {
+    public NormativeStorageAndCommandTestIT() {
     }
 
     @Test
     public void customCommandTest() throws Exception {
         log.info("\n\n >> Executing Test customCommandTest \n");
         String cloudifyAppId = null;
-        this.initElasticSearch(new String[] { "tosca-base-types", "fastconnect-base-types", "tomcat-test-types" },
-                new String[] { "1.0", "0.1", "0.2-snapshot" });
+        this.initElasticSearch(new String[] { "tomcat-test-types" }, new String[] { "1.0-SNAPSHOT" });
         try {
             String[] computesId = new String[] { "serveur_web" };
-            cloudifyAppId = deployTopology("customCmd", computesId, true);
+            cloudifyAppId = deployTopology("customCmd", computesId);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "serveur_web", 1000L * 120);
@@ -66,10 +65,9 @@ public class StorageAndCommandTestIT extends GenericStorageTestCase {
     public void blockStorageVolumeIdProvidedSucessTest() throws Throwable {
         log.info("\n\n >> Executing Test blockStorageVolumeIdProvidedSucessTest \n");
         String cloudifyAppId = null;
-        this.initElasticSearch(new String[] { "tosca-normative-types", "fastconnect-base-types" }, new String[] { "1.0.0-wd02-SNAPSHOT", "0.1.1" });
         try {
             String[] computesId = new String[] { "comp_storage_volumeid" };
-            cloudifyAppId = deployTopology("blockStorageWithVolumeId", computesId, true);
+            cloudifyAppId = deployTopology("blockStorageWithVolumeId", computesId);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "comp_storage_volumeid", 1000L * 120);
@@ -86,12 +84,11 @@ public class StorageAndCommandTestIT extends GenericStorageTestCase {
     public void blockStorageSizeProvidedSucessTest() throws Throwable {
         log.info("\n\n >> Executing Test blockStorageSizeProvidedSucessTest \n");
         String cloudifyAppId = null;
-        this.initElasticSearch(new String[] { "tosca-normative-types", "fastconnect-base-types", "deletable-storage-type" }, new String[] {
-                "1.0.0-wd02-SNAPSHOT", "0.1.1", "0.1" });
+        this.initElasticSearch(new String[] { "deletable-storage-type" }, new String[] { "1.0" });
         try {
 
             String[] computesId = new String[] { "comp_storage_size" };
-            cloudifyAppId = deployTopology("deletableBlockStorageWithSize", computesId, true);
+            cloudifyAppId = deployTopology("deletableBlockStorageWithSize", computesId);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "comp_storage_size", 1000L * 120);

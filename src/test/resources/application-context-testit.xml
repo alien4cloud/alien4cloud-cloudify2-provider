@@ -9,34 +9,19 @@
         http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.0.xsd">
 
 	<context:annotation-config />
+
+  <context:component-scan base-package="
+		alien4cloud.*,
+		org.elasticsearch.mapping">
+    <!-- alien4cloud.security.* to exclude ldap package is not working in component-scan -->
+    <context:exclude-filter type="regex" expression="alien4cloud\.ldap.*|alien4cloud\.initialization.*|alien4cloud\.documentation.*" />
+    <context:exclude-filter type="regex" expression="alien4cloud.security.SecurityConfiguration" />
+  </context:component-scan>
+			
 	<bean id="alienconfigFactory" class="alien4cloud.utils.AlienConfigFactory" />
   <bean id="alienconfig" factory-bean="alienconfigFactory" factory-method="get" />
   <alias name="alienconfig" alias="elasticsearchConfig" />
   <context:property-placeholder properties-ref="alienconfig" />
 
-	<context:component-scan
-		base-package="
-			alien4cloud.cloud,
-			alien4cloud.plugin,
-			alien4cloud.configuration,
-			alien4cloud.dao,
-			alien4cloud.images,
-			alien4cloud.topology,
-			alien4cloud.application,
-			alien4cloud.component.dao,
-			alien4cloud.component.repository,
-			alien4cloud.tosca,
-			alien4cloud.paas,
-			alien4cloud.quicksearch,
-
-			alien4cloud.csar,
-			alien4cloud.suggestion,
-			alien4cloud.ui.form,
-			alien4cloud.utils.services,
-			org.elasticsearch.mapping,
-			alien4cloud.deployment,
-			alien4cloud.paas.cloudify2.testutils" />
-
-<!-- 	<bean id="pluginContextConfiguration" class="alien4cloud.paas.cloudify2.PluginContextConfiguration" /> -->
 	<bean id="validator" class="org.springframework.validation.beanvalidation.LocalValidatorFactoryBean" />
 </beans>

@@ -6,11 +6,7 @@ node_templates:
       os_distribution: ubuntu
       os_version: ubuntu
 
-# scaling_policies:
-
 dependencies:
-  - name: tosca-base-types
-    version: 1.0
-# input_properties:
+  - name: tosca-normative-types
+    version: 1.0.0.wd03-SNAPSHOT
 
-# input_artifacts:

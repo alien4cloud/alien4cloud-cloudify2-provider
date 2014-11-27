@@ -26,14 +26,14 @@ import org.cloudifysource.dsl.internal.DSLUtils;
 import org.springframework.beans.factory.annotation.Required;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import alien4cloud.component.model.IndexedToscaElement;
 import alien4cloud.model.cloud.ComputeTemplate;
+import alien4cloud.model.cloud.Network;
 import alien4cloud.paas.cloudify2.VelocityUtil;
-import alien4cloud.paas.cloudify2.matcher.ComputeTemplateMatcher;
+import alien4cloud.paas.cloudify2.matcher.PaaSResourceMatcher;
 import alien4cloud.paas.cloudify2.matcher.StorageTemplateMatcher;
 import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.exception.PaaSTechnicalException;
@@ -53,9 +53,9 @@ import alien4cloud.tosca.ToscaUtils;
 import alien4cloud.tosca.container.model.NormativeBlockStorageConstants;
 import alien4cloud.tosca.container.model.NormativeComputeConstants;
 import alien4cloud.tosca.container.model.topology.ScalingPolicy;
-import alien4cloud.tosca.container.model.type.ImplementationArtifact;
-import alien4cloud.tosca.container.model.type.Interface;
-import alien4cloud.tosca.container.model.type.Operation;
+import alien4cloud.tosca.model.ImplementationArtifact;
+import alien4cloud.tosca.model.Interface;
+import alien4cloud.tosca.model.Operation;
 import alien4cloud.utils.FileUtil;
 import alien4cloud.utils.MapUtil;
 
@@ -102,12 +102,10 @@ public class RecipeGenerator {
 
     @Resource
     @Getter
-    private ComputeTemplateMatcher computeTemplateMatcher;
+    private PaaSResourceMatcher paaSResourceMatcher;
     @Resource
     @Getter
     private StorageTemplateMatcher storageTemplateMatcher;
-    @Resource
-    private ApplicationContext applicationContext;
     @Resource
     private CloudifyCommandGenerator cloudifyCommandGen;
     @Resource
@@ -151,7 +149,7 @@ public class RecipeGenerator {
     }
 
     public Path generateRecipe(final String deploymentName, final String topologyId, final Map<String, PaaSNodeTemplate> nodeTemplates,
-            final List<PaaSNodeTemplate> roots, Map<String, ComputeTemplate> cloudResourcesMapping) throws IOException {
+            final List<PaaSNodeTemplate> roots, Map<String, ComputeTemplate> cloudResourcesMapping, Map<String, Network> networkMapping) throws IOException {
         // cleanup/create the topology recipe directory
         Path recipePath = cleanupDirectory(topologyId);
         List<String> serviceIds = Lists.newArrayList();
@@ -159,8 +157,13 @@ public class RecipeGenerator {
         for (PaaSNodeTemplate root : roots) {
             String nodeName = root.getId();
             ComputeTemplate template = getComputeTemplateOrDie(cloudResourcesMapping, root);
+            Network network = null;
+            PaaSNodeTemplate networkNode = root.getNetworkNode();
+            if (networkNode != null) {
+                network = getNetworkTemplateOrDie(networkMapping, networkNode);
+            }
             String serviceId = serviceIdFromNodeTemplateId(nodeName);
-            generateService(nodeTemplates, recipePath, serviceId, root, template);
+            generateService(nodeTemplates, recipePath, serviceId, root, template, network);
             serviceIds.add(serviceId);
         }
 
@@ -169,8 +172,17 @@ public class RecipeGenerator {
         return createZip(recipePath);
     }
 
+    private Network getNetworkTemplateOrDie(Map<String, Network> networkMapping, PaaSNodeTemplate networkNode) {
+        paaSResourceMatcher.verifyNetworkNode(networkNode);
+        Network network = networkMapping.get(networkNode.getId());
+        if (network != null) {
+            return network;
+        }
+        throw new ResourceMatchingFailedException("Failed to find a network for node <" + networkNode.getId() + ">");
+    }
+
     private ComputeTemplate getComputeTemplateOrDie(Map<String, ComputeTemplate> cloudResourcesMapping, PaaSNodeTemplate node) {
-        computeTemplateMatcher.verifyNode(node);
+        paaSResourceMatcher.verifyNode(node);
         ComputeTemplate template = cloudResourcesMapping.get(node.getId());
         if (template != null) {
             return template;
@@ -254,9 +266,13 @@ public class RecipeGenerator {
     }
 
     protected void generateService(final Map<String, PaaSNodeTemplate> nodeTemplates, final Path recipePath, final String serviceId,
-            final PaaSNodeTemplate computeNode, ComputeTemplate template) throws IOException {
+            final PaaSNodeTemplate computeNode, ComputeTemplate template, Network network) throws IOException {
         // find the compute template for this service
-        String computeTemplate = computeTemplateMatcher.getTemplate(template);
+        String computeTemplate = paaSResourceMatcher.getTemplate(template);
+        String networkName = null;
+        if (network != null) {
+            networkName = paaSResourceMatcher.getNetwork(network);
+        }
         log.info("Compute template ID for node <{}> is: [{}]", computeNode.getId(), computeTemplate);
         // create service directory
         Path servicePath = recipePath.resolve(serviceId);
@@ -300,7 +316,7 @@ public class RecipeGenerator {
         // TODO generate specific cloudify supported interfaces (monitoring policies)
 
         // generate the service descriptor
-        generateServiceDescriptor(context, serviceId, computeTemplate, computeNode.getScalingPolicy());
+        generateServiceDescriptor(context, serviceId, computeTemplate, networkName, computeNode.getScalingPolicy());
     }
 
     private void generateInitShutdownScripts(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate computeNode) throws IOException {
@@ -336,7 +352,6 @@ public class RecipeGenerator {
 
         String unmountDeleteCommand = getStorageUnmountDeleteCommand(context, blockStorageNode);
         Map<String, String> velocityProps = Maps.newHashMap();
-        velocityProps.put("stoppingEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STOPPING));
         velocityProps.put("stoppedEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STOPPED));
         velocityProps.put(SHUTDOWN_COMMAND, unmountDeleteCommand);
         generateScriptWorkflow(context.getServicePath(), shutdownBlockStorageScriptDescriptorPath, STORAGE_SHUTDOWN_FILE_NAME, null, velocityProps);
@@ -373,12 +388,10 @@ public class RecipeGenerator {
         // startup (create, attach, format, mount)
         Map<String, String> velocityProps = Maps.newHashMap();
         // events
-        velocityProps.put("creatingEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_CREATING));
+        velocityProps.put("initial", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_INITIAL));
         velocityProps.put("createdEvent",
                 cloudifyCommandGen.getFireBlockStorageEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_CREATED, VOLUME_ID_VAR));
-        velocityProps.put("configuringEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_CONFIGURING));
         velocityProps.put("configuredEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_CONFIGURED));
-        velocityProps.put("startingEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STARTING));
         velocityProps.put("startedEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STARTED));
 
         String createAttachCommand = getStorageCreateAttachCommand(context, blockStorageNode);
@@ -652,8 +665,8 @@ public class RecipeGenerator {
                 }
                 parameters = ArrayUtils.addAll(parameters, additionalParams);
                 String relativePath = getNodeTypeRelativePath(nodeTemplate.getIndexedNodeType());
-                command = getCommandFromOperation(nodeTemplate.getId(), relativePath, operation.getImplementationArtifact(), closureCommand, paramsAsVar,
-                        parameters);
+                command = getCommandFromOperation(nodeTemplate.getId(), interfaceName, operationName, relativePath, operation.getImplementationArtifact(),
+                        closureCommand, paramsAsVar, parameters);
                 if (StringUtils.isNotBlank(command)) {
                     this.artifactCopier.copyImplementationArtifact(context, nodeTemplate.getCsarPath(), relativePath, operation.getImplementationArtifact());
                 }
@@ -709,8 +722,8 @@ public class RecipeGenerator {
             final OperationCallActivity operationCall, final String[] parameters, final List<String> executions, final boolean isAsynchronous)
             throws IOException {
         // now call the operation script
-        String command = getCommandFromOperation(operationCall.getNodeTemplateId(), relativePath, operationCall.getImplementationArtifact(), false, false,
-                parameters);
+        String command = getCommandFromOperation(operationCall.getNodeTemplateId(), operationCall.getInterfaceName(), operationCall.getOperationName(),
+                relativePath, operationCall.getImplementationArtifact(), false, false, parameters);
 
         if (isAsynchronous) {
             final String serviceId = serviceIdFromNodeTemplateId(operationCall.getNodeTemplateId());
@@ -747,8 +760,8 @@ public class RecipeGenerator {
         }
     }
 
-    private String getCommandFromOperation(final String nodeId, final String relativePath, final ImplementationArtifact artifact, final boolean closureCommand,
-            final boolean paramsAsVar, final String... parameters) {
+    private String getCommandFromOperation(final String nodeId, final String interfaceName, final String operationName, final String relativePath,
+            final ImplementationArtifact artifact, final boolean closureCommand, final boolean paramsAsVar, final String... parameters) {
         if (artifact == null || StringUtils.isBlank(artifact.getArtifactRef())) {
             return null;
         }
@@ -767,7 +780,7 @@ public class RecipeGenerator {
             // TODO pass params to the shell scripts
             command = cloudifyCommandGen.getBashCommand(scriptPath);
         } else {
-            throw new PaaSDeploymentException("Operation <" + nodeId + "." + artifact.getInterfaceName() + "." + artifact.getOperationName()
+            throw new PaaSDeploymentException("Operation <" + nodeId + "." + interfaceName + "." + operationName
                     + "> is defined using an unsupported artifact type <" + artifact.getArtifactType() + ">.");
         }
         return command;
@@ -811,14 +824,15 @@ public class RecipeGenerator {
         VelocityUtil.writeToOutputFile(velocityDescriptorPath, outputPath, properties);
     }
 
-    private void generateServiceDescriptor(final RecipeGeneratorServiceContext context, final String serviceName, final String computeTemplate,
-            final ScalingPolicy scalingPolicy) throws IOException {
+    private void generateServiceDescriptor(final RecipeGeneratorServiceContext context, final String serviceName, final String networkName,
+            final String computeTemplate, final ScalingPolicy scalingPolicy) throws IOException {
         Path outputPath = context.getServicePath().resolve(context.getServiceId() + DSLUtils.SERVICE_DSL_FILE_NAME_SUFFIX);
 
         // configure and write the service descriptor thanks to velocity.
         HashMap<String, Object> properties = Maps.newHashMap();
         properties.put(SERVICE_NAME, serviceName);
         properties.put(SERVICE_COMPUTE_TEMPLATE_NAME, computeTemplate);
+        properties.put(SERVICE_NETWORK_NAME, networkName);
         if (scalingPolicy != null) {
             properties.put(SERVICE_NUM_INSTANCES, scalingPolicy.getInitialInstances());
             properties.put(SERVICE_MIN_ALLOWED_INSTANCES, scalingPolicy.getMinInstances());

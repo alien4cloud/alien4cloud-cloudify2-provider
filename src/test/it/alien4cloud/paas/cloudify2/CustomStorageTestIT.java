@@ -26,11 +26,10 @@ public class CustomStorageTestIT extends GenericStorageTestCase {
     public void customBlockStorageVolumeIdProvidedSucessTest() throws Throwable {
         log.info("\n\n >> Executing Test customBlockStorageVolumeIdProvidedSucessTest \n");
         String cloudifyAppId = null;
-        this.initElasticSearch(new String[] { "tosca-normative-types", "fastconnect-base-types", "deletable-storage-type", "custom-storage-types" },
-                new String[] { "1.0.0-wd02-SNAPSHOT", "0.1.1", "0.1", "0.1-snapshot" });
+        this.initElasticSearch(new String[] { "custom-storage-types" }, new String[] { "0.1-SNAPSHOT" });
         try {
             String[] computesId = new String[] { "custom_storage_volumeid" };
-            cloudifyAppId = deployTopology("customBlockStorageWithVolumeId", computesId, true);
+            cloudifyAppId = deployTopology("customBlockStorageWithVolumeId", computesId);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "custom_storage_volumeid", 1000L * 120);
@@ -47,12 +46,11 @@ public class CustomStorageTestIT extends GenericStorageTestCase {
     public void customBlockStorageSizeProvidedSucessTest() throws Throwable {
         log.info("\n\n >> Executing Test customBlockStorageSizeProvidedSucessTest \n");
         String cloudifyAppId = null;
-        this.initElasticSearch(new String[] { "tosca-normative-types", "fastconnect-base-types", "deletable-storage-type", "custom-storage-types" },
-                new String[] { "1.0.0-wd02-SNAPSHOT", "0.1.1", "0.1", "0.1-snapshot" });
+        this.initElasticSearch(new String[] { "custom-storage-types" }, new String[] { "1.0-SNAPSHOT" });
         try {
 
             String[] computesId = new String[] { "custom_storage_size" };
-            cloudifyAppId = deployTopology("customDeletableBlockStorageWithSize", computesId, true);
+            cloudifyAppId = deployTopology("customDeletableBlockStorageWithSize", computesId);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "custom_storage_size", 1000L * 120);
