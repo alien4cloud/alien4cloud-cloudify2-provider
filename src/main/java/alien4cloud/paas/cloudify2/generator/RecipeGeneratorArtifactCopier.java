@@ -37,6 +37,7 @@ import com.google.common.collect.Maps;
 public class RecipeGeneratorArtifactCopier {
     private static final String OVERRIDES_DIR_NAME = "overrides";
     private static final String DIRECTORY_ARTIFACT_TYPE = "fastconnect.artifacts.ResourceDirectory";
+    private static final String FILE_TYPE = "tosca.artifacts.File";
     private static final String SERVICE_DIRECTORY_TEMPLATE = "serviceDirectory}";
 
     @Resource
@@ -194,7 +195,7 @@ public class RecipeGeneratorArtifactCopier {
                         Files.createDirectories(targetContainerDirPath);
                     }
 
-                    if (DIRECTORY_ARTIFACT_TYPE.equals(artifact.getArtifactType())) {
+                    if (FILE_TYPE.equals(artifact.getArtifactType()) || DIRECTORY_ARTIFACT_TYPE.equals(artifact.getArtifactType())) {
                         Files.walkFileTree(artifactPath, new SimpleFileVisitor<Path>() {
                             @Override
                             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
