@@ -824,8 +824,8 @@ public class RecipeGenerator {
         VelocityUtil.writeToOutputFile(velocityDescriptorPath, outputPath, properties);
     }
 
-    private void generateServiceDescriptor(final RecipeGeneratorServiceContext context, final String serviceName, final String networkName,
-            final String computeTemplate, final ScalingPolicy scalingPolicy) throws IOException {
+    private void generateServiceDescriptor(final RecipeGeneratorServiceContext context, final String serviceName, final String computeTemplate,
+            final String networkName, final ScalingPolicy scalingPolicy) throws IOException {
         Path outputPath = context.getServicePath().resolve(context.getServiceId() + DSLUtils.SERVICE_DSL_FILE_NAME_SUFFIX);
 
         // configure and write the service descriptor thanks to velocity.
