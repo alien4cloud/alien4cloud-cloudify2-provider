@@ -60,18 +60,17 @@ public class DeploymentTestIT extends GenericTestCase {
         log.info("\n\n >> Executing Test topologyWithShScriptsTests \n");
 
         String cloudifyAppId = null;
-        this.initElasticSearch(new String[] { "apache-types", "tomcat-test-types" }, new String[] { "0.1", "1.0-SNAPSHOT" });
+        this.initElasticSearch(new String[] { "tomcat-test-types" }, new String[] { "1.0-SNAPSHOT" });
         try {
-            String[] computesId = new String[] { "serveur_web" };
-            cloudifyAppId = deployTopology("tomcatShApache", computesId);
+            String[] computesId = new String[] { "comp_tomcatsh" };
+            cloudifyAppId = deployTopology("tomcatSh", computesId);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
-            waitForServiceToStarts(cloudifyAppId, "serveur_web", 1000L * 120);
-            assertHttpCodeEquals(cloudifyAppId, "serveur_web", "8080", "", HTTP_CODE_OK, null);
-            assertHttpCodeEquals(cloudifyAppId, "serveur_web", "80", "", HTTP_CODE_OK, null);
+            waitForServiceToStarts(cloudifyAppId, "comp_tomcatsh", 1000L * 120);
+            assertHttpCodeEquals(cloudifyAppId, "comp_tomcatsh", "8080", "", HTTP_CODE_OK, null);
 
-            testEvents(cloudifyAppId, new String[] { "serveur_web", "apache", "tomcat" }, PlanGeneratorConstants.STATE_INITIAL,
-                    PlanGeneratorConstants.STATE_CREATED, PlanGeneratorConstants.STATE_CONFIGURED, PlanGeneratorConstants.STATE_STARTED);
+            testEvents(cloudifyAppId, new String[] { "comp_tomcatsh", "tomcat" }, PlanGeneratorConstants.STATE_CREATED,
+                    PlanGeneratorConstants.STATE_CONFIGURED, PlanGeneratorConstants.STATE_STARTED);
 
             testUndeployment(cloudifyAppId);
 

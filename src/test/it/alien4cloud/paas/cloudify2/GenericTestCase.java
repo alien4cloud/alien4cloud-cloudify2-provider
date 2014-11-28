@@ -118,8 +118,8 @@ public class GenericTestCase {
         uploadCsar("tosca-normative-types", "1.0.0.wd03-SNAPSHOT");
         uploadCsar("fastconnect-base-types", "1.0");
 
-        // String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        String cloudifyURL = null;
+        String cloudifyURL = System.getenv("CLOUDIFY_URL");
+        // String cloudifyURL = null;
         cloudifyURL = cloudifyURL == null ? "http://129.185.67.64:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL);

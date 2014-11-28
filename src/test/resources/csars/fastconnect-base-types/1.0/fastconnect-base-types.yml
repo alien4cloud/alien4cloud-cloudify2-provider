@@ -10,7 +10,7 @@ imports:
 
 description: Some types for alien 4 cloud driver tests.
 
-types:
+artifact_types:
   tosca.artifacts.GroovyScript:
     description: A groovy script (.groovy file)
     file_ext: [ groovy ]

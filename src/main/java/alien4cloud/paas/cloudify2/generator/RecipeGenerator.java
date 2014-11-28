@@ -388,7 +388,7 @@ public class RecipeGenerator {
         // startup (create, attach, format, mount)
         Map<String, String> velocityProps = Maps.newHashMap();
         // events
-        velocityProps.put("initial", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_INITIAL));
+        // velocityProps.put("initial", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_INITIAL));
         velocityProps.put("createdEvent",
                 cloudifyCommandGen.getFireBlockStorageEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_CREATED, VOLUME_ID_VAR));
         velocityProps.put("configuredEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_CONFIGURED));

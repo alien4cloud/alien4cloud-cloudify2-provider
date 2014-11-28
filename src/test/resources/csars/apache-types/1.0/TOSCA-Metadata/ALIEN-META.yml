@@ -1,6 +1,6 @@
-name: "tomcat-test-types"
-version: "1.0-SNAPSHOT"
-created_by: "FastConnect"
+name: "apache-types"
+version: "1.0"
+created_by: "alien4cloud"
 
 dependencies:
   - name: tosca-normative-types
@@ -9,4 +9,4 @@ dependencies:
     version: 1.0
 
 definitions:
-  - Definitions/tomcat-test-types.yml
+  - Definitions/apache-types.yml

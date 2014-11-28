@@ -17,7 +17,7 @@ node_types:
         constraints:
           - equal: 2
     interfaces:
-      lifecycle:
+      Standard:
         create: scripts/alien_apache_install.groovy
         start: scripts/apache_start.groovy
         stop: scripts/apache_stop.groovy
@@ -32,4 +32,4 @@ node_types:
         upper_bound: unbounded
     artifacts:
       - scripts: scripts
-        type: fastconnect.artifacts.ResourceDirectory
+        type: tosca.artifacts.File

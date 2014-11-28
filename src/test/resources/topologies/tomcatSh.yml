@@ -1,23 +1,15 @@
 node_templates:
-  serveur_web:
+  comp_tomcatsh:
     type: tosca.nodes.Compute
     properties:
       os_type: linux
       os_distribution: ubuntu
       os_version: ubuntu
-  apache:
-    type: fastconnect.nodes.apache
-    relationships:
-      hostedOnServeurWeb:
-        target: serveur_web
-        type: tosca.relationships.HostedOn
-        requirement_name: host
-        requirement_type: tosca.capabilities.Container
   tomcat:
     type: fastconnect.nodes.TomcatSh
     relationships:
       hostedOnServeurWeb:
-        target: serveur_web
+        target: comp_tomcatsh
         type: tosca.relationships.HostedOn
         requirement_name: host
         requirement_type: tosca.capabilities.Container
@@ -27,5 +19,3 @@ dependencies:
     version: 1.0.0.wd03-SNAPSHOT
   - name: tomcat-test-types
     version: 1.0-SNAPSHOT
-  - name: apache-types
-    version: 1.0

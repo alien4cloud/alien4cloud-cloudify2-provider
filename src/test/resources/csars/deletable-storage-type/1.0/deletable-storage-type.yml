@@ -1,5 +1,12 @@
 tosca_definitions_version: tosca_simple_yaml_1_0_0_wd03
 
+template_name: deletable-storage-type
+template_author: alien4cloud
+template_version: 1.0
+
+imports:
+  - tosca-normative-types:1.0.0.wd03-SNAPSHOT
+
 description: This archive contains a deletable block storage.
 
 node_types:
