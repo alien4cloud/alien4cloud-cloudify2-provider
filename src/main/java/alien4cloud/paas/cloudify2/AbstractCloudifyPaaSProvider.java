@@ -49,6 +49,7 @@ import alien4cloud.paas.IConfigurablePaaSProvider;
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.events.BlockStorageEvent;
 import alien4cloud.paas.cloudify2.events.NodeInstanceState;
+import alien4cloud.paas.cloudify2.generator.RecipeGenerator;
 import alien4cloud.paas.exception.OperationExecutionException;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.PaaSDeploymentException;
@@ -69,7 +70,7 @@ import alien4cloud.tosca.container.ToscaFunctionProcessor;
 import alien4cloud.tosca.container.model.topology.NodeTemplate;
 import alien4cloud.tosca.container.model.topology.ScalingPolicy;
 import alien4cloud.tosca.container.model.topology.Topology;
-import alien4cloud.tosca.container.model.type.PropertyDefinition;
+import alien4cloud.tosca.model.PropertyDefinition;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -133,7 +134,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             DeploymentInfo deploymentInfo = new DeploymentInfo();
             deploymentInfo.topology = topology;
             deploymentInfo.paaSNodeTemplates = nodeTemplates;
-            Path cfyZipPath = recipeGenerator.generateRecipe(deploymentName, deploymentId, nodeTemplates, roots, deploymentSetup.getCloudResourcesMapping());
+            Path cfyZipPath = recipeGenerator.generateRecipe(deploymentName, deploymentId, nodeTemplates, roots, deploymentSetup.getCloudResourcesMapping(),
+                    deploymentSetup.getNetworkMapping());
             statusByDeployments.put(deploymentId, deploymentInfo);
             log.info("Deploying application from recipe at <{}>", cfyZipPath);
             this.deployOnCloudify(deploymentId, cfyZipPath);

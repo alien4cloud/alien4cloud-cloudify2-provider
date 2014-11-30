@@ -3,37 +3,25 @@ import org.cloudifysource.utilitydomain.context.ServiceContextFactory
 println "startupBlockStorage.groovy : starting startupBlockStorage script"
 
 def context = ServiceContextFactory.getServiceContext()
-def volumeCreated = false
-$creatingEvent
-def volumeId = context.attributes.thisInstance.volumeId
-if(volumeId == null || volumeId.trim().isEmpty()){
-	if(!context.attributes.thisService.storageTemplateId || context.attributes.thisService.storageTemplateId.trim().isEmpty()){
-		throw new IllegalArgumentException("A storage template Id is expected!")
-	}
-	def storageTemplateId = context.attributes.thisService.storageTemplateId
-	volumeId = context.storage.createVolume(storageTemplateId)
-	volumeCreated = true
+
+def createResult = $createCommand
+if(createResult == null || !createResult.volumeId || !createResult.device){
+		throw new IllegalStateException("The volume creation script must return a map [\"volumeId\": volumeId, \"device\":device ]containing the created volumeId and the attached device name.")
 }
+def volumeId = createResult.volumeId
+def device = createResult.device
 $createdEvent
-$startingEvent
 
-println "Storage volume: volumeId <${volumeId}>, device <$device>, path <$path>, fileSystem <$fileSystem>"
-
-println "attaching storage volume... "
-context.storage.attachVolume(volumeId, "$device")
-
-if(volumeCreated) {
-	println "formating the storage volume... "
-	context.storage.format("$device", "$fileSystem")
+def configureResult = $configureCommand
+if(configureResult == null ){
+		throw new IllegalStateException("The volume configuring script must return the mounted path of the volume, \"storagePath\".")
 }
+$configuredEvent
 
-println "mounting storage volume... "
-context.storage.mount("$device", "$path")
-
+println "Storage volume: volumeId <${volumeId}>, device <${device}>, path <${configureResult}>"
 context.attributes.thisInstance.volumeId = volumeId 
-context.attributes.thisInstance.storageDevice = "$device"
-context.attributes.thisInstance.storagePath = "$path"
-context.attributes.thisInstance.storageFileSystem = "$fileSystem"
+context.attributes.thisInstance.storageDevice = device
+context.attributes.thisInstance.storagePath = configureResult
 $startedEvent
 
 println "startupBlockStorage.groovy : startupBlockStorage script  End"

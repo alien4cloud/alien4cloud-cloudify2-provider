@@ -51,4 +51,10 @@ service {
     #end
   ])
   #end
+
+#if($networkName)
+  network {
+    template "$networkName"
+  }
+#end
 }

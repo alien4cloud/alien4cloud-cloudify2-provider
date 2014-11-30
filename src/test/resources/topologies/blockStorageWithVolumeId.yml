@@ -1,0 +1,29 @@
+
+node_templates:
+  comp_storage_volumeid:
+    type: tosca.nodes.Compute
+    properties:
+      os_type: linux
+      os_distribution: ubuntu
+      os_version: ubuntu
+  blockstorage:
+    type: tosca.nodes.BlockStorage
+    properties:
+      volume_id: 758e985c-a1ac-4eb4-83ce-e1fc516ec18e
+    relationships:
+      attachToServeurWeb:
+        target: comp_storage_volumeid
+        type: tosca.relationships.AttachTo
+        requirement_name: attachment
+        requirement_type: tosca.capabilities.Attachment
+        targeted_capability_name: attach
+
+scaling_policies:
+  serveur_web:
+    min_instances: 1
+    max_instances: 3
+    initial_instances: 1 
+
+dependencies:
+  - name: tosca-normative-types
+    version: 1.0.0.wd03-SNAPSHOT

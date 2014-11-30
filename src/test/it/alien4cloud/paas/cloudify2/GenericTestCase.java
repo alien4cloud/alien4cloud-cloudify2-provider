@@ -12,9 +12,11 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.Resource;
@@ -29,6 +31,8 @@ import org.cloudifysource.dsl.rest.response.ServiceDescription;
 import org.cloudifysource.dsl.rest.response.ServiceInstanceDetails;
 import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.mapping.ElasticSearchClient;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -40,22 +44,24 @@ import alien4cloud.component.repository.CsarFileRepository;
 import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
 import alien4cloud.dao.ElasticSearchDAO;
 import alien4cloud.model.application.Application;
+import alien4cloud.model.application.ApplicationEnvironment;
+import alien4cloud.model.application.ApplicationVersion;
 import alien4cloud.model.application.DeploymentSetup;
 import alien4cloud.model.cloud.CloudResourceMatcherConfig;
 import alien4cloud.model.cloud.ComputeTemplate;
 import alien4cloud.model.cloud.MatchedComputeTemplate;
+import alien4cloud.model.deployment.Deployment;
 import alien4cloud.paas.cloudify2.exception.A4CCloudifyDriverITException;
-import alien4cloud.paas.exception.PluginConfigurationException;
-import alien4cloud.tosca.container.archive.CsarUploadService;
-import alien4cloud.tosca.container.exception.CSARParsingException;
-import alien4cloud.tosca.container.exception.CSARValidationException;
+import alien4cloud.plugin.PluginConfiguration;
+import alien4cloud.tosca.ArchiveUploadService;
 import alien4cloud.tosca.container.model.topology.Topology;
+import alien4cloud.tosca.model.Csar;
+import alien4cloud.tosca.parser.ParsingException;
 import alien4cloud.utils.FileUtil;
 import alien4cloud.utils.YamlParserUtil;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -70,7 +76,7 @@ public class GenericTestCase {
     private static final String DEFAULT_COMPUTE_TEMPLATE_ID = "MEDIUM_LINUX";
 
     @Resource
-    protected CsarUploadService csarUploadService;
+    protected ArchiveUploadService archiveUploadService;
 
     @Resource(name = "cloudify-paas-provider-bean")
     protected CloudifyPaaSProvider cloudifyPaaSPovider;
@@ -81,22 +87,40 @@ public class GenericTestCase {
     protected CloudifyRestClientManager cloudifyRestClientManager;
     @Resource
     private ApplicationService applicationService;
+    @Resource
+    private ElasticSearchClient esClient;
+
     protected List<String> deployedCloudifyAppIds = new ArrayList<>();
+    private List<Class<?>> IndiceClassesToClean;
+
+    public GenericTestCase() {
+        IndiceClassesToClean = Lists.newArrayList();
+        IndiceClassesToClean.add(ApplicationEnvironment.class);
+        IndiceClassesToClean.add(ApplicationVersion.class);
+        IndiceClassesToClean.add(DeploymentSetup.class);
+        IndiceClassesToClean.add(Application.class);
+        IndiceClassesToClean.add(Csar.class);
+        IndiceClassesToClean.add(Topology.class);
+        IndiceClassesToClean.add(PluginConfiguration.class);
+        IndiceClassesToClean.add(Deployment.class);
+    }
 
     @BeforeClass
     public static void beforeClass() {
-        log.info("In Before Class");
-        cleanAlienFiles();
+        cleanAlienTargetDir();
     }
 
     @Before
-    public void before() throws PluginConfigurationException, CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException, IOException {
+    public void before() throws Throwable {
+        log.info("In beforeTest");
+        cleanESFiles();
 
-        cleanAlienFiles();
+        uploadCsar("tosca-normative-types", "1.0.0.wd03-SNAPSHOT");
+        uploadCsar("fastconnect-base-types", "1.0");
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
         // String cloudifyURL = null;
-        cloudifyURL = cloudifyURL == null ? "http://129.185.67.86:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "http://129.185.67.64:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL);
         pluginConfigurationBean.setSynchronousDeployment(true);
@@ -107,21 +131,41 @@ public class GenericTestCase {
         matcherConf.setMatchedComputeTemplates(Lists.newArrayList(new MatchedComputeTemplate(new ComputeTemplate(null, DEFAULT_COMPUTE_TEMPLATE_ID),
                 DEFAULT_COMPUTE_TEMPLATE_ID)));
         cloudifyPaaSPovider.updateMatcherConfig(matcherConf);
-        // cloudifyPaaSPovider.setCloudifyRestClientManager(new CloudifyRestClientManager());
     }
 
     @After
     public void after() {
+        log.info("In afterTest");
         try {
             undeployAllApplications();
         } catch (RestClientException | IOException e) {
             log.warn("error in after:", e);
         }
-        cleanAlienFiles();
     }
 
-    public static void cleanAlienFiles() {
+    public static void cleanAlienTargetDir() {
         FileUtils.deleteQuietly(new File("target/alien"));
+    }
+
+    public void cleanESFiles() throws Throwable {
+        log.info("Cleaning repositories files");
+        if (Files.exists(Paths.get("target/tmp/"))) {
+            FileUtil.delete(Paths.get("target/tmp/"));
+        }
+        Path csarrepo = Paths.get("target/alien/csar");
+        if (Files.exists(csarrepo)) {
+            FileUtil.delete(csarrepo);
+        }
+
+        Files.createDirectories(csarrepo);
+
+        // Clean elastic search cluster
+        for (Class<?> indiceClass : IndiceClassesToClean) {
+            esClient.getClient().prepareDeleteByQuery(new String[] { indiceClass.getSimpleName().toLowerCase() }).setQuery(QueryBuilders.matchAllQuery())
+                    .execute().get();
+        }
+        esClient.getClient().prepareDeleteByQuery(new String[] { ElasticSearchDAO.TOSCA_ELEMENT_INDEX }).setQuery(QueryBuilders.matchAllQuery()).execute()
+                .get();
     }
 
     private void undeployAllApplications() throws RestClientException, IOException {
@@ -135,7 +179,6 @@ public class GenericTestCase {
             try {
                 log.info("trying to undeploy aplication <" + id + ">.");
                 restClient.uninstallApplication(id, (int) (1000L * 60L * 10L));
-                // cloudifyPaaSPovider.undeploy(topology.getId());
                 log.info("cloudify app <" + id + "> undeployed.");
             } catch (Throwable t) {
                 log.error("failed to undeploy application <" + id + ">.");
@@ -164,32 +207,23 @@ public class GenericTestCase {
         }
     }
 
-    public void initElasticSearch(String[] csarNames, String[] versions) throws IOException, CSARParsingException, CSARVersionAlreadyExistsException,
-            CSARValidationException {
+    protected void initElasticSearch(String[] csarNames, String[] versions) throws IOException, CSARVersionAlreadyExistsException, ParsingException {
         log.info("Initializing ALIEN repository.");
 
         for (int i = 0; i < csarNames.length; i++) {
             uploadCsar(csarNames[i], versions[i]);
         }
-
-        // uploadCsar("tosca-base-types", "1.0");
-        // uploadCsar("fastconnect-base-types", "0.1");
-        // uploadCsar("apache-types", "0.1");
-        // uploadCsar("apache-lb-types", "0.2");
-        // uploadCsar("tomcat-types", "0.2");
-        // uploadCsar("tomcatGroovy-types", "0.1");
-
         log.info("Types have been added to the repository.");
     }
 
-    public void uploadCsar(String name, String version) throws IOException, CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException {
+    protected void uploadCsar(String name, String version) throws IOException, CSARVersionAlreadyExistsException, ParsingException {
         Path inputPath = Paths.get(CSAR_SOURCE_PATH + name + "/" + version);
         Path zipPath = Files.createTempFile("csar", ".zip");
         FileUtil.zip(inputPath, zipPath);
-        csarUploadService.uploadCsar(zipPath);
+        archiveUploadService.upload(zipPath);
     }
 
-    public void waitForServiceToStarts(final String applicationId, final String serviceName, final long timeoutInMillis) throws RestClientException {
+    protected void waitForServiceToStarts(final String applicationId, final String serviceName, final long timeoutInMillis) throws RestClientException {
         CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
         DeploymentState serviceState = null;
         long startTime = System.currentTimeMillis();
@@ -210,7 +244,7 @@ public class GenericTestCase {
         }
     }
 
-    public void assertHttpCodeEquals(String applicationId, String serviceName, String port, String path, int expectedCode, Integer timeoutInMillis)
+    protected void assertHttpCodeEquals(String applicationId, String serviceName, String port, String path, int expectedCode, Integer timeoutInMillis)
             throws RestClientException, IOException, InterruptedException {
         log.info("About to check path <:" + port.concat("/").concat(path) + ">");
         CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
@@ -232,7 +266,7 @@ public class GenericTestCase {
         Assert.assertEquals("Expected Response code " + expectedCode + " got " + httpResponseCode, expectedCode, httpResponseCode);
     }
 
-    public int getResponseCode(String urlString) throws IOException {
+    protected int getResponseCode(String urlString) throws IOException {
         URL u = new URL(urlString);
         HttpURLConnection huc = (HttpURLConnection) u.openConnection();
         huc.setRequestMethod("GET");
@@ -241,8 +275,13 @@ public class GenericTestCase {
         return huc.getResponseCode();
     }
 
-    public String deployTopology(String topologyFileName, String[] computesId, boolean isYamlTopologyFile) throws IOException, JsonParseException,
-            JsonMappingException, CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException {
+    protected String deployTopology(String topologyFileName, String[] computesId) throws IOException, JsonParseException, JsonMappingException,
+            CSARVersionAlreadyExistsException, ParsingException {
+        Topology topology = this.createAlienApplication(topologyFileName, topologyFileName);
+        return deployTopology(computesId, topology, topologyFileName);
+    }
+
+    protected String deployTopology(String[] computesId, Topology topology, String topologyFileName) {
         DeploymentSetup setup = new DeploymentSetup();
         setup.setCloudResourcesMapping(Maps.<String, ComputeTemplate> newHashMap());
         if (computesId != null) {
@@ -250,18 +289,16 @@ public class GenericTestCase {
                 setup.getCloudResourcesMapping().put(string, new ComputeTemplate(null, DEFAULT_COMPUTE_TEMPLATE_ID));
             }
         }
-        String appName = "CloudifyPaaSProvider-IT " + topologyFileName;
-        Topology topology = this.createAlienApplication(appName, topologyFileName, isYamlTopologyFile);
         log.info("\n\n TESTS: Deploying topology <{}>. Deployment id is <{}>. \n", topologyFileName, topology.getId());
         deployedCloudifyAppIds.add(topology.getId());
-        cloudifyPaaSPovider.deploy(appName, topology.getId(), topology, setup);
+        cloudifyPaaSPovider.deploy(topologyFileName, topology.getId(), topology, setup);
         return topology.getId();
     }
 
-    private Topology createAlienApplication(String applicationName, String topologyFileName, boolean isYamlTopologyFile) throws IOException,
-            JsonParseException, JsonMappingException, CSARParsingException, CSARVersionAlreadyExistsException, CSARValidationException {
+    protected Topology createAlienApplication(String applicationName, String topologyFileName) throws IOException, JsonParseException, JsonMappingException,
+            ParsingException, CSARVersionAlreadyExistsException {
 
-        Topology topology = isYamlTopologyFile ? parseYamlTopology(topologyFileName) : parseJsonTopology(topologyFileName);
+        Topology topology = parseYamlTopology(topologyFileName);
 
         String applicationId = applicationService.create("alien", applicationName, null, null);
         topology.setDelegateId(applicationId);
@@ -275,21 +312,12 @@ public class GenericTestCase {
     }
 
     private Topology parseYamlTopology(String topologyFileName) throws IOException {
-        Topology topology = YamlParserUtil.parseFromUTF8File(Paths.get(TOPOLOGIES_PATH.concat("yaml/") + topologyFileName + ".yml"), Topology.class);
+        Topology topology = YamlParserUtil.parseFromUTF8File(Paths.get(TOPOLOGIES_PATH + topologyFileName + ".yml"), Topology.class);
         topology.setId(UUID.randomUUID().toString());
         return topology;
     }
 
-    private Topology parseJsonTopology(String topologyFileName) throws IOException {
-        String responseAsString = new String(Files.readAllBytes(Paths.get(TOPOLOGIES_PATH + topologyFileName + "-topology.json")));
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.setPropertyNamingStrategy(com.fasterxml.jackson.databind.PropertyNamingStrategy.CAMEL_CASE_TO_LOWER_CASE_WITH_UNDERSCORES);
-        Topology topology = objectMapper.readValue(responseAsString, Topology.class);
-        topology.setId(UUID.randomUUID().toString());
-        return topology;
-    }
-
-    public void assertApplicationIsInstalled(String applicationId) throws RestClientException {
+    protected void assertApplicationIsInstalled(String applicationId) throws RestClientException {
         log.info("Asserting aplication <" + applicationId + "> installed...");
         RestClient restClient = cloudifyRestClientManager.getRestClient();
         ApplicationDescription appliDesc = restClient.getApplicationDescription(applicationId);
@@ -297,5 +325,15 @@ public class GenericTestCase {
         for (ServiceDescription service : servicesDescription) {
             Assert.assertEquals("Service " + service.getServiceName() + " is not in STARTED state", DeploymentState.STARTED, service.getServiceState());
         }
+    }
+
+    protected Set<String> getMissingEvents(Set<String> expectedEvents, Set<String> currentEvents) {
+        Set<String> missing = new HashSet<>();
+        for (String event : expectedEvents) {
+            if (!currentEvents.contains(event)) {
+                missing.add(event);
+            }
+        }
+        return missing;
     }
 }

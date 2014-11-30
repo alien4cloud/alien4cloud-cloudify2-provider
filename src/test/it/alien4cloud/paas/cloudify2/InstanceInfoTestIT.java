@@ -25,12 +25,12 @@ public class InstanceInfoTestIT extends GenericTestCase {
 
     @Test
     public void testScaleAndGetInstancesInformations() throws Exception {
+        log.info("\n\n >> Executing Test testScaleAndGetInstancesInformations \n");
         String cloudifyAppId = null;
-        this.initElasticSearch(new String[] { "tosca-base-types", "fastconnect-base-types", "tomcat-test-types" },
-                new String[] { "1.0", "0.1", "0.2-snapshot" });
+        this.initElasticSearch(new String[] { "tomcat-test-types" }, new String[] { "1.0-SNAPSHOT" });
 
         String[] computes = new String[] { "serveur_web" };
-        cloudifyAppId = deployTopology("compTomcatScaling", computes, true);
+        cloudifyAppId = deployTopology("compTomcatScaling", computes);
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
         Map<String, Map<Integer, InstanceInformation>> instancesInformations = cloudifyPaaSPovider.getInstancesInformation(cloudifyAppId, topo);
         printStatuses(instancesInformations);
@@ -41,44 +41,14 @@ public class InstanceInfoTestIT extends GenericTestCase {
         scale("serveur_web", 1, cloudifyAppId, topo);
 
         // TODO: test scaling
-        // long timeoutInMillis = 1000L * 300;
-        // waitForScalingToEnd(cloudifyAppId, timeoutInMillis);
-        // waitForServiceToStarts(cloudifyAppId, "serveur_web", 1000L * 120);
-
-        // instancesInformations = cloudifyPaaSPovider.getInstancesInformation(cloudifyAppId, topo);
-        // printStatuses(instancesInformations);
-        // assertStartedInstance("serveur_web", 2, instancesInformations);
-        // assertAllInstanceStatus("serveur_web", InstanceStatus.SUCCESS, instancesInformations);
-        // assertAllInstanceStatus("tomcat", InstanceStatus.SUCCESS, instancesInformations);
     }
 
-    // TODO add scalability test.
-    // private void waitForScalingToEnd(String cloudifyAppId, long timeoutInMillis) throws Exception {
-    // CloudifyEventsListener listener = new CloudifyEventsListener(cloudifyRestClientManager.getRestEventEndpoint(), null, null);
-    // Set<String> states = Sets.newHashSet();
-    // long startTime = System.currentTimeMillis();
-    // boolean timeout = false;
-    // while (!states.equals(Sets.newHashSet(PlanGeneratorConstants.STATE_STARTED)) && !timeout) {
-    // try {
-    // Thread.sleep(10000L);
-    // } catch (InterruptedException e) {
-    // Thread.currentThread().interrupt();
-    // }
-    // states.clear();
-    // List<NodeInstanceState> nodeInstanceStates = listener.getNodeInstanceStates(cloudifyAppId);
-    // for (NodeInstanceState nodeInstanceState : nodeInstanceStates) {
-    // states.add(nodeInstanceState.getInstanceState());
-    // }
-    // timeout = System.currentTimeMillis() - startTime > timeoutInMillis;
-    // }
-    // }
-
-    private void scale(String nodeID, int instances, String appId, Topology topo) {
-        int plannedInstance = topo.getScalingPolicies().get(nodeID).getInitialInstances() + instances;
-        log.info("Scaling to " + instances);
+    private void scale(String nodeID, int nbToAdd, String appId, Topology topo) {
+        int plannedInstance = topo.getScalingPolicies().get(nodeID).getInitialInstances() + nbToAdd;
+        log.info("Scaling to " + nbToAdd);
         topo.getScalingPolicies().get(nodeID).setInitialInstances(plannedInstance);
         alienDAO.save(topo);
-        cloudifyPaaSPovider.scale(appId, nodeID, instances);
+        cloudifyPaaSPovider.scale(appId, nodeID, nbToAdd);
     }
 
     private void printStatuses(Map<String, Map<Integer, InstanceInformation>> instancesInformations) {
@@ -95,7 +65,7 @@ public class InstanceInfoTestIT extends GenericTestCase {
             }
         }
 
-        System.out.println(sb.toString());
+        log.info(sb.toString());
     }
 
     private void assertStartedInstance(String nodeID, int expectedInstances, Map<String, Map<Integer, InstanceInformation>> instancesInformations) {
