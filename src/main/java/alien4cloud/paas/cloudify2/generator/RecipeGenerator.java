@@ -78,6 +78,9 @@ public class RecipeGenerator {
     private static final String DEFAULT_BLOCKSTORAGE_FS = "ext4";
     private static final String VOLUME_ID_VAR = "volumeId";
 
+    private static final String FS = "file_system";
+    private static final String PATH = "path";
+
     private static final String SHELL_ARTIFACT_TYPE = "tosca.artifacts.ShellScript";
     private static final String GROOVY_ARTIFACT_TYPE = "tosca.artifacts.GroovyScript";
 
@@ -411,8 +414,21 @@ public class RecipeGenerator {
 
         // if no custom management then generate the default routine
         if (StringUtils.isBlank(formatMountCommand)) {
+            // get the fs and the mount path
+            Map<String, String> properties = blockStorageNode.getNodeTemplate().getProperties();
+            String fs = DEFAULT_BLOCKSTORAGE_FS;
+            if (properties != null && StringUtils.isNotBlank(properties.get(FS))) {
+                fs = properties.get(FS);
+            }
+
+            // get the storage mounting path
+            String storagePath = DEFAULT_BLOCKSTORAGE_PATH;
+            if (properties != null && StringUtils.isNotBlank(properties.get(PATH))) {
+                storagePath = properties.get(PATH);
+            }
+
             generateScriptWorkflow(context.getServicePath(), formatMountBlockStorageScriptDescriptorPath, DEFAULT_STORAGE_MOUNT_FILE_NAME, null,
-                    MapUtil.newHashMap(new String[] { PATH_KEY, FS_KEY }, new String[] { DEFAULT_BLOCKSTORAGE_PATH, DEFAULT_BLOCKSTORAGE_FS }));
+                    MapUtil.newHashMap(new String[] { PATH_KEY, FS_KEY }, new String[] { storagePath, fs }));
             formatMountCommand = cloudifyCommandGen.getGroovyCommandWithParamsAsVar(DEFAULT_STORAGE_MOUNT_FILE_NAME.concat(".groovy"), "device");
         }
         return formatMountCommand;
@@ -423,10 +439,16 @@ public class RecipeGenerator {
                 PlanGeneratorConstants.CREATE_OPERATION_NAME, false, false, true, CONTEXT_THIS_INSTANCE_ATTRIBUTES + ".volumeId",
                 CONTEXT_THIS_SERVICE_ATTRIBUTES + ".storageTemplateId");
 
+        Map<String, String> properties = blockStorageNode.getNodeTemplate().getProperties();
+        String device = DEFAULT_BLOCKSTORAGE_DEVICE;
+        if (properties != null && StringUtils.isNotBlank(properties.get(NormativeBlockStorageConstants.DEVICE))) {
+            device = properties.get(NormativeBlockStorageConstants.DEVICE);
+        }
+
         // if no custom management then generate the default routine
         if (StringUtils.isBlank(createAttachCommand)) {
             generateScriptWorkflow(context.getServicePath(), createAttachBlockStorageScriptDescriptorPath, DEFAULT_STORAGE_CREATE_FILE_NAME, null,
-                    MapUtil.newHashMap(new String[] { NormativeBlockStorageConstants.DEVICE }, new String[] { DEFAULT_BLOCKSTORAGE_DEVICE }));
+                    MapUtil.newHashMap(new String[] { NormativeBlockStorageConstants.DEVICE }, new String[] { device }));
             createAttachCommand = cloudifyCommandGen.getGroovyCommand(DEFAULT_STORAGE_CREATE_FILE_NAME.concat(".groovy"));
         }
         return createAttachCommand;

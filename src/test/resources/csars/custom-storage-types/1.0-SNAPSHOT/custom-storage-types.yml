@@ -6,6 +6,7 @@ template_version: 1.0-SNAPSHOT
 
 imports:
   - tosca-normative-types:1.0.0.wd03-SNAPSHOT
+  - deletable-storage-type:1.0
 
 description: This archive contains custom types for tests.
 
@@ -32,3 +33,18 @@ node_types:
     artifacts:
       - scripts: scripts
         type: tosca.artifacts.File
+        
+  alien.nodes.CustomBlockStorage:
+    derived_from: alien.nodes.DeletableBlockStorage
+    description: A custom storage for Ubuntu OS, to be destroyed at the end of the deployment.
+    properties:
+      device:
+        type: string
+        description: The device name on which to attach the requested storage.
+      path:
+        type: string
+        description: The path where will be mounted the requested storage.
+      file_system:
+        type: string
+        description: The file system of the requested storage.
+

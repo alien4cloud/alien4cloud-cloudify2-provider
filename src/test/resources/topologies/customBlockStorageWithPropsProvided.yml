@@ -1,0 +1,33 @@
+
+node_templates:
+  custom_storage_props:
+    type: tosca.nodes.Compute
+    properties:
+      os_type: linux
+      os_distribution: ubuntu
+      os_version: ubuntu
+  blockstorage:
+    type: alien.nodes.CustomBlockStorage
+    properties:
+      device: /dev/xvdf
+      path: /testMount
+      file_system: ext4
+    relationships:
+      attachToServeurWeb:
+        target: custom_storage_props
+        type: tosca.relationships.AttachTo
+        requirement_name: attachment
+        requirement_type: tosca.capabilities.Attachment
+        targeted_capability_name: attach
+
+scaling_policies:
+  serveur_web:
+    min_instances: 1
+    max_instances: 3
+    initial_instances: 1 
+
+dependencies:
+  - name: tosca-normative-types
+    version: 1.0.0.wd03-SNAPSHOT
+  - name: custom-storage-types
+    version: 1.0-SNAPSHOT
