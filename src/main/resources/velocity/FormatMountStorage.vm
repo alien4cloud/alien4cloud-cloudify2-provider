@@ -1,14 +1,54 @@
 import org.cloudifysource.utilitydomain.context.ServiceContextFactory
 
+def formatAndMount(devicePath, isCreated) {
+	if(isCreated) {
+		println "formatting the attached storage <${devicePath}>... "
+		context.storage.format(devicePath, "$fileSystem")
+	}
+
+	println "mounting the attached storage <${devicePath}> to <$path>... "
+	context.storage.mount(devicePath, "$path")
+}
+
+
 def context = ServiceContextFactory.getServiceContext()
 def device = args[0]
 
-if(context.attributes.thisInstance.volumeCreated) {
-	println "formating the attached storage <${device}>... "
-	context.storage.format(device, "$fileSystem")
+// Note: Newer Linux kernels may rename your devices to /dev/xvdf through /dev/xvdp internally, even when the device name entered here (and shown in the details) is /dev/sdf through /dev/sdp.
+
+dev devices = [args[0]];
+
+if(device.endsWith("sdf")) {
+	devices.add(device.replaceAll("sdf", "sdp"));
+	devices.add(device.replaceAll("sdf", "xvdf"));
+	devices.add(device.replaceAll("sdf", "xvdp"));
+} else if (device.endsWith("sdp")) {
+	devices.add(device.replaceAll("sdp", "sdf"));
+	devices.add(device.replaceAll("sdp", "xvdf"));
+	devices.add(device.replaceAll("sdp", "xvdp"));
+} else if (device.endsWith("xvdf")) {
+	devices.add(device.replaceAll("xvdf", "xvdp"));
+	devices.add(device.replaceAll("xvdf", "sdf"));
+	devices.add(device.replaceAll("xvdf", "sdp"));
+} else if (device.endsWith("xvdp")) {
+	devices.add(device.replaceAll("xvdp", "xvdf"));
+	devices.add(device.replaceAll("xvdp", "sdf"));
+	devices.add(device.replaceAll("xvdp", "sdp"));
 }
 
-println "mounting the attached storage <${device}> to <$path>... "
-context.storage.mount(device, "$path")
+def isCreated = context.attributes.thisInstance.volumeCreated
+def done = false
+def i=0
+while(!done) {
+	try {
+		context.storage.format(devices.get(i), "$fileSystem")
+		done = true
+	} catch(e) {
+		if( i == devices.size()) {
+			throw e
+		}
+		i++
+	}
+}
 
 return "$path"
