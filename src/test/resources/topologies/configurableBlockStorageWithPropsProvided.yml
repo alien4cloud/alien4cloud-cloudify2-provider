@@ -1,20 +1,21 @@
 
 node_templates:
-  custom_storage_props:
+  config_storage_props:
     type: tosca.nodes.Compute
     properties:
       os_type: linux
       os_distribution: ubuntu
       os_version: ubuntu
   blockstorage:
-    type: alien.nodes.CustomBlockStorage
+    type: alien.nodes.ConfigurableBlockStorage
     properties:
-      device: /dev/xvdf
+      volume_id: 758e985c-a1ac-4eb4-83ce-e1fc516ec18e
+      device: /dev/vdb
       path: /testMount
       file_system: ext4
     relationships:
       attachToServeurWeb:
-        target: custom_storage_props
+        target: config_storage_props
         type: tosca.relationships.AttachTo
         requirement_name: attachment
         requirement_type: tosca.capabilities.Attachment

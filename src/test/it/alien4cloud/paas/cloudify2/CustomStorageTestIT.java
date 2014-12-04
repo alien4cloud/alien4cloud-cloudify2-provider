@@ -43,17 +43,17 @@ public class CustomStorageTestIT extends GenericStorageTestCase {
 
     @Test
     // @Ignore
-    public void customBlockStoragePropsProvidedSucessTest() throws Throwable {
+    public void configurableBlockStorageWithPropsProvidedSucessTest() throws Throwable {
         log.info("\n\n >> Executing Test customBlockStoragePropsProvidedSucessTest \n");
         String cloudifyAppId = null;
-        this.initElasticSearch(new String[] { "deletable-storage-type", "custom-storage-types" }, new String[] { "1.0", "1.0-SNAPSHOT" });
+        this.initElasticSearch(new String[] { "custom-storage-types" }, new String[] { "1.0-SNAPSHOT" });
         try {
 
-            String[] computesId = new String[] { "custom_storage_props" };
-            cloudifyAppId = deployTopology("customBlockStorageWithPropsProvided", computesId);
+            String[] computesId = new String[] { "config_storage_props" };
+            cloudifyAppId = deployTopology("configurableBlockStorageWithPropsProvided", computesId);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
-            waitForServiceToStarts(cloudifyAppId, "custom_storage_props", 1000L * 120);
+            waitForServiceToStarts(cloudifyAppId, "config_storage_props", 1000L * 120);
             assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, PlanGeneratorConstants.STATE_CREATED);
 
         } catch (Exception e) {
@@ -67,7 +67,7 @@ public class CustomStorageTestIT extends GenericStorageTestCase {
     public void customBlockStorageSizeProvidedSucessTest() throws Throwable {
         log.info("\n\n >> Executing Test customBlockStorageSizeProvidedSucessTest \n");
         String cloudifyAppId = null;
-        this.initElasticSearch(new String[] { "deletable-storage-type", "custom-storage-types" }, new String[] { "1.0", "1.0-SNAPSHOT" });
+        this.initElasticSearch(new String[] { "custom-storage-types" }, new String[] { "1.0-SNAPSHOT" });
         try {
 
             String[] computesId = new String[] { "custom_storage_size" };
