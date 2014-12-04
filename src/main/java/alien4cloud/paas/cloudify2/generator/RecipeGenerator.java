@@ -205,7 +205,7 @@ public class RecipeGenerator {
      *
      * @throws PaaSDeploymentException if the node is not declared as hosted on a compute
      */
-    private String serviceIdFromNodeTemplateOrDie(final PaaSNodeTemplate paaSNodeTemplate) {
+    private String cfyServiceNameFromNodeTemplateOrDie(final PaaSNodeTemplate paaSNodeTemplate) {
         try {
             return cfyServiceNameFromNodeTemplate(paaSNodeTemplate);
         } catch (Exception e) {
@@ -358,12 +358,12 @@ public class RecipeGenerator {
         velocityProps.put("stoppedEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STOPPED));
         velocityProps.put(SHUTDOWN_COMMAND, unmountDeleteCommand);
         generateScriptWorkflow(context.getServicePath(), shutdownBlockStorageScriptDescriptorPath, STORAGE_SHUTDOWN_FILE_NAME, null, velocityProps);
-        shutdownExecutions.add(cloudifyCommandGen.getGroovyCommand(STORAGE_SHUTDOWN_FILE_NAME.concat(".groovy")));
+        shutdownExecutions.add(cloudifyCommandGen.getGroovyCommand(STORAGE_SHUTDOWN_FILE_NAME.concat(".groovy"), null));
     }
 
     private String getStorageUnmountDeleteCommand(RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode) throws IOException {
         String unmountDeleteCommand = getOperationCommandFromInterface(context, blockStorageNode, NODE_LIFECYCLE_INTERFACE_NAME,
-                PlanGeneratorConstants.DELETE_OPERATION_NAME, false, false, true, "volumeId", "device");
+                PlanGeneratorConstants.DELETE_OPERATION_NAME, true, false, new String[] { "volumeId", "device" });
 
         // if no custom management then generate the default routine
         if (StringUtils.isBlank(unmountDeleteCommand)) {
@@ -376,8 +376,8 @@ public class RecipeGenerator {
                             new String[] { "deletable" },
                             new String[] { String.valueOf(ToscaUtils.isFromType(NormativeBlockStorageConstants.DELETABLE_BLOCKSTORAGE_TYPE,
                                     blockStorageNode.getIndexedNodeType())) }));
-            unmountDeleteCommand = cloudifyCommandGen
-                    .getGroovyCommandWithParamsAsVar(DEFAULT_STORAGE_UNMOUNT_FILE_NAME.concat(".groovy"), "volumeId", "device");
+            unmountDeleteCommand = cloudifyCommandGen.getGroovyCommand(DEFAULT_STORAGE_UNMOUNT_FILE_NAME.concat(".groovy"),
+                    new String[] { "volumeId", "device" });
         }
         return unmountDeleteCommand;
     }
@@ -405,12 +405,12 @@ public class RecipeGenerator {
 
         // generate startup BS
         generateScriptWorkflow(context.getServicePath(), startupBlockStorageScriptDescriptorPath, STORAGE_STARTUP_FILE_NAME, null, velocityProps);
-        initExecutions.add(cloudifyCommandGen.getGroovyCommand(STORAGE_STARTUP_FILE_NAME.concat(".groovy")));
+        initExecutions.add(cloudifyCommandGen.getGroovyCommand(STORAGE_STARTUP_FILE_NAME.concat(".groovy"), null));
     }
 
     private String getStorageFormatMountCommand(RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode) throws IOException {
         String formatMountCommand = getOperationCommandFromInterface(context, blockStorageNode, NODE_LIFECYCLE_INTERFACE_NAME,
-                PlanGeneratorConstants.CONFIGURE_OPERATION_NAME, false, false, true, "device");
+                PlanGeneratorConstants.CONFIGURE_OPERATION_NAME, true, false, new String[] { "device" });
 
         // if no custom management then generate the default routine
         if (StringUtils.isBlank(formatMountCommand)) {
@@ -429,15 +429,15 @@ public class RecipeGenerator {
 
             generateScriptWorkflow(context.getServicePath(), formatMountBlockStorageScriptDescriptorPath, DEFAULT_STORAGE_MOUNT_FILE_NAME, null,
                     MapUtil.newHashMap(new String[] { PATH_KEY, FS_KEY }, new String[] { storagePath, fs }));
-            formatMountCommand = cloudifyCommandGen.getGroovyCommandWithParamsAsVar(DEFAULT_STORAGE_MOUNT_FILE_NAME.concat(".groovy"), "device");
+            formatMountCommand = cloudifyCommandGen.getGroovyCommand(DEFAULT_STORAGE_MOUNT_FILE_NAME.concat(".groovy"), new String[] { "device" });
         }
         return formatMountCommand;
     }
 
     private String getStorageCreateAttachCommand(final RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode) throws IOException {
         String createAttachCommand = getOperationCommandFromInterface(context, blockStorageNode, NODE_LIFECYCLE_INTERFACE_NAME,
-                PlanGeneratorConstants.CREATE_OPERATION_NAME, false, false, true, CONTEXT_THIS_INSTANCE_ATTRIBUTES + ".volumeId",
-                CONTEXT_THIS_SERVICE_ATTRIBUTES + ".storageTemplateId");
+                PlanGeneratorConstants.CREATE_OPERATION_NAME, true, false, new String[] { CONTEXT_THIS_INSTANCE_ATTRIBUTES + ".volumeId",
+                        CONTEXT_THIS_SERVICE_ATTRIBUTES + ".storageTemplateId" });
 
         Map<String, String> properties = blockStorageNode.getNodeTemplate().getProperties();
         String device = DEFAULT_BLOCKSTORAGE_DEVICE;
@@ -449,7 +449,7 @@ public class RecipeGenerator {
         if (StringUtils.isBlank(createAttachCommand)) {
             generateScriptWorkflow(context.getServicePath(), createAttachBlockStorageScriptDescriptorPath, DEFAULT_STORAGE_CREATE_FILE_NAME, null,
                     MapUtil.newHashMap(new String[] { NormativeBlockStorageConstants.DEVICE }, new String[] { device }));
-            createAttachCommand = cloudifyCommandGen.getGroovyCommand(DEFAULT_STORAGE_CREATE_FILE_NAME.concat(".groovy"));
+            createAttachCommand = cloudifyCommandGen.getGroovyCommand(DEFAULT_STORAGE_CREATE_FILE_NAME.concat(".groovy"), null);
         }
         return createAttachCommand;
     }
@@ -480,7 +480,7 @@ public class RecipeGenerator {
         velocityProps.put("instancesVolumeIds", volumeIdsAsArrayString);
 
         generateScriptWorkflow(context.getServicePath(), initStorageScriptDescriptorPath, INIT_STORAGE_SCRIPT_FILE_NAME, null, velocityProps);
-        executions.add(cloudifyCommandGen.getGroovyCommand(INIT_STORAGE_SCRIPT_FILE_NAME.concat(".groovy")));
+        executions.add(cloudifyCommandGen.getGroovyCommand(INIT_STORAGE_SCRIPT_FILE_NAME.concat(".groovy"), null));
     }
 
     private void verifyNoVolumeIdForDeletableStorage(PaaSNodeTemplate blockStorageNode, String volumeIds) {
@@ -513,7 +513,7 @@ public class RecipeGenerator {
                     MapUtil.newHashMap(new String[] { SERVICE_DETECTION_COMMAND, "is" + stepName }, new Object[] { detectioncommand, true }));
 
             String detectionFilePath = stepName + ".groovy";
-            String groovyCommandForClosure = cloudifyCommandGen.getClosureGroovyCommand(detectionFilePath);
+            String groovyCommandForClosure = cloudifyCommandGen.getClosureGroovyCommand(detectionFilePath, null);
             String globalDectctionClosure = cloudifyCommandGen.getReturnGroovyCommand(groovyCommandForClosure);
             context.getAdditionalProperties().put(stepCommandName, globalDectctionClosure);
         }
@@ -534,9 +534,9 @@ public class RecipeGenerator {
                 String artifactType = entry.getValue().getImplementationArtifact().getArtifactType();
                 String command;
                 if (GROOVY_ARTIFACT_TYPE.equals(artifactType)) {
-                    command = cloudifyCommandGen.getClosureGroovyCommandWithParamsAsVar(artifactRef, "args");
+                    command = cloudifyCommandGen.getClosureGroovyCommand(artifactRef, new String[] { "args" });
                 } else {
-                    // TODO handle SHELL_ARTIFACT_TYPE
+                    // TODO handle SHELL_ARTIFACT_TYPE for custom commands
                     throw new PaaSDeploymentException("Operation <" + nodeTemplate.getId() + "." + NODE_CUSTOM_INTERFACE_NAME + "." + entry.getKey()
                             + "> is defined using an unsupported artifact type <" + artifactType + ">.");
                 }
@@ -590,7 +590,7 @@ public class RecipeGenerator {
             ParallelJoinStateGateway joinStateGateway = (ParallelJoinStateGateway) workflowStep;
             for (Map.Entry<String, String[]> nodeStates : joinStateGateway.getValidStatesPerElementMap().entrySet()) {
                 // TODO supports multiple states
-                String command = cloudifyCommandGen.getWaitEventCommand(serviceIdFromNodeTemplateOrDie(context.getNodeTemplateById(nodeStates.getKey())),
+                String command = cloudifyCommandGen.getWaitEventCommand(cfyServiceNameFromNodeTemplateOrDie(context.getNodeTemplateById(nodeStates.getKey())),
                         nodeStates.getKey(), nodeStates.getValue()[0]);
                 executions.add(command);
             }
@@ -656,7 +656,7 @@ public class RecipeGenerator {
 
     private void manageProcessLocator(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate paaSNodeTemplate) throws IOException {
         String command = getOperationCommandFromInterface(context, paaSNodeTemplate, NODE_CLOUDIFY_EXTENSIONS_INTERFACE_NAME,
-                CLOUDIFY_EXTENSIONS_LOCATOR_OPERATION_NAME, true, true, false);
+                CLOUDIFY_EXTENSIONS_LOCATOR_OPERATION_NAME, true, true, null);
         if (command != null) {
             context.getProcessLocatorsCommands().put(paaSNodeTemplate.getId(), command);
         }
@@ -666,7 +666,7 @@ public class RecipeGenerator {
     private void generateNodeDetectionCommand(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate paaSNodeTemplate, final String operationName,
             final Map<String, String> commandsMap, final boolean closureCommand) throws IOException {
         String command = getOperationCommandFromInterface(context, paaSNodeTemplate, NODE_CLOUDIFY_EXTENSIONS_INTERFACE_NAME, operationName, true,
-                closureCommand, false);
+                closureCommand, null);
         if (command != null) {
             // here we register the command itself.
             commandsMap.put(paaSNodeTemplate.getId(), command);
@@ -675,20 +675,20 @@ public class RecipeGenerator {
 
     private String getOperationCommandFromInterface(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate nodeTemplate,
             final String interfaceName, final String operationName, final boolean includeDefaultParams, final boolean closureCommand,
-            final boolean paramsAsVar, final String... additionalParams) throws IOException {
+            final String[] paramsAsVar, final String... stringParameters) throws IOException {
         String command = null;
         Interface extensionsInterface = nodeTemplate.getIndexedNodeType().getInterfaces().get(interfaceName);
         if (extensionsInterface != null) {
             Operation operation = extensionsInterface.getOperations().get(operationName);
             if (operation != null) {
-                String[] parameters = null;
+                String[] finalStringParameters = null;
                 if (includeDefaultParams) {
-                    parameters = new String[] { serviceIdFromNodeTemplateId(nodeTemplate.getId()), serviceIdFromNodeTemplateOrDie(nodeTemplate) };
+                    finalStringParameters = new String[] { serviceIdFromNodeTemplateId(nodeTemplate.getId()), cfyServiceNameFromNodeTemplateOrDie(nodeTemplate) };
                 }
-                parameters = ArrayUtils.addAll(parameters, additionalParams);
+                finalStringParameters = ArrayUtils.addAll(finalStringParameters, stringParameters);
                 String relativePath = getNodeTypeRelativePath(nodeTemplate.getIndexedNodeType());
                 command = getCommandFromOperation(nodeTemplate.getId(), interfaceName, operationName, relativePath, operation.getImplementationArtifact(),
-                        closureCommand, paramsAsVar, parameters);
+                        closureCommand, paramsAsVar, finalStringParameters);
                 if (StringUtils.isNotBlank(command)) {
                     this.artifactCopier.copyImplementationArtifact(context, nodeTemplate.getCsarPath(), relativePath, operation.getImplementationArtifact());
                 }
@@ -703,9 +703,9 @@ public class RecipeGenerator {
         String relativePath = getNodeTypeRelativePath(paaSNodeTemplate.getIndexedNodeType());
         this.artifactCopier.copyImplementationArtifact(context, operationCall.getCsarPath(), relativePath, operationCall.getImplementationArtifact());
         Map<String, Path> copiedArtifactPath = context.getNodeArtifactsPaths().get(paaSNodeTemplate.getId());
-        String[] parameters = new String[] { serviceIdFromNodeTemplateId(paaSNodeTemplate.getId()), serviceIdFromNodeTemplateOrDie(paaSNodeTemplate) };
+        String[] parameters = new String[] { serviceIdFromNodeTemplateId(paaSNodeTemplate.getId()), cfyServiceNameFromNodeTemplateOrDie(paaSNodeTemplate) };
         parameters = addCopiedPathsToParams(copiedArtifactPath, parameters);
-        generateOperationCallCommand(context, relativePath, operationCall, parameters, executions, isAsynchronous);
+        generateOperationCallCommand(context, relativePath, operationCall, null, parameters, executions, isAsynchronous);
     }
 
     private String[] addCopiedPathsToParams(Map<String, Path> copiedArtifactPath, String[] parameters) {
@@ -731,21 +731,21 @@ public class RecipeGenerator {
         this.artifactCopier.copyImplementationArtifact(context, operationCall.getCsarPath(), relativePath, operationCall.getImplementationArtifact());
         String sourceNodeTemplateId = paaSRelationshipTemplate.getSource();
         String targetNodeTemplateId = paaSRelationshipTemplate.getRelationshipTemplate().getTarget();
-        String sourceServiceId = serviceIdFromNodeTemplateOrDie(context.getNodeTemplateById(sourceNodeTemplateId));
-        String targetServiceId = serviceIdFromNodeTemplateOrDie(context.getNodeTemplateById(targetNodeTemplateId));
+        String sourceServiceId = cfyServiceNameFromNodeTemplateOrDie(context.getNodeTemplateById(sourceNodeTemplateId));
+        String targetServiceId = cfyServiceNameFromNodeTemplateOrDie(context.getNodeTemplateById(targetNodeTemplateId));
         Map<String, Path> copiedArtifactPath = context.getNodeArtifactsPaths().get(sourceNodeTemplateId);
         String[] parameters = new String[] { serviceIdFromNodeTemplateId(sourceNodeTemplateId), sourceServiceId,
                 serviceIdFromNodeTemplateId(targetNodeTemplateId), targetServiceId };
         parameters = addCopiedPathsToParams(copiedArtifactPath, parameters);
-        generateOperationCallCommand(context, relativePath, operationCall, parameters, executions, false);
+        generateOperationCallCommand(context, relativePath, operationCall, null, parameters, executions, false);
     }
 
     private void generateOperationCallCommand(final RecipeGeneratorServiceContext context, final String relativePath,
-            final OperationCallActivity operationCall, final String[] parameters, final List<String> executions, final boolean isAsynchronous)
-            throws IOException {
+            final OperationCallActivity operationCall, final String[] varParamNames, final String[] stringParameters, final List<String> executions,
+            final boolean isAsynchronous) throws IOException {
         // now call the operation script
         String command = getCommandFromOperation(operationCall.getNodeTemplateId(), operationCall.getInterfaceName(), operationCall.getOperationName(),
-                relativePath, operationCall.getImplementationArtifact(), false, false, parameters);
+                relativePath, operationCall.getImplementationArtifact(), false, varParamNames, stringParameters);
 
         if (isAsynchronous) {
             final String serviceId = serviceIdFromNodeTemplateId(operationCall.getNodeTemplateId());
@@ -783,7 +783,7 @@ public class RecipeGenerator {
     }
 
     private String getCommandFromOperation(final String nodeId, final String interfaceName, final String operationName, final String relativePath,
-            final ImplementationArtifact artifact, final boolean closureCommand, final boolean paramsAsVar, final String... parameters) {
+            final ImplementationArtifact artifact, final boolean closureCommand, final String[] varParamNames, final String... stringParameters) {
         if (artifact == null || StringUtils.isBlank(artifact.getArtifactRef())) {
             return null;
         }
@@ -791,13 +791,8 @@ public class RecipeGenerator {
         String scriptPath = relativePath + "/" + artifact.getArtifactRef();
         String command;
         if (GROOVY_ARTIFACT_TYPE.equals(artifact.getArtifactType())) {
-            if (paramsAsVar) {
-                command = closureCommand ? cloudifyCommandGen.getClosureGroovyCommandWithParamsAsVar(scriptPath, parameters) : cloudifyCommandGen
-                        .getGroovyCommandWithParamsAsVar(scriptPath, parameters);
-            } else {
-                command = closureCommand ? cloudifyCommandGen.getClosureGroovyCommand(scriptPath, parameters) : cloudifyCommandGen.getGroovyCommand(scriptPath,
-                        parameters);
-            }
+            command = closureCommand ? cloudifyCommandGen.getClosureGroovyCommand(scriptPath, varParamNames, stringParameters) : cloudifyCommandGen
+                    .getGroovyCommand(scriptPath, varParamNames, stringParameters);
         } else if (SHELL_ARTIFACT_TYPE.equals(artifact.getArtifactType())) {
             // TODO pass params to the shell scripts
             command = cloudifyCommandGen.getBashCommand(scriptPath);

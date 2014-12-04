@@ -1,7 +1,7 @@
 import org.cloudifysource.utilitydomain.context.ServiceContextFactory
 
 def context = ServiceContextFactory.getServiceContext()
-def device = args[0]
+def device = args[2]
 def path = "/mountTest"
 def builder = new AntBuilder()
 builder.sequential {

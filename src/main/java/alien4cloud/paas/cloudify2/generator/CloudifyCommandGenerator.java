@@ -40,14 +40,6 @@ public class CloudifyCommandGenerator {
     private static final String CONDITIONAL_IF_GROOVY_FORMAT = "if(%s){\n\t%s\n}";
     private static final String RETURN_COMMAND_FORMAT = "return %s";
 
-    public static final String STORAGE_CREATE_VOLUME_COMMAND_FORMAT = "context.storage.createVolume(\"%s\")";
-    public static final String STORAGE_ATTACH_VOLUME_COMMAND_FORMAT = "context.storage.attachVolume(\"%s\", \"%s\")";
-    public static final String STORAGE_FORMAT_VOLUME_COMMAND_FORMAT = "context.storage.format(\"%s\", \"%s\")";
-    public static final String STORAGE_MOUNT_VOLUME_COMMAND_FORMAT = "context.storage.mount(\"%s\", \"%s\")";
-    public static final String STORAGE_UNMOUNT_VOLUME_COMMAND_FORMAT = "context.storage.unmount(\"%s\")";
-    public static final String STORAGE_DETACH_VOLUME_COMMAND_FORMAT = "context.storage.detachVolume(\"%s\")";
-    public static final String STORAGE_DELETE_VOLUME_COMMAND_FORMAT = "context.storage.delete(\"%s\")";
-
     @Resource
     private ApplicationContext applicationContext;
 
@@ -89,86 +81,33 @@ public class CloudifyCommandGenerator {
      * Return the execution command for a groovy script as a string.
      *
      * @param groovyScriptRelativePath Path to the groovy script relative to the service root directory.
-     * @return The execution command.
-     */
-    public String getGroovyCommand(String groovyScriptRelativePath, String... parameters) {
-        if (ArrayUtils.isEmpty(parameters)) {
-            return String.format(EXECUTE_GROOVY_FORMAT, groovyScriptRelativePath, "null");
-        }
-        StringBuilder parametersSb = new StringBuilder();
-        for (String parameter : parameters) {
-            if (parametersSb.length() > 0) {
-                parametersSb.append(", ");
-            }
-            parametersSb.append("\"" + parameter + "\"");
-        }
-        return String.format(EXECUTE_GROOVY_FORMAT, groovyScriptRelativePath, parametersSb.toString());
-    }
-
-    /**
-     * Return the execution command for a groovy script as a string.
-     *
-     * @param groovyScriptRelativePath Path to the groovy script relative to the service root directory.
-     *            * @param varParamNames The names of the vars to pass as params for the command. This assumes the var is defined before calling this
-     *            command
-     * @return The execution command.
-     */
-    public String getGroovyCommandWithParamsAsVar(String groovyScriptRelativePath, String... varParamNames) {
-        if (ArrayUtils.isEmpty(varParamNames)) {
-            return String.format(EXECUTE_GROOVY_FORMAT, groovyScriptRelativePath, "null");
-        }
-        StringBuilder parametersSb = new StringBuilder();
-        for (String parameter : varParamNames) {
-            if (parametersSb.length() > 0) {
-                parametersSb.append(", ");
-            }
-            parametersSb.append(parameter);
-        }
-        return String.format(EXECUTE_GROOVY_FORMAT, groovyScriptRelativePath, parametersSb.toString());
-    }
-
-    /**
-     * Return the execution command for a groovy script as a string.
-     * The command is made such as it can be run in a closure.
-     *
-     * @param groovyScriptRelativePath Path to the groovy script relative to the service root directory.
-     * @return The execution command.
-     */
-    public String getClosureGroovyCommand(String groovyScriptRelativePath, String... parameters) {
-        if (ArrayUtils.isEmpty(parameters)) {
-            return String.format(EXECUTE_CLOSURE_GROOVY_FORMAT, groovyScriptRelativePath, "null");
-        }
-        StringBuilder parametersSb = new StringBuilder();
-        for (String parameter : parameters) {
-            if (parametersSb.length() > 0) {
-                parametersSb.append(", ");
-            }
-            parametersSb.append("\"" + parameter + "\"");
-        }
-        return String.format(EXECUTE_CLOSURE_GROOVY_FORMAT, groovyScriptRelativePath, parametersSb.toString());
-    }
-
-    /**
-     * Return the execution command for a groovy script as a string.
-     * The command is made such as it can be run in a closure.
-     *
-     * @param groovyScriptRelativePath Path to the groovy script relative to the service root directory.
      * @param varParamNames The names of the vars to pass as params for the command. This assumes the var is defined before calling this
      *            command
+     * @param stringParameters The string params to pass in the command.
      * @return The execution command.
      */
-    public String getClosureGroovyCommandWithParamsAsVar(String groovyScriptRelativePath, String... varParamNames) {
-        if (ArrayUtils.isEmpty(varParamNames)) {
-            return String.format(EXECUTE_CLOSURE_GROOVY_FORMAT, groovyScriptRelativePath, "null");
-        }
+    public String getGroovyCommand(String groovyScriptRelativePath, String[] varParamNames, String... stringParameters) {
+
         StringBuilder parametersSb = new StringBuilder();
-        for (String parameter : varParamNames) {
-            if (parametersSb.length() > 0) {
-                parametersSb.append(", ");
-            }
-            parametersSb.append(parameter);
-        }
-        return String.format(EXECUTE_CLOSURE_GROOVY_FORMAT, groovyScriptRelativePath, parametersSb.toString());
+        buildParamsAsString(stringParameters, parametersSb);
+        buildParamsAsVar(varParamNames, parametersSb);
+
+        return String.format(EXECUTE_GROOVY_FORMAT, groovyScriptRelativePath, parametersSb.toString().isEmpty() ? "null" : parametersSb.toString());
+    }
+
+    /**
+     * Return the execution command for a groovy script as a string.
+     * The command is made such as it can be run in a closure.
+     *
+     * @param groovyScriptRelativePath Path to the groovy script relative to the service root directory.
+     * @return The execution command.
+     */
+    public String getClosureGroovyCommand(String groovyScriptRelativePath, String[] varParamNames, String... stringParameters) {
+        StringBuilder parametersSb = new StringBuilder();
+        buildParamsAsString(stringParameters, parametersSb);
+        buildParamsAsVar(varParamNames, parametersSb);
+        return String.format(EXECUTE_CLOSURE_GROOVY_FORMAT, groovyScriptRelativePath, parametersSb.toString().isEmpty() ? "null" : parametersSb.toString());
+
     }
 
     /**
@@ -325,6 +264,28 @@ public class CloudifyCommandGenerator {
      */
     public String getWaitEventCommand(String cloudifyService, String nodeName, String status) {
         return String.format(WAIT_EVENT_FORMAT, cloudifyService, nodeName, status);
+    }
+
+    private void buildParamsAsString(String[] stringParameters, StringBuilder parametersSb) {
+        if (ArrayUtils.isNotEmpty(stringParameters)) {
+            for (String parameter : stringParameters) {
+                if (parametersSb.length() > 0) {
+                    parametersSb.append(", ");
+                }
+                parametersSb.append("\"" + parameter + "\"");
+            }
+        }
+    }
+
+    private void buildParamsAsVar(String[] varParamNames, StringBuilder parametersSb) {
+        if (ArrayUtils.isNotEmpty(varParamNames)) {
+            for (String parameter : varParamNames) {
+                if (parametersSb.length() > 0) {
+                    parametersSb.append(", ");
+                }
+                parametersSb.append(parameter);
+            }
+        }
     }
 
 }

@@ -2,8 +2,8 @@ import org.cloudifysource.utilitydomain.context.ServiceContextFactory
 
 def context = ServiceContextFactory.getServiceContext()
 
-def volumeId = args[0]
-def device = args[1]
+def volumeId = args[2]
+def device = args[3]
 
 println "Storage volume: volumeId <${volumeId}>, device <${device}>"
 println "deletable-unmountDelete.groovy: unmounting storage volume... "

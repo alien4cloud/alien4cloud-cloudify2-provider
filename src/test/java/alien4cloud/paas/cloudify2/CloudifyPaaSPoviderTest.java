@@ -53,8 +53,10 @@ public class CloudifyPaaSPoviderTest {
     public void loopedGroovyCommand() {
         String first = "while(!CloudifyExecutorUtils.executeGroovy(\"totototot/titit\", null)){\n\t  \n}";
         String second = "while(true){\n\t CloudifyExecutorUtils.executeGroovy(\"totototot/titit\", \"ha\") \n}";
-        assertEquals(first, generator.getLoopedGroovyCommand(generator.getGroovyCommand("totototot/titit", (String[]) null), null));
-        assertEquals(second, generator.getLoopedGroovyCommand(generator.getGroovyCommand("totototot/titit", "ha"), "true"));
+        String third = "while(true){\n\t CloudifyExecutorUtils.executeGroovy(\"totototot/titit\", \"ha\", ho, hi) \n}";
+        assertEquals(first, generator.getLoopedGroovyCommand(generator.getGroovyCommand("totototot/titit", null), null));
+        assertEquals(second, generator.getLoopedGroovyCommand(generator.getGroovyCommand("totototot/titit", null, "ha"), "true"));
+        assertEquals(third, generator.getLoopedGroovyCommand(generator.getGroovyCommand("totototot/titit", new String[] { "ho", "hi" }, "ha"), "true"));
     }
 
     @SuppressWarnings("unchecked")

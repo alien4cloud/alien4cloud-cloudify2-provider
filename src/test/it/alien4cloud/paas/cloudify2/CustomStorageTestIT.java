@@ -67,7 +67,7 @@ public class CustomStorageTestIT extends GenericStorageTestCase {
     public void customBlockStorageSizeProvidedSucessTest() throws Throwable {
         log.info("\n\n >> Executing Test customBlockStorageSizeProvidedSucessTest \n");
         String cloudifyAppId = null;
-        this.initElasticSearch(new String[] { "custom-storage-types" }, new String[] { "1.0-SNAPSHOT" });
+        this.initElasticSearch(new String[] { "deletable-storage-type", "custom-storage-types" }, new String[] { "1.0", "1.0-SNAPSHOT" });
         try {
 
             String[] computesId = new String[] { "custom_storage_size" };
