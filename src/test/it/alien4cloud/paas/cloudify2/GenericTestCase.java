@@ -73,7 +73,7 @@ public class GenericTestCase {
 
     protected static final String CSAR_SOURCE_PATH = "src/test/resources/csars/";
     private static final String TOPOLOGIES_PATH = "src/test/resources/topologies/";
-    private static final String DEFAULT_COMPUTE_TEMPLATE_ID = "SMALL_UBUNTU";
+    private static final String DEFAULT_COMPUTE_TEMPLATE_ID = "MEDIUM_LINUX";
 
     @Resource
     protected ArchiveUploadService archiveUploadService;
