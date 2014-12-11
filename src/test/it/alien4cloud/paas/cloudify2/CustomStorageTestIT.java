@@ -9,7 +9,7 @@ import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import alien4cloud.paas.plan.PlanGeneratorConstants;
+import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("classpath:application-context-testit.xml")
@@ -33,7 +33,7 @@ public class CustomStorageTestIT extends GenericStorageTestCase {
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "custom_storage_volumeid", 1000L * 120);
-            assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, PlanGeneratorConstants.STATE_CREATED);
+            assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, ToscaNodeLifecycleConstants.CREATED);
 
         } catch (Exception e) {
             log.error("Test Failed", e);
@@ -54,7 +54,7 @@ public class CustomStorageTestIT extends GenericStorageTestCase {
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "config_storage_props", 1000L * 120);
-            assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, PlanGeneratorConstants.STATE_CREATED);
+            assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, ToscaNodeLifecycleConstants.CREATED);
 
         } catch (Exception e) {
             log.error("Test Failed", e);
@@ -75,7 +75,7 @@ public class CustomStorageTestIT extends GenericStorageTestCase {
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "custom_storage_size", 1000L * 120);
-            assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, PlanGeneratorConstants.STATE_CREATED);
+            assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, ToscaNodeLifecycleConstants.CREATED);
 
         } catch (Exception e) {
             log.error("Test Failed", e);

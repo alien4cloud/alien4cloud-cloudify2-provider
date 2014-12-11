@@ -1,17 +1,13 @@
 package alien4cloud.paas.cloudify2.generator;
 
 import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.*;
-import static alien4cloud.paas.plan.PlanGeneratorConstants.NODE_LIFECYCLE_INTERFACE_NAME;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.UUID;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
@@ -40,15 +36,7 @@ import alien4cloud.paas.exception.PaaSTechnicalException;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
-import alien4cloud.paas.plan.OperationCallActivity;
-import alien4cloud.paas.plan.PaaSPlanGenerator;
-import alien4cloud.paas.plan.ParallelGateway;
-import alien4cloud.paas.plan.ParallelJoinStateGateway;
-import alien4cloud.paas.plan.PlanGeneratorConstants;
-import alien4cloud.paas.plan.StartEvent;
-import alien4cloud.paas.plan.StateUpdateEvent;
-import alien4cloud.paas.plan.StopEvent;
-import alien4cloud.paas.plan.WorkflowStep;
+import alien4cloud.paas.plan.*;
 import alien4cloud.tosca.ToscaUtils;
 import alien4cloud.tosca.container.model.NormativeBlockStorageConstants;
 import alien4cloud.tosca.container.model.NormativeComputeConstants;
@@ -297,14 +285,12 @@ public class RecipeGenerator {
         // check for blockStorage
         generateInitShutdownScripts(context, computeNode);
 
-        // Generate installation workflow scripts
-        StartEvent creationPlanStart = PaaSPlanGenerator.buildNodeCreationPlan(computeNode);
-        generateScript(creationPlanStart, "install", context);
-        // Generate startup workflow scripts
-        StartEvent startPlanStart = PaaSPlanGenerator.buildNodeStartPlan(computeNode);
+        // Generate startup life-cycle
+        StartEvent startPlanStart = new BuildPlanGenerator().generate(computeNode);
         generateScript(startPlanStart, "start", context);
 
-        StartEvent stopPlanStart = PaaSPlanGenerator.buildNodeStopPlan(computeNode);
+        // Generate stop and deletion life-cycle
+        StartEvent stopPlanStart = new StopPlanGenerator().generate(computeNode);
         generateScript(stopPlanStart, "stop", context);
 
         // Generate custom commands
@@ -315,8 +301,6 @@ public class RecipeGenerator {
 
         // generate global stop detection script
         manageGlobalStopDetection(context);
-
-        // TODO generate specific cloudify supported interfaces (monitoring policies)
 
         // generate the service descriptor
         generateServiceDescriptor(context, serviceId, computeTemplate, networkName, computeNode.getScalingPolicy());
@@ -355,15 +339,15 @@ public class RecipeGenerator {
 
         String unmountDeleteCommand = getStorageUnmountDeleteCommand(context, blockStorageNode);
         Map<String, String> velocityProps = Maps.newHashMap();
-        velocityProps.put("stoppedEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STOPPED));
+        velocityProps.put("stoppedEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.STOPPED));
         velocityProps.put(SHUTDOWN_COMMAND, unmountDeleteCommand);
         generateScriptWorkflow(context.getServicePath(), shutdownBlockStorageScriptDescriptorPath, STORAGE_SHUTDOWN_FILE_NAME, null, velocityProps);
         shutdownExecutions.add(cloudifyCommandGen.getGroovyCommand(STORAGE_SHUTDOWN_FILE_NAME.concat(".groovy"), null));
     }
 
     private String getStorageUnmountDeleteCommand(RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode) throws IOException {
-        String unmountDeleteCommand = getOperationCommandFromInterface(context, blockStorageNode, NODE_LIFECYCLE_INTERFACE_NAME,
-                PlanGeneratorConstants.DELETE_OPERATION_NAME, true, false, new String[] { "volumeId", "device" });
+        String unmountDeleteCommand = getOperationCommandFromInterface(context, blockStorageNode, ToscaNodeLifecycleConstants.STANDARD,
+                ToscaNodeLifecycleConstants.DELETE, true, false, new String[] { "volumeId", "device" });
 
         // if no custom management then generate the default routine
         if (StringUtils.isBlank(unmountDeleteCommand)) {
@@ -393,9 +377,9 @@ public class RecipeGenerator {
         // events
         // velocityProps.put("initial", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_INITIAL));
         velocityProps.put("createdEvent",
-                cloudifyCommandGen.getFireBlockStorageEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_CREATED, VOLUME_ID_VAR));
-        velocityProps.put("configuredEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_CONFIGURED));
-        velocityProps.put("startedEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), PlanGeneratorConstants.STATE_STARTED));
+                cloudifyCommandGen.getFireBlockStorageEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.CREATED, VOLUME_ID_VAR));
+        velocityProps.put("configuredEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.CONFIGURED));
+        velocityProps.put("startedEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.STARTED));
 
         String createAttachCommand = getStorageCreateAttachCommand(context, blockStorageNode);
         velocityProps.put(CREATE_COMMAND, createAttachCommand);
@@ -409,8 +393,8 @@ public class RecipeGenerator {
     }
 
     private String getStorageFormatMountCommand(RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode) throws IOException {
-        String formatMountCommand = getOperationCommandFromInterface(context, blockStorageNode, NODE_LIFECYCLE_INTERFACE_NAME,
-                PlanGeneratorConstants.CONFIGURE_OPERATION_NAME, true, false, new String[] { "device" });
+        String formatMountCommand = getOperationCommandFromInterface(context, blockStorageNode, ToscaNodeLifecycleConstants.STANDARD,
+                ToscaNodeLifecycleConstants.CONFIGURE, true, false, new String[] { "device" });
 
         // if no custom management then generate the default routine
         if (StringUtils.isBlank(formatMountCommand)) {
@@ -435,8 +419,8 @@ public class RecipeGenerator {
     }
 
     private String getStorageCreateAttachCommand(final RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode) throws IOException {
-        String createAttachCommand = getOperationCommandFromInterface(context, blockStorageNode, NODE_LIFECYCLE_INTERFACE_NAME,
-                PlanGeneratorConstants.CREATE_OPERATION_NAME, true, false, new String[] { CONTEXT_THIS_INSTANCE_ATTRIBUTES + ".volumeId",
+        String createAttachCommand = getOperationCommandFromInterface(context, blockStorageNode, ToscaNodeLifecycleConstants.STANDARD,
+                ToscaNodeLifecycleConstants.CREATE, true, false, new String[] { CONTEXT_THIS_INSTANCE_ATTRIBUTES + ".volumeId",
                         CONTEXT_THIS_SERVICE_ATTRIBUTES + ".storageTemplateId" });
 
         Map<String, String> properties = blockStorageNode.getNodeTemplate().getProperties();
@@ -624,8 +608,8 @@ public class RecipeGenerator {
 
         PaaSNodeTemplate paaSNodeTemplate = context.getNodeTemplateById(operationCall.getNodeTemplateId());
         if (operationCall.getRelationshipId() == null) {
-            boolean isStartOperation = PlanGeneratorConstants.NODE_LIFECYCLE_INTERFACE_NAME.equals(operationCall.getInterfaceName())
-                    && PlanGeneratorConstants.START_OPERATION_NAME.equals(operationCall.getOperationName());
+            boolean isStartOperation = ToscaNodeLifecycleConstants.STANDARD.equals(operationCall.getInterfaceName())
+                    && ToscaNodeLifecycleConstants.START.equals(operationCall.getOperationName());
             if (isStartOperation) {
                 // if there is a stop detection script for this node and the operation is start, then we should inject a stop detection here.
                 generateNodeDetectionCommand(context, paaSNodeTemplate, CLOUDIFY_EXTENSIONS_STOP_DETECTION_OPERATION_NAME, context.getStopDetectionCommands(),
@@ -756,14 +740,14 @@ public class RecipeGenerator {
             // if we are in the start lifecycle and there is either a startDetection or a stopDetection, then generate a conditional snippet.
             // so that we should only start the node if in restart case and the node is down (startDetetions(stopDetection) failure(success)), or if we are not
             // in the restart case
-            if (operationCall.getOperationName().equals(PlanGeneratorConstants.START_OPERATION_NAME)) {
+            if (operationCall.getOperationName().equals(ToscaNodeLifecycleConstants.START)) {
                 String restartCondition = getRestartCondition(context, operationCall);
                 String contextInstanceAttrRestart = CONTEXT_THIS_INSTANCE_ATTRIBUTES + ".restart";
                 if (restartCondition != null) {
                     String trigger = contextInstanceAttrRestart + " != true || (" + restartCondition + ")";
                     // TODO: fire already started state instead
                     String alreadyStartedCommand = cloudifyCommandGen.getFireEventCommand(operationCall.getNodeTemplateId(),
-                            PlanGeneratorConstants.STATE_STARTED);
+                            ToscaNodeLifecycleConstants.STARTED);
                     String elseCommand = alreadyStartedCommand.concat("\n\t").concat("return");
                     asyncCommand = cloudifyCommandGen.getConditionalSnippet(trigger, asyncCommand, elseCommand);
                 } else {

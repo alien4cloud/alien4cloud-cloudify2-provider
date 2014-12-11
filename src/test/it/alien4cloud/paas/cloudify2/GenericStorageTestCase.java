@@ -14,7 +14,7 @@ import org.junit.Assert;
 
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.events.BlockStorageEvent;
-import alien4cloud.paas.plan.PlanGeneratorConstants;
+import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 
 import com.google.common.collect.Sets;
 
@@ -33,7 +33,7 @@ public class GenericStorageTestCase extends GenericTestCase {
                 Set<String> currentEvents = new HashSet<>();
                 for (AlienEvent alienEvent : allServiceEvents) {
                     currentEvents.add(alienEvent.getEvent());
-                    if (alienEvent.getEvent().equalsIgnoreCase(PlanGeneratorConstants.STATE_CREATED)) {
+                    if (alienEvent.getEvent().equalsIgnoreCase(ToscaNodeLifecycleConstants.CREATED)) {
                         assertTrue("Event is supposed to be a BlockStorageEvent instance", alienEvent instanceof BlockStorageEvent);
                         Assert.assertNotNull(((BlockStorageEvent) alienEvent).getVolumeId());
                     }

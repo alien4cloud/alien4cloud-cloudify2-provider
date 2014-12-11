@@ -19,7 +19,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import alien4cloud.paas.exception.OperationExecutionException;
 import alien4cloud.paas.model.NodeOperationExecRequest;
-import alien4cloud.paas.plan.PlanGeneratorConstants;
+import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 
 import com.google.common.collect.Lists;
 
@@ -71,7 +71,7 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "comp_storage_volumeid", 1000L * 120);
-            assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, PlanGeneratorConstants.STATE_CREATED);
+            assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, ToscaNodeLifecycleConstants.CREATED);
 
         } catch (Exception e) {
             log.error("Test Failed", e);
@@ -92,7 +92,7 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "comp_storage_size", 1000L * 120);
-            assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, PlanGeneratorConstants.STATE_CREATED);
+            assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, ToscaNodeLifecycleConstants.CREATED);
 
         } catch (Exception e) {
             log.error("Test Failed", e);

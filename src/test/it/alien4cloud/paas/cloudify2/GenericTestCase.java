@@ -73,7 +73,7 @@ public class GenericTestCase {
 
     protected static final String CSAR_SOURCE_PATH = "src/test/resources/csars/";
     private static final String TOPOLOGIES_PATH = "src/test/resources/topologies/";
-    private static final String DEFAULT_COMPUTE_TEMPLATE_ID = "MEDIUM_LINUX";
+    private static final String DEFAULT_COMPUTE_TEMPLATE_ID = "SMALL_UBUNTU";
 
     @Resource
     protected ArchiveUploadService archiveUploadService;
@@ -120,10 +120,10 @@ public class GenericTestCase {
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
         // String cloudifyURL = null;
-        cloudifyURL = cloudifyURL == null ? "http://129.185.67.64:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "http://54.220.137.145:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL);
-        pluginConfigurationBean.setSynchronousDeployment(true);
+        pluginConfigurationBean.setSynchronousDeployment(false);
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setVersion("2.7.1");
         cloudifyPaaSPovider.setConfiguration(pluginConfigurationBean);
         cloudifyRestClientManager = cloudifyPaaSPovider.getCloudifyRestClientManager();

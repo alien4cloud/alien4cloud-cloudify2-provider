@@ -4,14 +4,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import javax.annotation.PostConstruct;
@@ -28,15 +22,7 @@ import org.cloudifysource.dsl.internal.CloudifyConstants.USMState;
 import org.cloudifysource.dsl.rest.request.InstallApplicationRequest;
 import org.cloudifysource.dsl.rest.request.InvokeCustomCommandRequest;
 import org.cloudifysource.dsl.rest.request.SetServiceInstancesRequest;
-import org.cloudifysource.dsl.rest.response.ApplicationDescription;
-import org.cloudifysource.dsl.rest.response.DeploymentEvent;
-import org.cloudifysource.dsl.rest.response.InstanceDescription;
-import org.cloudifysource.dsl.rest.response.InvokeInstanceCommandResponse;
-import org.cloudifysource.dsl.rest.response.InvokeServiceCommandResponse;
-import org.cloudifysource.dsl.rest.response.ServiceDescription;
-import org.cloudifysource.dsl.rest.response.ServiceInstanceDetails;
-import org.cloudifysource.dsl.rest.response.UninstallApplicationResponse;
-import org.cloudifysource.dsl.rest.response.UploadResponse;
+import org.cloudifysource.dsl.rest.response.*;
 import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.cloudifysource.restclient.exceptions.RestClientResponseException;
@@ -50,22 +36,9 @@ import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.events.BlockStorageEvent;
 import alien4cloud.paas.cloudify2.events.NodeInstanceState;
 import alien4cloud.paas.cloudify2.generator.RecipeGenerator;
-import alien4cloud.paas.exception.OperationExecutionException;
-import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
-import alien4cloud.paas.exception.PaaSDeploymentException;
-import alien4cloud.paas.exception.PaaSNotYetDeployedException;
-import alien4cloud.paas.exception.PaaSTechnicalException;
-import alien4cloud.paas.model.AbstractMonitorEvent;
-import alien4cloud.paas.model.DeploymentStatus;
-import alien4cloud.paas.model.InstanceInformation;
-import alien4cloud.paas.model.InstanceStatus;
-import alien4cloud.paas.model.NodeOperationExecRequest;
-import alien4cloud.paas.model.PaaSDeploymentStatusMonitorEvent;
-import alien4cloud.paas.model.PaaSInstanceStateMonitorEvent;
-import alien4cloud.paas.model.PaaSInstanceStorageMonitorEvent;
-import alien4cloud.paas.model.PaaSMessageMonitorEvent;
-import alien4cloud.paas.model.PaaSNodeTemplate;
-import alien4cloud.paas.plan.PlanGeneratorConstants;
+import alien4cloud.paas.exception.*;
+import alien4cloud.paas.model.*;
+import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.tosca.container.ToscaFunctionProcessor;
 import alien4cloud.tosca.container.model.topology.NodeTemplate;
 import alien4cloud.tosca.container.model.topology.ScalingPolicy;
@@ -330,7 +303,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
                 Map<String, String> attributes = nodeTempalteEntry.getValue().getAttributes() == null ? null : Maps.newHashMap(nodeTempalteEntry.getValue()
                         .getAttributes());
                 // Map<String, String> runtimeProperties = Maps.newHashMap();
-                InstanceInformation instanceInfo = new InstanceInformation(PlanGeneratorConstants.STATE_UNKNOWN, InstanceStatus.PROCESSING, properties,
+                InstanceInformation instanceInfo = new InstanceInformation(ToscaNodeLifecycleConstants.INITIAL, InstanceStatus.PROCESSING, properties,
                         attributes, null);
                 nodeInstanceInfos.put(i, instanceInfo);
             }
@@ -363,11 +336,11 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             Integer instanceId = Integer.valueOf(instanceState.getInstanceId());
 
             InstanceStatus instanceStatus = InstanceStatus.PROCESSING;
-            if (PlanGeneratorConstants.STATE_STARTED.equals(instanceState.getInstanceState())) {
+            if (ToscaNodeLifecycleConstants.STARTED.equals(instanceState.getInstanceState())) {
                 instanceStatus = InstanceStatus.SUCCESS;
             }
 
-            if (!PlanGeneratorConstants.STATE_STOPPED.equals(instanceState.getInstanceState())) {
+            if (!ToscaNodeLifecycleConstants.STOPPED.equals(instanceState.getInstanceState())) {
                 InstanceInformation instanceInformation = nodeTemplateInstanceInformations.get(instanceId);
                 if (instanceInformation == null) {
                     Map<String, String> runtimeProperties = Maps.newHashMap();

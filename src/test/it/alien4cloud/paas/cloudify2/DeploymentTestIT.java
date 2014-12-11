@@ -3,12 +3,7 @@ package alien4cloud.paas.cloudify2;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import javax.annotation.Resource;
 
@@ -28,7 +23,7 @@ import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.DeploymentStatus;
-import alien4cloud.paas.plan.PlanGeneratorConstants;
+import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.tosca.container.model.topology.Topology;
 import alien4cloud.tosca.parser.ParsingException;
 
@@ -69,8 +64,8 @@ public class DeploymentTestIT extends GenericTestCase {
             waitForServiceToStarts(cloudifyAppId, "comp_tomcatsh", 1000L * 120);
             assertHttpCodeEquals(cloudifyAppId, "comp_tomcatsh", "8080", "", HTTP_CODE_OK, null);
 
-            testEvents(cloudifyAppId, new String[] { "comp_tomcatsh", "tomcat" }, PlanGeneratorConstants.STATE_CREATED,
-                    PlanGeneratorConstants.STATE_CONFIGURED, PlanGeneratorConstants.STATE_STARTED);
+            testEvents(cloudifyAppId, new String[] { "comp_tomcatsh", "tomcat" }, ToscaNodeLifecycleConstants.CREATED, ToscaNodeLifecycleConstants.CONFIGURED,
+                    ToscaNodeLifecycleConstants.STARTED);
 
             testUndeployment(cloudifyAppId);
 
