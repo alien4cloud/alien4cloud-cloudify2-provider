@@ -32,7 +32,6 @@ import alien4cloud.tosca.model.IOperationParameter;
 import alien4cloud.tosca.model.Operation;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("classpath:application-context-testit.xml")
@@ -84,8 +83,8 @@ public class FunctionProcessorrTest {
     public void scalarParamSucessTest() throws Throwable {
         String computeName = "comp_tomcat_war";
         Topology topology = testsUtils.parseYamlTopology("badFunctionsTomcatWar");
-        Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = Maps.newHashMap();
-        treeBuilder.flattenHostedOnTree(treeBuilder.getHostedOnTree(treeBuilder.buildPaaSNodeTemplate(topology)), builtPaaSNodeTemplates);
+        Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSNodeTemplate(topology);
+        treeBuilder.getHostedOnTree(builtPaaSNodeTemplates);
         PaaSNodeTemplate computePaaS = builtPaaSNodeTemplates.get(computeName);
         Operation configOp = computePaaS.getIndexedNodeType().getInterfaces().get(PlanGeneratorConstants.NODE_LIFECYCLE_INTERFACE_NAME).getOperations()
                 .get(PlanGeneratorConstants.CONFIGURE_OPERATION_NAME);
@@ -99,8 +98,8 @@ public class FunctionProcessorrTest {
 
         String computeName = "comp_tomcat_war";
         Topology topology = testsUtils.parseYamlTopology("badFunctionsTomcatWar");
-        Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = Maps.newHashMap();
-        treeBuilder.flattenHostedOnTree(treeBuilder.getHostedOnTree(treeBuilder.buildPaaSNodeTemplate(topology)), builtPaaSNodeTemplates);
+        Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSNodeTemplate(topology);
+        treeBuilder.getHostedOnTree(builtPaaSNodeTemplates);
         PaaSNodeTemplate computePaaS = builtPaaSNodeTemplates.get(computeName);
         Operation configOp = computePaaS.getIndexedNodeType().getInterfaces().get(PlanGeneratorConstants.NODE_LIFECYCLE_INTERFACE_NAME).getOperations()
                 .get(PlanGeneratorConstants.CONFIGURE_OPERATION_NAME);
@@ -116,8 +115,8 @@ public class FunctionProcessorrTest {
         String warName = "war_1";
         String tomcatName = "tomcat";
         Topology topology = testsUtils.parseYamlTopology("badFunctionsTomcatWar");
-        Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = Maps.newHashMap();
-        treeBuilder.flattenHostedOnTree(treeBuilder.getHostedOnTree(treeBuilder.buildPaaSNodeTemplate(topology)), builtPaaSNodeTemplates);
+        Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSNodeTemplate(topology);
+        treeBuilder.getHostedOnTree(builtPaaSNodeTemplates);
         PaaSNodeTemplate warPaaS = builtPaaSNodeTemplates.get(warName);
         PaaSNodeTemplate tomcatPaaS = builtPaaSNodeTemplates.get(tomcatName);
         PaaSRelationshipTemplate hostedOnRelTemp = warPaaS.getRelationshipTemplate("hostedOnTomcat");
@@ -142,8 +141,8 @@ public class FunctionProcessorrTest {
 
         String computeName = "comp_tomcat_war";
         Topology topology = testsUtils.parseYamlTopology("badFunctionsTomcatWar");
-        Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = Maps.newHashMap();
-        treeBuilder.flattenHostedOnTree(treeBuilder.getHostedOnTree(treeBuilder.buildPaaSNodeTemplate(topology)), builtPaaSNodeTemplates);
+        Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSNodeTemplate(topology);
+        treeBuilder.getHostedOnTree(builtPaaSNodeTemplates);
         PaaSNodeTemplate computePaaS = builtPaaSNodeTemplates.get(computeName);
         Operation configOp = computePaaS.getIndexedNodeType().getInterfaces().get(PlanGeneratorConstants.NODE_LIFECYCLE_INTERFACE_NAME).getOperations()
                 .get(PlanGeneratorConstants.CONFIGURE_OPERATION_NAME);
