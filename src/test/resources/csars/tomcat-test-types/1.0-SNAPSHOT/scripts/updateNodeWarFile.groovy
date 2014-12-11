@@ -17,7 +17,12 @@ import org.cloudifysource.dsl.utils.ServiceUtils
 
 println "updateNodeWarFile.groovy: Starting..."
 
-def warNodeId = args[0]
+
+
+if( params == null || params.length < 1 ) {
+    throw new IllegalArgumentException("UpdateWarFile command requires a nodeId and an url as arguments.")
+}
+def warNodeId = params[0]
 if(!warNodeId) return false;
 
 def config  = new ConfigSlurper().parse(new File("${context.serviceDirectory}/scripts/tomcat-service.properties").toURL())

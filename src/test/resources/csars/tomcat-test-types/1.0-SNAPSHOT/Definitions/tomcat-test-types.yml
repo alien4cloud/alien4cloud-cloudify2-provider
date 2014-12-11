@@ -19,6 +19,7 @@ node_types:
       custom:
         updateWarFile:
           inputs:
+            contextPath: { get_property: [SELF, contextPath] }
             warUrl:
               type: string
               description: url of the war to upload to update the current one
@@ -28,7 +29,7 @@ node_types:
       - scripts: warScripts
         type: tosca.artifacts.File
       - war_file: warFiles/helloWorld.war
-        type: fastconnect.artifacts.WarFile
+        type: alien.artifacts.WarFile
         
   fastconnect.nodes.Tomcat:
     derived_from: tosca.nodes.WebServer
@@ -94,33 +95,6 @@ node_types:
 
 
 relationship_types:
-  fastconnect.relationships.cloudify.ConnectsTomcatToPostgre:
-    derived_from: tosca.relationships.ConnectsTo
-    description: >
-      Connects Tomcat to an PostgreSQL
-    valid_sources: [ alien4cloud.capabilities.JdbcEndpoint ]
-    valid_targets: [ alien4cloud.capabilities.JdbcEndpoint ]
-    interfaces:
-      configure:
-        pre_configure_source: relationshipScripts/tomcat_configureDatasource.groovy
-        post_configure_source: relationshipScripts/tomcat_postgreAddUser.groovy
-    artifacts:
-      - scripts: relationshipScripts
-        type: tosca.artifacts.File
-
-  fastconnect.relationships.cloudify.ConnectsToApacheLB:
-    derived_from: tosca.relationships.ConnectsTo
-    description: >
-      Connects Tomcat to an ApacheLB
-    valid_sources: [ alien4cloud.capabilities.HttpEndpoint ]
-    valid_targets: [ alien4cloud.capabilities.HttpEndpoint ]
-    interfaces:
-      configure:
-        add_target: relationshipScripts/tomcat_connectto_apache_addtarget.groovy
-        remove_target: relationshipScripts/tomcat_connectto_apache_removetarget.groovy
-    artifacts:
-      - scripts: relationshipScripts
-        type: tosca.artifacts.File
 
   fastconnect.relationships.cloudify.WarHostedOnTomcat:
     derived_from: tosca.relationships.HostedOn
@@ -129,7 +103,25 @@ relationship_types:
     valid_targets: [ alien4cloud.capabilities.WarHosting ]
     interfaces:
       configure:
-        post_configure_source: relationshipScripts/war_hostedon_tomcat_postsource.groovy
+        post_configure_source: 
+          inputs:
+            contextPath: { get_property: [SOURCE, contextPath] } 
+          implementation: relationshipScripts/war_hostedon_tomcat_postsource.groovy
+    artifacts:
+      - scripts: relationshipScripts
+        type: tosca.artifacts.File
+        
+  alien.test.relationships.cloudify.WarHostedOnTomcat:
+    derived_from: fastconnect.relationships.cloudify.WarHostedOnTomcat
+    interfaces:
+      configure:
+        post_configure_source: 
+          inputs:
+            contextPath: { get_property: [SOURCE, contextPath] } 
+            tomcatVersion: { get_property: [TARGET, version] }
+            tomcatIp: { get_attribute: [TARGET, ip_address] }
+            warNodeContext: { get_attribute: [SOURCE, warNodeContext] }
+          implementation: relationshipScripts/war_hostedon_tomcat_postsource.groovy
     artifacts:
       - scripts: relationshipScripts
         type: tosca.artifacts.File
@@ -137,7 +129,5 @@ relationship_types:
 capability_types:
   alien4cloud.capabilities.WarHosting:
     derived_from: tosca.capabilities.Container
-  alien4cloud.capabilities.TomcatJdbcEndpoint:
-    derived_from: tosca.capabilities.Endpoint
   alien4cloud.capabilities.JdbcEndpoint:
     derived_from: tosca.capabilities.Endpoint

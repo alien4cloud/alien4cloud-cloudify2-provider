@@ -1,7 +1,6 @@
 import org.cloudifysource.utilitydomain.context.ServiceContextFactory
 
 def context = ServiceContextFactory.getServiceContext()
-def device = args[0]
 
 // Note: Newer Linux kernels may rename your devices to /dev/xvdf through /dev/xvdp internally, even when the device name entered here (and shown in the details) is /dev/sdf through /dev/sdp.
 def alternate = device.replaceAll("/s", "/xv")

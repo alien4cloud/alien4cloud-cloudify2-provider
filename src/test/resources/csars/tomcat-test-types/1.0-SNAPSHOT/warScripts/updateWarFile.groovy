@@ -16,17 +16,20 @@
 import org.cloudifysource.dsl.utils.ServiceUtils
 import java.util.concurrent.TimeUnit
 
-if(args == null || args.length < 2){
+if(params == null || params.length < 2){
   throw new IllegalArgumentException("UpdateWarFile command requires a nodeId and an url as arguments.")
 }
-def nodeId = args[0]
-def warUrl=args[1]
+def nodeId = params[0]
+def warUrl=params[1]
 def config  = new ConfigSlurper().parse(new File("${context.serviceDirectory}/service.properties").toURL())
 
 def serviceName = context.serviceName
 def instanceId = context.instanceId
 
-def contextPath = (!config[nodeId] || !config[nodeId].contextPath ) ? new File(warUrl).name.split("\\.")[0] : config[nodeId].contextPath 
+(if !contextPath ){
+  def contextPath = new File(warUrl).name.split("\\.")[0]
+}
+
 context.attributes.thisInstance[nodeId] = [url:(warUrl), contextPath:(contextPath)]
 println "tomcat-service.groovy(updateWar custom command): warUrl is ${context.attributes.thisInstance[nodeId].url} and contextPath is ${context.attributes.thisInstance[nodeId].contextPath}..."
 

@@ -284,7 +284,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
 
     @Override
     public void scale(String deploymentId, String nodeTemplateId, int instances) {
-        String serviceId = RecipeGenerator.serviceIdFromNodeTemplateId(nodeTemplateId);
+        String serviceId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(nodeTemplateId);
         try {
             CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
             ServiceDescription serviceDescription = restClient.getServiceDescription(deploymentId, serviceId);
@@ -409,7 +409,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
 
         for (String nodeTemplateKey : instanceInformations.keySet()) {
             Map<Integer, InstanceInformation> nodeTemplateInstanceInformations = instanceInformations.get(nodeTemplateKey);
-            String serviceId = RecipeGenerator.serviceIdFromNodeTemplateId(nodeTemplateKey);
+            String serviceId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(nodeTemplateKey);
             ServiceDescription serviceDescription = serviceDescriptions.get(serviceId);
             if (serviceDescription == null) {
                 // not a compute node
@@ -842,7 +842,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             // statusByDeployments.put(deploymentId, deploymentInfo);
         }
         PaaSNodeTemplate nodeTemplate = deploymentInfo.paaSNodeTemplates.get(nodeTemplateName);
-        return recipeGenerator.cfyServiceNameFromNodeTemplate(nodeTemplate);
+        return CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(nodeTemplate);
     }
 
     private String operationFQN(String serviceName, NodeOperationExecRequest request) {

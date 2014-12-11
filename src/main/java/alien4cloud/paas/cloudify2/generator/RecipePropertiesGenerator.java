@@ -18,6 +18,7 @@ import javax.annotation.Resource;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
+import alien4cloud.paas.cloudify2.CloudifyPaaSUtils;
 import alien4cloud.paas.cloudify2.VelocityUtil;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
@@ -98,7 +99,7 @@ public class RecipePropertiesGenerator {
 
     private void addProperties(RecipeGeneratorServiceContext context, PaaSNodeTemplate nodeTemplate, Properties properties, HashSet<String> processedNodes) {
 
-        String serviceId = RecipeGenerator.serviceIdFromNodeTemplateId(nodeTemplate.getId());
+        String serviceId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(nodeTemplate.getId());
 
         if (processedNodes.contains(serviceId)) {
             return;

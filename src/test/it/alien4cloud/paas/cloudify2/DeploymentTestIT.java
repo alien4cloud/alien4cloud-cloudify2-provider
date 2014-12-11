@@ -46,6 +46,12 @@ public class DeploymentTestIT extends GenericTestCase {
     public DeploymentTestIT() {
     }
 
+    @Override
+    public void after() {
+        // TODO Auto-generated method stub
+        super.after();
+    }
+
     @Test(expected = ResourceMatchingFailedException.class)
     public void deployATopologyWhenNoComputeAreDefinedShouldFail() throws JsonParseException, JsonMappingException, ParsingException,
             CSARVersionAlreadyExistsException, IOException {
@@ -95,8 +101,8 @@ public class DeploymentTestIT extends GenericTestCase {
     public void applicationAlreadyDeployedTest() throws Exception {
         log.info("\n\n >> Executing Test applicationAlreadyDeployedTest \n");
 
-        this.initElasticSearch(new String[] { "tosca-normative-types" }, new String[] { "1.0.0.wd03-SNAPSHOT" });
-        String[] computesId = new String[] { "compute" };
+        this.initElasticSearch(new String[] { "test-types" }, new String[] { "1.0-SNAPSHOT" });
+        String[] computesId = new String[] { "compute", "compute_2" };
         String cloudifyAppId = deployTopology("compute_only", computesId);
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
         cloudifyPaaSPovider.deploy("lol", cloudifyAppId, topo, null);
