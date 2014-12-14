@@ -119,7 +119,7 @@ public class GenericTestCase {
         cloudifyURL = cloudifyURL == null ? "http://129.185.67.81:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL);
-        pluginConfigurationBean.setSynchronousDeployment(true);
+        pluginConfigurationBean.setSynchronousDeployment(false);
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setVersion("2.7.1");
         cloudifyPaaSPovider.setConfiguration(pluginConfigurationBean);
         cloudifyRestClientManager = cloudifyPaaSPovider.getCloudifyRestClientManager();

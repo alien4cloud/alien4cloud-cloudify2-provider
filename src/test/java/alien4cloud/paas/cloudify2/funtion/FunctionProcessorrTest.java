@@ -22,8 +22,9 @@ import alien4cloud.paas.cloudify2.generator.CloudifyCommandGenerator;
 import alien4cloud.paas.cloudify2.testutils.TestsUtils;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
-import alien4cloud.paas.plan.PlanGeneratorConstants;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
+import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
+import alien4cloud.paas.plan.ToscaRelationshipLifecycleConstants;
 import alien4cloud.plugin.PluginConfiguration;
 import alien4cloud.tosca.container.model.topology.Topology;
 import alien4cloud.tosca.model.AbstractPropertyValue;
@@ -86,8 +87,8 @@ public class FunctionProcessorrTest {
         Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSNodeTemplate(topology);
         treeBuilder.getHostedOnTree(builtPaaSNodeTemplates);
         PaaSNodeTemplate computePaaS = builtPaaSNodeTemplates.get(computeName);
-        Operation configOp = computePaaS.getIndexedNodeType().getInterfaces().get(PlanGeneratorConstants.NODE_LIFECYCLE_INTERFACE_NAME).getOperations()
-                .get(PlanGeneratorConstants.CONFIGURE_OPERATION_NAME);
+        Operation configOp = computePaaS.getIndexedNodeType().getInterfaces().get(ToscaNodeLifecycleConstants.STANDARD).getOperations()
+                .get(ToscaNodeLifecycleConstants.CONFIGURE);
         IOperationParameter param = configOp.getInputParameters().get("testScalar");
 
         Assert.assertEquals("test", processor.evaluateParam((AbstractPropertyValue) param, computePaaS, builtPaaSNodeTemplates));
@@ -101,8 +102,8 @@ public class FunctionProcessorrTest {
         Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSNodeTemplate(topology);
         treeBuilder.getHostedOnTree(builtPaaSNodeTemplates);
         PaaSNodeTemplate computePaaS = builtPaaSNodeTemplates.get(computeName);
-        Operation configOp = computePaaS.getIndexedNodeType().getInterfaces().get(PlanGeneratorConstants.NODE_LIFECYCLE_INTERFACE_NAME).getOperations()
-                .get(PlanGeneratorConstants.CONFIGURE_OPERATION_NAME);
+        Operation configOp = computePaaS.getIndexedNodeType().getInterfaces().get(ToscaNodeLifecycleConstants.STANDARD).getOperations()
+                .get(ToscaNodeLifecycleConstants.CONFIGURE);
         IOperationParameter param = configOp.getInputParameters().get("customHostName");
 
         Assert.assertEquals(computePaaS.getNodeTemplate().getProperties().get("customHostName"),
@@ -121,8 +122,8 @@ public class FunctionProcessorrTest {
         PaaSNodeTemplate tomcatPaaS = builtPaaSNodeTemplates.get(tomcatName);
         PaaSRelationshipTemplate hostedOnRelTemp = warPaaS.getRelationshipTemplate("hostedOnTomcat");
 
-        Operation configOp = hostedOnRelTemp.getIndexedRelationshipType().getInterfaces().get(PlanGeneratorConstants.RELATIONSHIP_LIFECYCLE_INTERFACE_NAME)
-                .getOperations().get(PlanGeneratorConstants.POST_CONFIGURE_SOURCE);
+        Operation configOp = hostedOnRelTemp.getIndexedRelationshipType().getInterfaces().get(ToscaRelationshipLifecycleConstants.CONFIGURE).getOperations()
+                .get(ToscaRelationshipLifecycleConstants.POST_CONFIGURE_SOURCE);
 
         // test SOURCE keyword
         IOperationParameter param = configOp.getInputParameters().get("contextPath");
@@ -144,8 +145,8 @@ public class FunctionProcessorrTest {
         Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSNodeTemplate(topology);
         treeBuilder.getHostedOnTree(builtPaaSNodeTemplates);
         PaaSNodeTemplate computePaaS = builtPaaSNodeTemplates.get(computeName);
-        Operation configOp = computePaaS.getIndexedNodeType().getInterfaces().get(PlanGeneratorConstants.NODE_LIFECYCLE_INTERFACE_NAME).getOperations()
-                .get(PlanGeneratorConstants.CONFIGURE_OPERATION_NAME);
+        Operation configOp = computePaaS.getIndexedNodeType().getInterfaces().get(ToscaNodeLifecycleConstants.STANDARD).getOperations()
+                .get(ToscaNodeLifecycleConstants.CONFIGURE);
 
         // case insufficient params for the function prop
         IOperationParameter param = configOp.getInputParameters().get("insufficientParams");
@@ -174,8 +175,8 @@ public class FunctionProcessorrTest {
         PaaSNodeTemplate warPaaS = builtPaaSNodeTemplates.get(warName);
         PaaSRelationshipTemplate hostedOnRelTemp = warPaaS.getRelationshipTemplate("hostedOnTomcat");
 
-        Operation configOp = hostedOnRelTemp.getIndexedRelationshipType().getInterfaces().get(PlanGeneratorConstants.RELATIONSHIP_LIFECYCLE_INTERFACE_NAME)
-                .getOperations().get(PlanGeneratorConstants.POST_CONFIGURE_SOURCE);
+        Operation configOp = hostedOnRelTemp.getIndexedRelationshipType().getInterfaces().get(ToscaRelationshipLifecycleConstants.CONFIGURE).getOperations()
+                .get(ToscaRelationshipLifecycleConstants.POST_CONFIGURE_SOURCE);
 
         // test SOURCE keyword
         String expected = String.format(GET_INSTANCE_ATTRIBUTE_FORMAT, "\"" + computeName + "\"", null, "\"warNodeContext\"");
