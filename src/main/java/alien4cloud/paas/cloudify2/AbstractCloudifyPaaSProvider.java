@@ -4,8 +4,14 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import javax.annotation.PostConstruct;
@@ -22,7 +28,15 @@ import org.cloudifysource.dsl.internal.CloudifyConstants.USMState;
 import org.cloudifysource.dsl.rest.request.InstallApplicationRequest;
 import org.cloudifysource.dsl.rest.request.InvokeCustomCommandRequest;
 import org.cloudifysource.dsl.rest.request.SetServiceInstancesRequest;
-import org.cloudifysource.dsl.rest.response.*;
+import org.cloudifysource.dsl.rest.response.ApplicationDescription;
+import org.cloudifysource.dsl.rest.response.DeploymentEvent;
+import org.cloudifysource.dsl.rest.response.InstanceDescription;
+import org.cloudifysource.dsl.rest.response.InvokeInstanceCommandResponse;
+import org.cloudifysource.dsl.rest.response.InvokeServiceCommandResponse;
+import org.cloudifysource.dsl.rest.response.ServiceDescription;
+import org.cloudifysource.dsl.rest.response.ServiceInstanceDetails;
+import org.cloudifysource.dsl.rest.response.UninstallApplicationResponse;
+import org.cloudifysource.dsl.rest.response.UploadResponse;
 import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.cloudifysource.restclient.exceptions.RestClientResponseException;
@@ -32,12 +46,26 @@ import alien4cloud.exception.TechnicalException;
 import alien4cloud.model.application.DeploymentSetup;
 import alien4cloud.paas.AbstractPaaSProvider;
 import alien4cloud.paas.IConfigurablePaaSProvider;
+import alien4cloud.paas.IPaaSCallback;
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.events.BlockStorageEvent;
 import alien4cloud.paas.cloudify2.events.NodeInstanceState;
 import alien4cloud.paas.cloudify2.generator.RecipeGenerator;
-import alien4cloud.paas.exception.*;
-import alien4cloud.paas.model.*;
+import alien4cloud.paas.exception.OperationExecutionException;
+import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
+import alien4cloud.paas.exception.PaaSDeploymentException;
+import alien4cloud.paas.exception.PaaSNotYetDeployedException;
+import alien4cloud.paas.exception.PaaSTechnicalException;
+import alien4cloud.paas.model.AbstractMonitorEvent;
+import alien4cloud.paas.model.DeploymentStatus;
+import alien4cloud.paas.model.InstanceInformation;
+import alien4cloud.paas.model.InstanceStatus;
+import alien4cloud.paas.model.NodeOperationExecRequest;
+import alien4cloud.paas.model.PaaSDeploymentStatusMonitorEvent;
+import alien4cloud.paas.model.PaaSInstanceStateMonitorEvent;
+import alien4cloud.paas.model.PaaSInstanceStorageMonitorEvent;
+import alien4cloud.paas.model.PaaSMessageMonitorEvent;
+import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.tosca.container.ToscaFunctionProcessor;
 import alien4cloud.tosca.container.model.topology.NodeTemplate;
@@ -290,11 +318,11 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         return cachedDeploymentInfo.deploymentStatus;
     }
 
-    private Map<String, Map<Integer, InstanceInformation>> instanceInformationsFromTopology(Topology topology) {
-        Map<String, Map<Integer, InstanceInformation>> instanceInformations = Maps.newHashMap();
+    private Map<String, Map<String, InstanceInformation>> instanceInformationsFromTopology(Topology topology) {
+        Map<String, Map<String, InstanceInformation>> instanceInformations = Maps.newHashMap();
         // fill instance informations based on the topology
         for (Entry<String, NodeTemplate> nodeTempalteEntry : topology.getNodeTemplates().entrySet()) {
-            Map<Integer, InstanceInformation> nodeInstanceInfos = Maps.newHashMap();
+            Map<String, InstanceInformation> nodeInstanceInfos = Maps.newHashMap();
             // get the current number of instances
             int currentPlannedInstances = getPlannedInstancesCount(nodeTempalteEntry.getKey(), topology);
             for (int i = 1; i <= currentPlannedInstances; i++) {
@@ -305,7 +333,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
                 // Map<String, String> runtimeProperties = Maps.newHashMap();
                 InstanceInformation instanceInfo = new InstanceInformation(ToscaNodeLifecycleConstants.INITIAL, InstanceStatus.PROCESSING, properties,
                         attributes, null);
-                nodeInstanceInfos.put(i, instanceInfo);
+                nodeInstanceInfos.put(String.valueOf(i), instanceInfo);
             }
             instanceInformations.put(nodeTempalteEntry.getKey(), nodeInstanceInfos);
         }
@@ -319,16 +347,15 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
      * @param instanceInformations The current map of instance informations to fill-in with additional states.
      * @param restEventEndpoint The current rest event endpoint.
      * @throws URISyntaxException
-     * @throws IOException
-     *             In case we fail to get events.
+     * @throws IOException In case we fail to get events.
      */
-    private void fillInstanceStates(final String deploymentId, final Map<String, Map<Integer, InstanceInformation>> instanceInformations,
+    private void fillInstanceStates(final String deploymentId, final Map<String, Map<String, InstanceInformation>> instanceInformations,
             final URI restEventEndpoint) throws URISyntaxException, IOException {
         CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, deploymentId, "");
         List<NodeInstanceState> instanceStates = listener.getNodeInstanceStates(deploymentId);
 
         for (NodeInstanceState instanceState : instanceStates) {
-            Map<Integer, InstanceInformation> nodeTemplateInstanceInformations = instanceInformations.get(instanceState.getNodeTemplateId());
+            Map<String, InstanceInformation> nodeTemplateInstanceInformations = instanceInformations.get(instanceState.getNodeTemplateId());
             if (nodeTemplateInstanceInformations == null) { // this should never happends but in case...
                 nodeTemplateInstanceInformations = Maps.newHashMap();
                 instanceInformations.put(instanceState.getNodeTemplateId(), nodeTemplateInstanceInformations);
@@ -348,7 +375,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
                     Map<String, String> attributes = Maps.newHashMap();
                     InstanceInformation newInstanceInformation = new InstanceInformation(instanceState.getInstanceState(), instanceStatus, properties,
                             attributes, runtimeProperties);
-                    nodeTemplateInstanceInformations.put(instanceId, newInstanceInformation);
+                    nodeTemplateInstanceInformations.put(String.valueOf(instanceId), newInstanceInformation);
                 } else {
                     instanceInformation.setState(instanceState.getInstanceState());
                     instanceInformation.setInstanceStatus(instanceStatus);
@@ -368,7 +395,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
      * @param instanceInformations The current map of instance informations to fill-in with additional states.
      * @throws RestClientException In case we fail to get data from cloudify rest api.
      */
-    private void fillRuntimeInformations(String deploymentId, Map<String, Map<Integer, InstanceInformation>> instanceInformations) throws RestClientException {
+    private void fillRuntimeInformations(String deploymentId, Map<String, Map<String, InstanceInformation>> instanceInformations) throws RestClientException {
         CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
         ApplicationDescription applicationDescription = restClient.getApplicationDescription(deploymentId);
 
@@ -381,7 +408,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         }
 
         for (String nodeTemplateKey : instanceInformations.keySet()) {
-            Map<Integer, InstanceInformation> nodeTemplateInstanceInformations = instanceInformations.get(nodeTemplateKey);
+            Map<String, InstanceInformation> nodeTemplateInstanceInformations = instanceInformations.get(nodeTemplateKey);
             String serviceId = RecipeGenerator.serviceIdFromNodeTemplateId(nodeTemplateKey);
             ServiceDescription serviceDescription = serviceDescriptions.get(serviceId);
             if (serviceDescription == null) {
@@ -418,10 +445,10 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         }
     }
 
-    private void parseAttributes(Map<String, Map<Integer, InstanceInformation>> instanceInformations, Topology topology) {
+    private void parseAttributes(Map<String, Map<String, InstanceInformation>> instanceInformations, Topology topology) {
         // parse attributes
-        for (Map<Integer, InstanceInformation> nodeInstanceInfo : instanceInformations.values()) {
-            for (Entry<Integer, InstanceInformation> entry : nodeInstanceInfo.entrySet()) {
+        for (Map<String, InstanceInformation> nodeInstanceInfo : instanceInformations.values()) {
+            for (Entry<String, InstanceInformation> entry : nodeInstanceInfo.entrySet()) {
                 if (entry.getValue().getAttributes() != null) {
                     for (Entry<String, String> attributeEntry : entry.getValue().getAttributes().entrySet()) {
                         String parsedAttribute = ToscaFunctionProcessor.parseString(attributeEntry.getValue(), topology, instanceInformations, entry.getKey());
@@ -449,8 +476,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     }
 
     @Override
-    public Map<String, Map<Integer, InstanceInformation>> getInstancesInformation(String deploymentId, Topology topology) {
-        Map<String, Map<Integer, InstanceInformation>> instanceInformations = instanceInformationsFromTopology(topology);
+    public Map<String, Map<String, InstanceInformation>> getInstancesInformation(String deploymentId, Topology topology) {
+        Map<String, Map<String, InstanceInformation>> instanceInformations = instanceInformationsFromTopology(topology);
 
         final URI restEventEndpoint = this.cloudifyRestClientManager.getRestEventEndpoint();
         if (restEventEndpoint == null) {
@@ -483,9 +510,9 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         monitorEvents.offer(messageMonitorEvent);
     }
 
-    private PaaSInstanceStateMonitorEvent generateInstanceStateRemovedEvent(String deploymentId, String nodeId, Integer instanceId) {
+    private PaaSInstanceStateMonitorEvent generateInstanceStateRemovedEvent(String deploymentId, String nodeId, String instanceId) {
         PaaSInstanceStateMonitorEvent event = new PaaSInstanceStateMonitorEvent();
-        event.setInstanceId(instanceId.toString());
+        event.setInstanceId(instanceId);
         event.setNodeTemplateId(nodeId);
         event.setDate(new Date().getTime());
         event.setDeploymentId(deploymentId);
@@ -496,8 +523,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         List<AbstractMonitorEvent> events = Lists.newArrayList();
         // Generate delete events
         if (existing != null) {
-            for (Map.Entry<String, Map<Integer, InstanceInformation>> existingNodeInfo : existing.instanceInformations.entrySet()) {
-                for (Map.Entry<Integer, InstanceInformation> existingInstanceInfo : existingNodeInfo.getValue().entrySet()) {
+            for (Map.Entry<String, Map<String, InstanceInformation>> existingNodeInfo : existing.instanceInformations.entrySet()) {
+                for (Map.Entry<String, InstanceInformation> existingInstanceInfo : existingNodeInfo.getValue().entrySet()) {
                     if (current == null || current.instanceInformations == null || !current.instanceInformations.containsKey(existingNodeInfo.getKey())
                             || !current.instanceInformations.get(existingNodeInfo.getKey()).containsKey(existingInstanceInfo.getKey())) {
                         events.add(generateInstanceStateRemovedEvent(deploymentId, existingNodeInfo.getKey(), existingInstanceInfo.getKey()));
@@ -513,7 +540,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         if (current == null || current.instanceInformations == null) {
             return;
         }
-        Map<Integer, InstanceInformation> nodeInfo = current.instanceInformations.get(nodeId);
+        Map<String, InstanceInformation> nodeInfo = current.instanceInformations.get(nodeId);
         if (nodeInfo == null) {
             return;
         }
@@ -529,10 +556,10 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     }
 
     @Override
-    public AbstractMonitorEvent[] getEventsSince(Date date, int maxEvents) {
+    public void getEventsSince(Date date, int maxEvents, IPaaSCallback<AbstractMonitorEvent[]> eventsCallback) {
         final URI restEventEndpoint = this.cloudifyRestClientManager.getRestEventEndpoint();
         if (restEventEndpoint == null) {
-            return new AbstractMonitorEvent[0];
+            eventsCallback.onData(new AbstractMonitorEvent[0]);
         }
 
         List<AbstractMonitorEvent> events = Lists.newArrayList();
@@ -552,7 +579,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             log.debug("applicationDescriptions: " + applicationDescriptions);
             if (applicationDescriptions == null) {
                 log.debug("GetEvents: Nothing in applicationDescriptions. Exiting...");
-                return events.toArray(new AbstractMonitorEvent[events.size()]);
+                eventsCallback.onData(events.toArray(new AbstractMonitorEvent[events.size()]));
             }
 
             List<String> appUnknownStatuses = Lists.newArrayList(statusByDeployments.keySet());
@@ -569,9 +596,9 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             Set<String> processedDeployments = Sets.newHashSet();
             processEvents(events, instanceEvents, processedDeployments);
         } catch (Exception e) {
-            throw new PaaSTechnicalException("Error while getting deployment events.", e);
+            eventsCallback.onFailure(new PaaSTechnicalException("Error while getting deployment events.", e));
         }
-        return events.toArray(new AbstractMonitorEvent[events.size()]);
+        eventsCallback.onData(events.toArray(new AbstractMonitorEvent[events.size()]));
     }
 
     private void processUnknownStatuses(List<AbstractMonitorEvent> events, List<ApplicationDescription> applicationDescriptions, List<String> appUnknownStatuses) {
@@ -742,7 +769,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     }
 
     private static class InstanceDeploymentInfo {
-        private Map<String, Map<Integer, InstanceInformation>> instanceInformations;
+        private Map<String, Map<String, InstanceInformation>> instanceInformations;
     }
 
     @Override

@@ -3,7 +3,12 @@ package alien4cloud.paas.cloudify2;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 
 import javax.annotation.Resource;
 
@@ -19,9 +24,11 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
+import alien4cloud.paas.IPaaSCallback;
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
+import alien4cloud.paas.model.AbstractMonitorEvent;
 import alien4cloud.paas.model.DeploymentStatus;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.tosca.container.model.topology.Topology;
@@ -144,7 +151,15 @@ public class DeploymentTestIT extends GenericTestCase {
         // Assert.assertNull("Application " + applicationId + " is not undeloyed!", appliDesc);
 
         // FIXME this is a hack, for the provider to set the status of the application to UNDEPLOYED
-        cloudifyPaaSPovider.getEventsSince(new Date(), 1);
+        cloudifyPaaSPovider.getEventsSince(new Date(), 1, new IPaaSCallback<AbstractMonitorEvent[]>() {
+            @Override
+            public void onData(AbstractMonitorEvent[] abstractMonitorEvents) {
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+            }
+        });
         DeploymentStatus status = cloudifyPaaSPovider.getStatus(applicationId);
         Assert.assertEquals("Application " + applicationId + " is not in UNDEPLOYED state", DeploymentStatus.UNDEPLOYED, status);
     }
