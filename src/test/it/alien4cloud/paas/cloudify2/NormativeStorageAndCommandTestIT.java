@@ -45,7 +45,6 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "comp_custom_cmd", 1000L * 120);
-            assertHttpCodeEquals(cloudifyAppId, "comp_custom_cmd", "8080", "", HTTP_CODE_OK, null);
 
             String resultSnipet = "hello <alien>, from <comp_custom_cmd";
             String resultSnipetInst = "hello <alien>, from <comp_custom_cmd.1>";

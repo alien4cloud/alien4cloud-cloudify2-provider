@@ -11,7 +11,6 @@ service {
   
   lifecycle {
     init $initCommand
-    install "install.groovy"
     postInstall {}
     start "start.groovy"
     startDetectionTimeoutSecs 300

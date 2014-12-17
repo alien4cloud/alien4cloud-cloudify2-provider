@@ -15,8 +15,8 @@ if(context.attributes.thisInstance.volumeCreated) {
 	}
 }
 
-println "mounting the attached storage <${device}> to <$path>... "
-context.storage.mount(device, "$path")
+println "mounting the attached storage <${device}> to <$location>... "
+context.storage.mount(device, "$location")
 
-return "$path"
+return "$location"
 

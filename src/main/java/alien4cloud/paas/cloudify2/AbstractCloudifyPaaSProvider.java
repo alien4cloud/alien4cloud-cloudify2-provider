@@ -36,7 +36,11 @@ import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.events.BlockStorageEvent;
 import alien4cloud.paas.cloudify2.events.NodeInstanceState;
 import alien4cloud.paas.cloudify2.generator.RecipeGenerator;
-import alien4cloud.paas.exception.*;
+import alien4cloud.paas.exception.OperationExecutionException;
+import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
+import alien4cloud.paas.exception.PaaSDeploymentException;
+import alien4cloud.paas.exception.PaaSNotYetDeployedException;
+import alien4cloud.paas.exception.PaaSTechnicalException;
 import alien4cloud.paas.model.*;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.tosca.container.ToscaFunctionProcessor;
@@ -336,7 +340,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             Integer instanceId = Integer.valueOf(instanceState.getInstanceId());
 
             InstanceStatus instanceStatus = InstanceStatus.PROCESSING;
-            if (ToscaNodeLifecycleConstants.STARTED.equals(instanceState.getInstanceState())) {
+            if (ToscaNodeLifecycleConstants.STARTED.equals(instanceState.getInstanceState())
+                    || ToscaNodeLifecycleConstants.AVAILABLE.equals(instanceState.getInstanceState())) {
                 instanceStatus = InstanceStatus.SUCCESS;
             }
 

@@ -10,17 +10,6 @@ imports:
 description: This archive contains custom types for tests.
 
 node_types:
-  alien.test.nodes.UbuntuBlockStorage:
-    derived_from: tosca.nodes.BlockStorage
-    description: A custom storage for Ubuntu OS.
-    interfaces:
-      Standard:
-        create: scripts/attach.groovy
-        configure: scripts/mount.groovy
-    artifacts:
-      - scripts: scripts
-        type: tosca.artifacts.File
-
   alien.test.nodes.DeletableUbuntuBlockStorage:
     derived_from: tosca.nodes.BlockStorage
     description: A custom storage for Ubuntu OS, to be destroyed at the end of the deployment.
@@ -33,17 +22,32 @@ node_types:
       - scripts: scripts
         type: tosca.artifacts.File
         
-  alien.nodes.ConfigurableBlockStorage:
+  alien.test.nodes.ConfigurableBlockStorage:
     derived_from: tosca.nodes.BlockStorage
     description: A custom storage for Ubuntu OS, to be destroyed at the end of the deployment.
     properties:
       device:
         type: string
         description: The device name on which to attach the requested storage.
-      path:
+      location:
         type: string
-        description: The path where will be mounted the requested storage.
+        description: The path on the file system where will be mounted the requested storage. 
       file_system:
         type: string
         description: The file system of the requested storage.
+    interfaces:
+      Standard:
+        create: 
+          inputs:
+            device: { get_property: [SELF, device]}
+          implementation: scripts/attach.groovy
+        configure: 
+          inputs:
+            location: { get_property: [SELF, location]}
+          implementation: scripts/mount.groovy
+    artifacts:
+      - scripts: scripts
+        type: tosca.artifacts.File
+
+
 

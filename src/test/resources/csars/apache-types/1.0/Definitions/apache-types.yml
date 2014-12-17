@@ -27,7 +27,7 @@ node_types:
         stop_detection: scripts/alien_apache_stopDetection.groovy
         locator: scripts/alien_apache_locator.groovy
     requirements:
-      - httpEndpoint: alien4cloud.capabilities.HttpEndpoint
+      - httpEndpoint: alien.capabilities.HttpEndpoint
         lower_bound: 0
         upper_bound: unbounded
     artifacts:

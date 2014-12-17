@@ -28,7 +28,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Component
 public class CloudifyCommandGenerator {
     private final static String[] SERVICE_RECIPE_RESOURCES = new String[] { "chmod-init.groovy", "CloudifyUtils.groovy", "GigaSpacesEventsManager.groovy",
-            "CloudifyExecutorUtils.groovy" };
+            "CloudifyExecutorUtils.groovy", "CloudifyAttributesUtils.groovy" };
 
     private static final String FIRE_EVENT_FORMAT = "CloudifyExecutorUtils.fireEvent(\"%s\", \"%s\")";
     private static final String FIRE_BLOCKSTORAGE_EVENT_FORMAT = "CloudifyExecutorUtils.fireBlockStorageEvent(\"%s\", \"%s\", %s)";
@@ -45,8 +45,8 @@ public class CloudifyCommandGenerator {
     private static final String CONDITIONAL_IF_GROOVY_FORMAT = "if(%s){\n\t%s\n}";
     private static final String RETURN_COMMAND_FORMAT = "return %s";
 
-    private static final String GET_INSTANCE_ATTRIBUTE_FORMAT = "CloudifyAttributesUtils.getAttribute(%s, %s, %s)";
-    private static final String GET_IP_FORMAT = "CloudifyAttributesUtils.getIp(%s, %s)";
+    private static final String GET_INSTANCE_ATTRIBUTE_FORMAT = "CloudifyAttributesUtils.getAttribute(context, %s, %s, %s)";
+    private static final String GET_IP_FORMAT = "CloudifyAttributesUtils.getIp(context, %s, %s)";
 
     @Resource
     private ApplicationContext applicationContext;
@@ -308,7 +308,7 @@ public class CloudifyCommandGenerator {
         if (MapUtils.isNotEmpty(stringParamsMap)) {
             String serialized = (new ObjectMapper()).writeValueAsString(stringParamsMap);
             if (parametersSb.length() > 0) {
-                parametersSb.append(",");
+                parametersSb.append(", ");
             }
             parametersSb.append(serialized.substring(1, serialized.length() - 1));
         }
@@ -318,7 +318,7 @@ public class CloudifyCommandGenerator {
         if (MapUtils.isNotEmpty(varParamsMap)) {
             for (Entry<String, String> entry : varParamsMap.entrySet()) {
                 if (parametersSb.length() > 0) {
-                    parametersSb.append(",");
+                    parametersSb.append(", ");
                 }
                 parametersSb.append("\"" + entry.getKey() + "\":" + entry.getValue());
             }

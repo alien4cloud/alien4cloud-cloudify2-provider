@@ -11,10 +11,9 @@ node_types:
         type: string
         required: true
     requirements:
-      - host: alien4cloud.capabilities.WarHosting
+      - host: alien.capabilities.WarHosting
         lower_bound: 1
         upper_bound: 1
-        
     interfaces:
       custom:
         updateWarFile:
@@ -23,8 +22,8 @@ node_types:
             warUrl:
               type: string
               description: url of the war to upload to update the current one
+              required: true
           implementation: warScripts/updateWarFile.groovy
-          
     artifacts:
       - scripts: warScripts
         type: tosca.artifacts.File
@@ -45,16 +44,16 @@ node_types:
           - equal: 7.0.23
     capabilities:
       http_endpoint:
-        type: alien4cloud.capabilities.HttpEndpoint
+        type: alien.capabilities.HttpEndpoint
         upper_bound: unbounded
       war_host:
-          type: alien4cloud.capabilities.WarHosting
+          type: alien.capabilities.WarHosting
           upper_bound: unbounded
     requirements:
-      - http_endpoint: alien4cloud.capabilities.HttpEndpoint
+      - http_endpoint: alien.capabilities.HttpEndpoint
         lower_bound: 0
         upper_bound: unbounded
-      - jdbc_resource: alien4cloud.capabilities.JdbcEndpoint
+      - jdbc_resource: alien.capabilities.JdbcEndpoint
         lower_bound: 0
         upper_bound: 1
     interfaces:
@@ -67,12 +66,17 @@ node_types:
         stop_detection: scripts/tomcat_stopDetection.groovy
         locator: scripts/alien_tomcat_locator.groovy
       custom:
-        updateNodeWar:
-          input:
-            warNodeName:
+        updateWarOnTomcat:
+          inputs:
+            catalinaBase: { get_attribute: [SELF, catalinaBase] }
+            installDir: { get_attribute: [SELF, installDir] }
+            url:
               type: string
               required: true
-          implementation: scripts/updateNodeWarFile.groovy
+            contextPath:
+              type: string
+              required: true
+          implementation: scripts/updateWarOnTomcat.groovy
         helloCmd:
           input:
             yourName:
@@ -99,14 +103,15 @@ relationship_types:
   fastconnect.relationships.cloudify.WarHostedOnTomcat:
     derived_from: tosca.relationships.HostedOn
     description: Relationship that allows to deploy a war on tomcat.
-    valid_sources: [ alien4cloud.capabilities.WarHosting ]
-    valid_targets: [ alien4cloud.capabilities.WarHosting ]
+    valid_sources: [ alien.capabilities.WarHosting ]
+    valid_targets: [ alien.capabilities.WarHosting ]
     interfaces:
       configure:
         post_configure_source: 
           inputs:
             contextPath: { get_property: [SOURCE, contextPath] } 
-          implementation: relationshipScripts/war_hostedon_tomcat_postsource.groovy
+            tomcatIp: { get_attribute: [TARGET, ip_address] }
+          implementation: relationshipScripts/warHostedOnTomcat_post_configure_source.groovy
     artifacts:
       - scripts: relationshipScripts
         type: tosca.artifacts.File
@@ -121,13 +126,13 @@ relationship_types:
             tomcatVersion: { get_property: [TARGET, version] }
             tomcatIp: { get_attribute: [TARGET, ip_address] }
             warNodeContext: { get_attribute: [SOURCE, warNodeContext] }
-          implementation: relationshipScripts/war_hostedon_tomcat_postsource.groovy
+          implementation: relationshipScripts/warHostedOnTomcat_post_configure_source.groovy
     artifacts:
       - scripts: relationshipScripts
         type: tosca.artifacts.File
 
 capability_types:
-  alien4cloud.capabilities.WarHosting:
+  alien.capabilities.WarHosting:
     derived_from: tosca.capabilities.Container
-  alien4cloud.capabilities.JdbcEndpoint:
+  alien.capabilities.JdbcEndpoint:
     derived_from: tosca.capabilities.Endpoint

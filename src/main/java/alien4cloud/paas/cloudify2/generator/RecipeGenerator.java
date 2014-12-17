@@ -51,6 +51,7 @@ import alien4cloud.paas.plan.StopPlanGenerator;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.paas.plan.WorkflowStep;
 import alien4cloud.tosca.ToscaUtils;
+import alien4cloud.tosca.container.ToscaFunctionConstants;
 import alien4cloud.tosca.container.model.AlienCustomTypes;
 import alien4cloud.tosca.container.model.NormativeBlockStorageConstants;
 import alien4cloud.tosca.container.model.topology.ScalingPolicy;
@@ -77,12 +78,11 @@ public class RecipeGenerator {
     private static final int DEFAULT_MAX_INSTANCE = 1;
 
     private static final String DEFAULT_BLOCKSTORAGE_DEVICE = "/dev/vdb";
-    private static final String DEFAULT_BLOCKSTORAGE_PATH = "/mountedStorage";
+    private static final String DEFAULT_BLOCKSTORAGE_LOCATION = "/mountedStorage";
     private static final String DEFAULT_BLOCKSTORAGE_FS = "ext4";
     private static final String VOLUME_ID_VAR = "volumeId";
 
     private static final String FS = "file_system";
-    private static final String PATH = "path";
 
     private static final String SHELL_ARTIFACT_TYPE = "tosca.artifacts.ShellScript";
     private static final String GROOVY_ARTIFACT_TYPE = "tosca.artifacts.GroovyScript";
@@ -377,6 +377,7 @@ public class RecipeGenerator {
                 cloudifyCommandGen.getFireBlockStorageEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.CREATED, VOLUME_ID_VAR));
         velocityProps.put("configuredEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.CONFIGURED));
         velocityProps.put("startedEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.STARTED));
+        velocityProps.put("availableEvent", cloudifyCommandGen.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.AVAILABLE));
 
         String createAttachCommand = getStorageCreateAttachCommand(context, blockStorageNode);
         velocityProps.put(CREATE_COMMAND, createAttachCommand);
@@ -405,14 +406,14 @@ public class RecipeGenerator {
                 fs = properties.get(FS);
             }
 
-            // get the storage mounting path
-            String storagePath = DEFAULT_BLOCKSTORAGE_PATH;
-            if (properties != null && StringUtils.isNotBlank(properties.get(PATH))) {
-                storagePath = properties.get(PATH);
+            // get the storage mounting location (path on the file system)
+            String storageLocation = DEFAULT_BLOCKSTORAGE_LOCATION;
+            if (properties != null && StringUtils.isNotBlank(properties.get(NormativeBlockStorageConstants.LOCATION))) {
+                storageLocation = properties.get(NormativeBlockStorageConstants.LOCATION);
             }
 
             generateScriptWorkflow(context.getServicePath(), formatMountBlockStorageScriptDescriptorPath, DEFAULT_STORAGE_MOUNT_FILE_NAME, null,
-                    MapUtil.newHashMap(new String[] { PATH_KEY, FS_KEY }, new String[] { storagePath, fs }));
+                    MapUtil.newHashMap(new String[] { PATH_KEY, FS_KEY }, new String[] { storageLocation, fs }));
             formatMountCommand = cloudifyCommandGen.getGroovyCommand(DEFAULT_STORAGE_MOUNT_FILE_NAME.concat(".groovy"), varParamsMap, null);
         }
         return formatMountCommand;
@@ -469,8 +470,7 @@ public class RecipeGenerator {
     }
 
     private void verifyNoVolumeIdForDeletableStorage(PaaSNodeTemplate blockStorageNode, String volumeIds) {
-        if (ToscaUtils.isFromType(AlienCustomTypes.DELETABLE_BLOCKSTORAGE_TYPE, blockStorageNode.getIndexedNodeType())
-                && StringUtils.isNotBlank(volumeIds)) {
+        if (ToscaUtils.isFromType(AlienCustomTypes.DELETABLE_BLOCKSTORAGE_TYPE, blockStorageNode.getIndexedNodeType()) && StringUtils.isNotBlank(volumeIds)) {
             throw new PaaSDeploymentException("Failed to generate scripts for BlockStorage <" + blockStorageNode.getId() + " >. A storage of type <"
                     + AlienCustomTypes.DELETABLE_BLOCKSTORAGE_TYPE + "> should not be provided with volumeIds.");
         }
@@ -512,15 +512,25 @@ public class RecipeGenerator {
             Map<String, Operation> operations = customInterface.getOperations();
             for (Entry<String, Operation> entry : operations.entrySet()) {
                 String relativePath = CloudifyPaaSUtils.getNodeTypeRelativePath(nodeTemplate.getIndexedNodeType());
+
                 // copy the implementation artifact of the custom command
                 artifactCopier.copyImplementationArtifact(context, nodeTemplate.getCsarPath(), relativePath, entry.getValue().getImplementationArtifact());
                 String key = entry.getKey();
                 String artifactRef = relativePath + "/" + entry.getValue().getImplementationArtifact().getArtifactRef();
                 String artifactType = entry.getValue().getImplementationArtifact().getArtifactType();
+
+                // process the inputs parameters of the custom command
+                Map<String, String> stringEvalResults = Maps.newHashMap();
+                Map<String, String> runtimeEvalResults = Maps.newHashMap();
+                funtionProcessor.processParameters(entry.getValue().getInputParameters(), stringEvalResults, runtimeEvalResults, nodeTemplate,
+                        context.getTopologyNodeTemplates());
+
+                // add the args params
+                runtimeEvalResults.put("args", "args");
+
                 String command;
                 if (GROOVY_ARTIFACT_TYPE.equals(artifactType)) {
-                    command = cloudifyCommandGen.getClosureGroovyCommand(artifactRef, MapUtil.newHashMap(new String[] { "params" }, new String[] { "args" }),
-                            null);
+                    command = cloudifyCommandGen.getClosureGroovyCommand(artifactRef, runtimeEvalResults, stringEvalResults);
                 } else {
                     // TODO handle SHELL_ARTIFACT_TYPE for custom commands
                     throw new PaaSDeploymentException("Operation <" + nodeTemplate.getId() + "." + NODE_CUSTOM_INTERFACE_NAME + "." + entry.getKey()
@@ -706,7 +716,13 @@ public class RecipeGenerator {
         PaaSRelationshipTemplate paaSRelationshipTemplate = paaSNodeTemplate.getRelationshipTemplate(operationCall.getRelationshipId());
         String relativePath = CloudifyPaaSUtils.getNodeTypeRelativePath(paaSRelationshipTemplate.getIndexedRelationshipType());
         this.artifactCopier.copyImplementationArtifact(context, operationCall.getCsarPath(), relativePath, operationCall.getImplementationArtifact());
-        generateOperationCallCommand(context, relativePath, operationCall, null, null, executions, false);
+
+        // we set as env var the source and the target of the relationship
+        Map<String, String> sourceAndTarget = Maps.newHashMap();
+        sourceAndTarget.put(ToscaFunctionConstants.SOURCE, paaSRelationshipTemplate.getSource());
+        sourceAndTarget.put(ToscaFunctionConstants.TARGET, paaSRelationshipTemplate.getRelationshipTemplate().getTarget());
+
+        generateOperationCallCommand(context, relativePath, operationCall, null, sourceAndTarget, executions, false);
     }
 
     private void generateOperationCallCommand(final RecipeGeneratorServiceContext context, final String relativePath,

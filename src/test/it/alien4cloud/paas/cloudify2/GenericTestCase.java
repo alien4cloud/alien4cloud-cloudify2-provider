@@ -6,14 +6,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
 
 import javax.annotation.Resource;
 
@@ -119,7 +113,7 @@ public class GenericTestCase {
         cloudifyURL = cloudifyURL == null ? "http://129.185.67.81:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL);
-        pluginConfigurationBean.setSynchronousDeployment(false);
+        pluginConfigurationBean.setSynchronousDeployment(true);
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setVersion("2.7.1");
         cloudifyPaaSPovider.setConfiguration(pluginConfigurationBean);
         cloudifyRestClientManager = cloudifyPaaSPovider.getCloudifyRestClientManager();

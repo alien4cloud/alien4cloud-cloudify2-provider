@@ -91,9 +91,4 @@ public class RecipeGeneratorConstants {
     public static final String SHUTDOWN_COMMAND = "shutdownCommand";
     public static final String SHUTDOWN_LIFECYCLE = "shutdown";
 
-    // env keys
-    /** Cloudify service name of the source of a relationship **/
-    public static final String SOURCE_SERVICE = "SOURCE_SERVICE";
-    /** Cloudify service name of the target of a relationship **/
-    public static final String TARGET_SERVICE = "TARGET_SERVICE";
 }
