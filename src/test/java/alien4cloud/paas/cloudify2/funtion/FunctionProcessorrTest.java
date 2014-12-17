@@ -38,8 +38,8 @@ import com.google.common.collect.Lists;
 @ContextConfiguration("classpath:application-context-testit.xml")
 public class FunctionProcessorrTest {
 
-    private static final String GET_INSTANCE_ATTRIBUTE_FORMAT = "CloudifyAttributesUtils.getAttribute(%s, %s, %s)";
-    private static final String GET_IP_FORMAT = "CloudifyAttributesUtils.getIp(%s, %s)";
+    private static final String GET_INSTANCE_ATTRIBUTE_FORMAT = "CloudifyAttributesUtils.getAttribute(context, %s, %s, %s)";
+    private static final String GET_IP_FORMAT = "CloudifyAttributesUtils.getIp(context, %s, %s)";
 
     @Resource
     private FunctionProcessor processor;

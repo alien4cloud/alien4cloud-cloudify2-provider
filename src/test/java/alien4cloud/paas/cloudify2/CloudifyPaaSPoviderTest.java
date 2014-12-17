@@ -54,7 +54,7 @@ public class CloudifyPaaSPoviderTest {
     public void loopedGroovyCommand() throws IOException {
         String first = "while(!CloudifyExecutorUtils.executeGroovy(\"totototot/titit\", null)){\n\t  \n}";
         String second = "while(true){\n\t CloudifyExecutorUtils.executeGroovy(\"totototot/titit\", [\"ha\":\"ho\"]) \n}";
-        String third = "while(true){\n\t CloudifyExecutorUtils.executeGroovy(\"totototot/titit\", [\"hi\":\"hu\",\"ha\":ho]) \n}";
+        String third = "while(true){\n\t CloudifyExecutorUtils.executeGroovy(\"totototot/titit\", [\"hi\":\"hu\", \"ha\":ho]) \n}";
         assertEquals(first, generator.getLoopedGroovyCommand(generator.getGroovyCommand("totototot/titit", null, null), null));
         assertEquals(
                 second,
