@@ -40,16 +40,7 @@ import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
-import alien4cloud.paas.plan.BuildPlanGenerator;
-import alien4cloud.paas.plan.OperationCallActivity;
-import alien4cloud.paas.plan.ParallelGateway;
-import alien4cloud.paas.plan.ParallelJoinStateGateway;
-import alien4cloud.paas.plan.StartEvent;
-import alien4cloud.paas.plan.StateUpdateEvent;
-import alien4cloud.paas.plan.StopEvent;
-import alien4cloud.paas.plan.StopPlanGenerator;
-import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
-import alien4cloud.paas.plan.WorkflowStep;
+import alien4cloud.paas.plan.*;
 import alien4cloud.tosca.ToscaUtils;
 import alien4cloud.tosca.container.ToscaFunctionConstants;
 import alien4cloud.tosca.container.model.AlienCustomTypes;
@@ -399,22 +390,22 @@ public class RecipeGenerator {
 
         // if no custom management then generate the default routine
         if (StringUtils.isBlank(formatMountCommand)) {
-            // get the fs and the mount path
+
+            // get the fs and the mounting location (path on the file system)
             Map<String, String> properties = blockStorageNode.getNodeTemplate().getProperties();
             String fs = DEFAULT_BLOCKSTORAGE_FS;
-            if (properties != null && StringUtils.isNotBlank(properties.get(FS))) {
-                fs = properties.get(FS);
-            }
-
-            // get the storage mounting location (path on the file system)
             String storageLocation = DEFAULT_BLOCKSTORAGE_LOCATION;
-            if (properties != null && StringUtils.isNotBlank(properties.get(NormativeBlockStorageConstants.LOCATION))) {
-                storageLocation = properties.get(NormativeBlockStorageConstants.LOCATION);
+            if (properties != null) {
+                fs = StringUtils.isNotBlank(properties.get(FS)) ? properties.get(FS) : fs;
+                storageLocation = StringUtils.isNotBlank(properties.get(NormativeBlockStorageConstants.LOCATION)) ? properties
+                        .get(NormativeBlockStorageConstants.LOCATION) : storageLocation;
             }
+            Map<String, String> stringParamsMap = Maps.newHashMap();
+            stringParamsMap.put(FS, fs);
+            stringParamsMap.put(NormativeBlockStorageConstants.LOCATION, storageLocation);
 
-            generateScriptWorkflow(context.getServicePath(), formatMountBlockStorageScriptDescriptorPath, DEFAULT_STORAGE_MOUNT_FILE_NAME, null,
-                    MapUtil.newHashMap(new String[] { PATH_KEY, FS_KEY }, new String[] { storageLocation, fs }));
-            formatMountCommand = cloudifyCommandGen.getGroovyCommand(DEFAULT_STORAGE_MOUNT_FILE_NAME.concat(".groovy"), varParamsMap, null);
+            generateScriptWorkflow(context.getServicePath(), formatMountBlockStorageScriptDescriptorPath, DEFAULT_STORAGE_MOUNT_FILE_NAME, null, null);
+            formatMountCommand = cloudifyCommandGen.getGroovyCommand(DEFAULT_STORAGE_MOUNT_FILE_NAME.concat(".groovy"), varParamsMap, stringParamsMap);
         }
         return formatMountCommand;
     }
@@ -433,9 +424,9 @@ public class RecipeGenerator {
             if (properties != null && StringUtils.isNotBlank(properties.get(NormativeBlockStorageConstants.DEVICE))) {
                 device = properties.get(NormativeBlockStorageConstants.DEVICE);
             }
-            generateScriptWorkflow(context.getServicePath(), createAttachBlockStorageScriptDescriptorPath, DEFAULT_STORAGE_CREATE_FILE_NAME, null,
+            generateScriptWorkflow(context.getServicePath(), createAttachBlockStorageScriptDescriptorPath, DEFAULT_STORAGE_CREATE_FILE_NAME, null, null);
+            createAttachCommand = cloudifyCommandGen.getGroovyCommand(DEFAULT_STORAGE_CREATE_FILE_NAME.concat(".groovy"), varParamsMap,
                     MapUtil.newHashMap(new String[] { NormativeBlockStorageConstants.DEVICE }, new String[] { device }));
-            createAttachCommand = cloudifyCommandGen.getGroovyCommand(DEFAULT_STORAGE_CREATE_FILE_NAME.concat(".groovy"), null, null);
         }
         return createAttachCommand;
     }

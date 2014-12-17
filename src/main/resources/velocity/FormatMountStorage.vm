@@ -8,15 +8,15 @@ def alternate = device.replaceAll("/s", "/xv")
 if(context.attributes.thisInstance.volumeCreated) {
 	println "formating the attached storage <${device}>... "
 	try {
-		context.storage.format(device, "$fileSystem")
+		context.storage.format(device, file_system)
 	} catch(any) {
 		device = alternate
-		context.storage.format(device, "$fileSystem")
+		context.storage.format(device, file_system)
 	}
 }
 
-println "mounting the attached storage <${device}> to <$location>... "
-context.storage.mount(device, "$location")
+println "mounting the attached storage <${device}> to <${location}>... "
+context.storage.mount(device, location)
 
-return "$location"
+return location
 
