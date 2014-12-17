@@ -8,6 +8,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.Resource;
@@ -30,6 +31,10 @@ import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.AbstractMonitorEvent;
 import alien4cloud.paas.model.DeploymentStatus;
+import alien4cloud.paas.model.PaaSDeploymentContext;
+import alien4cloud.paas.model.PaaSNodeTemplate;
+import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
+import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.tosca.container.model.topology.Topology;
 import alien4cloud.tosca.parser.ParsingException;
@@ -44,6 +49,9 @@ public class DeploymentTestIT extends GenericTestCase {
 
     @Resource(name = "cloudify-paas-provider-bean")
     protected CloudifyPaaSProvider anotherCloudifyPaaSPovider;
+
+    @Resource
+    private TopologyTreeBuilderService topologyTreeBuilderService;
 
     public DeploymentTestIT() {
     }
@@ -101,7 +109,16 @@ public class DeploymentTestIT extends GenericTestCase {
         String[] computesId = new String[] { "compute" };
         String cloudifyAppId = deployTopology("compute_only", computesId);
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
-        cloudifyPaaSPovider.deploy("lol", cloudifyAppId, topo, null);
+        PaaSTopologyDeploymentContext deploymentContext = new PaaSTopologyDeploymentContext();
+        deploymentContext.setDeploymentSetup(null);
+        deploymentContext.setTopology(topo);
+        deploymentContext.setRecipeId("lol");
+        deploymentContext.setDeploymentId(cloudifyAppId);
+        Map<String, PaaSNodeTemplate> nodes = topologyTreeBuilderService.buildPaaSNodeTemplate(topo);
+        List<PaaSNodeTemplate> computes = topologyTreeBuilderService.getHostedOnTree(nodes);
+        deploymentContext.setComputes(computes);
+        deploymentContext.setNodes(nodes);
+        cloudifyPaaSPovider.deploy(deploymentContext);
     }
 
     @Test
@@ -133,7 +150,9 @@ public class DeploymentTestIT extends GenericTestCase {
     }
 
     private void testUndeployment(String applicationId) throws RestClientException {
-        cloudifyPaaSPovider.undeploy(applicationId);
+        PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
+        deploymentContext.setDeploymentId(applicationId);
+        cloudifyPaaSPovider.undeploy(deploymentContext);
         assertApplicationIsUninstalled(applicationId);
     }
 

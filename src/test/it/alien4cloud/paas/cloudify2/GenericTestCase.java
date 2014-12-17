@@ -21,6 +21,9 @@ import java.util.UUID;
 
 import javax.annotation.Resource;
 
+import alien4cloud.paas.model.PaaSNodeTemplate;
+import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
+import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.io.FileUtils;
@@ -89,6 +92,8 @@ public class GenericTestCase {
     private ApplicationService applicationService;
     @Resource
     private ElasticSearchClient esClient;
+    @Resource
+    private TopologyTreeBuilderService topologyTreeBuilderService;
 
     protected List<String> deployedCloudifyAppIds = new ArrayList<>();
     private List<Class<?>> IndiceClassesToClean;
@@ -291,7 +296,16 @@ public class GenericTestCase {
         }
         log.info("\n\n TESTS: Deploying topology <{}>. Deployment id is <{}>. \n", topologyFileName, topology.getId());
         deployedCloudifyAppIds.add(topology.getId());
-        cloudifyPaaSPovider.deploy(topologyFileName, topology.getId(), topology, setup);
+        PaaSTopologyDeploymentContext deploymentContext = new PaaSTopologyDeploymentContext();
+        deploymentContext.setDeploymentSetup(setup);
+        deploymentContext.setTopology(topology);
+        deploymentContext.setRecipeId(topologyFileName);
+        deploymentContext.setDeploymentId(topology.getId());
+        Map<String, PaaSNodeTemplate> nodes = topologyTreeBuilderService.buildPaaSNodeTemplate(topology);
+        List<PaaSNodeTemplate> computes = topologyTreeBuilderService.getHostedOnTree(nodes);
+        deploymentContext.setComputes(computes);
+        deploymentContext.setNodes(nodes);
+        cloudifyPaaSPovider.deploy(deploymentContext);
         return topology.getId();
     }
 

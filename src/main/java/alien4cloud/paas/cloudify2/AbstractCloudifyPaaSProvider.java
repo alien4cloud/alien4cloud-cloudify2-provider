@@ -44,9 +44,9 @@ import org.cloudifysource.restclient.exceptions.RestClientResponseException;
 import alien4cloud.dao.IGenericSearchDAO;
 import alien4cloud.exception.TechnicalException;
 import alien4cloud.model.application.DeploymentSetup;
-import alien4cloud.paas.AbstractPaaSProvider;
 import alien4cloud.paas.IConfigurablePaaSProvider;
 import alien4cloud.paas.IPaaSCallback;
+import alien4cloud.paas.IPaaSProvider;
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.events.BlockStorageEvent;
 import alien4cloud.paas.cloudify2.events.NodeInstanceState;
@@ -61,11 +61,14 @@ import alien4cloud.paas.model.DeploymentStatus;
 import alien4cloud.paas.model.InstanceInformation;
 import alien4cloud.paas.model.InstanceStatus;
 import alien4cloud.paas.model.NodeOperationExecRequest;
+import alien4cloud.paas.model.PaaSDeploymentContext;
 import alien4cloud.paas.model.PaaSDeploymentStatusMonitorEvent;
 import alien4cloud.paas.model.PaaSInstanceStateMonitorEvent;
 import alien4cloud.paas.model.PaaSInstanceStorageMonitorEvent;
 import alien4cloud.paas.model.PaaSMessageMonitorEvent;
 import alien4cloud.paas.model.PaaSNodeTemplate;
+import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
+import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.tosca.container.ToscaFunctionProcessor;
 import alien4cloud.tosca.container.model.topology.NodeTemplate;
@@ -78,7 +81,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 @Slf4j
-public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfigurationBean> extends AbstractPaaSProvider implements IConfigurablePaaSProvider<T> {
+public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfigurationBean> implements IConfigurablePaaSProvider<T>, IPaaSProvider {
 
     @Resource
     @Getter
@@ -88,6 +91,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     protected RecipeGenerator recipeGenerator;
     @Resource(name = "alien-monitor-es-dao")
     private IGenericSearchDAO alienMonitorDao;
+    @Resource
+    private TopologyTreeBuilderService topologyTreeBuilderService;
 
     private static final long TIMEOUT_IN_MILLIS = 1000L * 60L * 10L; // 10 minutes
     private static final long MAX_DEPLOYMENT_TIMEOUT_MILLIS = 1000L * 60L * 5L; // 5 minutes
@@ -125,9 +130,14 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     }
 
     @Override
+    public void deploy(PaaSTopologyDeploymentContext deploymentContext) {
+        doDeploy(deploymentContext.getRecipeId(), deploymentContext.getDeploymentId(), deploymentContext.getTopology(), deploymentContext.getComputes(),
+                deploymentContext.getNodes(), deploymentContext.getDeploymentSetup());
+    }
+
     protected synchronized void doDeploy(String deploymentName, String deploymentId, Topology topology, List<PaaSNodeTemplate> roots,
             Map<String, PaaSNodeTemplate> nodeTemplates, DeploymentSetup deploymentSetup) {
-        if (statusByDeployments.get(deploymentId) != null && !DeploymentStatus.UNDEPLOYED.equals(statusByDeployments.get(deploymentId))) {
+        if (statusByDeployments.get(deploymentId) != null && DeploymentStatus.UNDEPLOYED != statusByDeployments.get(deploymentId).deploymentStatus) {
             log.info("Application with deploymentId <" + deploymentId + "> is already deployed");
             throw new PaaSAlreadyDeployedException("Application is already deployed.");
         }
@@ -233,7 +243,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     }
 
     @Override
-    public synchronized void undeploy(String deploymentId) {
+    public synchronized void undeploy(PaaSDeploymentContext deploymentContext) {
+        String deploymentId = deploymentContext.getDeploymentId();
         try {
             log.info("Undeploying topology " + deploymentId);
             try {
@@ -284,7 +295,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     }
 
     @Override
-    public void scale(String deploymentId, String nodeTemplateId, int instances) {
+    public void scale(PaaSDeploymentContext deploymentContext, String nodeTemplateId, int instances) {
+        String deploymentId = deploymentContext.getDeploymentId();
         String serviceId = RecipeGenerator.serviceIdFromNodeTemplateId(nodeTemplateId);
         try {
             CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
@@ -300,7 +312,6 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         }
     }
 
-    @Override
     public DeploymentStatus[] getStatuses(String[] deploymentIds) {
         DeploymentStatus[] statuses = new DeploymentStatus[deploymentIds.length];
         for (int i = 0; i < deploymentIds.length; i++) {
@@ -309,7 +320,6 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         return statuses;
     }
 
-    @Override
     public DeploymentStatus getStatus(String deploymentId) {
         DeploymentInfo cachedDeploymentInfo = statusByDeployments.get(deploymentId);
         if (cachedDeploymentInfo == null) {
@@ -475,7 +485,6 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         return 1;
     }
 
-    @Override
     public Map<String, Map<String, InstanceInformation>> getInstancesInformation(String deploymentId, Topology topology) {
         Map<String, Map<String, InstanceInformation>> instanceInformations = instanceInformationsFromTopology(topology);
 
@@ -773,7 +782,9 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     }
 
     @Override
-    public Map<String, String> executeOperation(String deploymentId, NodeOperationExecRequest request) throws OperationExecutionException {
+    public void executeOperation(PaaSDeploymentContext deploymentContext, NodeOperationExecRequest request, IPaaSCallback<Map<String, String>> callback)
+            throws OperationExecutionException {
+        String deploymentId = deploymentContext.getDeploymentId();
         Map<String, String> operationResponse = Maps.newHashMap();
         String serviceName = retrieveServiceName(deploymentId, request.getNodeTemplateName());
         String operationFQN = operationFQN(serviceName, request);
@@ -800,11 +811,11 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             }
 
         } catch (RestClientException e) {
-            throw new PaaSTechnicalException("Unable to execute the operation <" + operationFQN + ">", e);
+            callback.onFailure(new PaaSTechnicalException("Unable to execute the operation <" + operationFQN + ">", e));
         }
 
         log.debug("Result is: \n" + operationResponse);
-        return operationResponse;
+        callback.onData(operationResponse);
     }
 
     private void parseServiceInvokeResponse(Map<String, String> operationResponse, Map<String, Map<String, String>> invocationResultPerInstance)
@@ -838,7 +849,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             throw new PaaSNotYetDeployedException("Application <" + deploymentId + "> is not deloyed!");
         }
         if (deploymentInfo.paaSNodeTemplates == null) {
-            deploymentInfo.paaSNodeTemplates = getTopologyTreeBuilderService().buildPaaSNodeTemplate(deploymentInfo.topology);
+            deploymentInfo.paaSNodeTemplates = topologyTreeBuilderService.buildPaaSNodeTemplate(deploymentInfo.topology);
             // statusByDeployments.put(deploymentId, deploymentInfo);
         }
         PaaSNodeTemplate nodeTemplate = deploymentInfo.paaSNodeTemplates.get(nodeTemplateName);

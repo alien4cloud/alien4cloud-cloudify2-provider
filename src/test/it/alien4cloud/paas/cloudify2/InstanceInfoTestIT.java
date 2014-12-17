@@ -13,6 +13,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import alien4cloud.paas.model.InstanceInformation;
 import alien4cloud.paas.model.InstanceStatus;
+import alien4cloud.paas.model.PaaSDeploymentContext;
 import alien4cloud.tosca.container.model.topology.Topology;
 
 @RunWith(SpringJUnit4ClassRunner.class)
@@ -48,7 +49,9 @@ public class InstanceInfoTestIT extends GenericTestCase {
         log.info("Scaling to " + nbToAdd);
         topo.getScalingPolicies().get(nodeID).setInitialInstances(plannedInstance);
         alienDAO.save(topo);
-        cloudifyPaaSPovider.scale(appId, nodeID, nbToAdd);
+        PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
+        deploymentContext.setDeploymentId(appId);
+        cloudifyPaaSPovider.scale(deploymentContext, nodeID, nbToAdd);
     }
 
     private void printStatuses(Map<String, Map<String, InstanceInformation>> instancesInformations) {

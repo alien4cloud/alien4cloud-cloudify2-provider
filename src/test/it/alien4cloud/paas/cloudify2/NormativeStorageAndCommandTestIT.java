@@ -2,6 +2,7 @@ package alien4cloud.paas.cloudify2;
 
 import static org.junit.Assert.assertTrue;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -17,8 +18,10 @@ import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
+import alien4cloud.paas.IPaaSCallback;
 import alien4cloud.paas.exception.OperationExecutionException;
 import alien4cloud.paas.model.NodeOperationExecRequest;
+import alien4cloud.paas.model.PaaSDeploymentContext;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 
 import com.google.common.collect.Lists;
@@ -145,9 +148,26 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
             }
             request.setParameters(paramss);
         }
+        PaaSDeploymentContext context = new PaaSDeploymentContext();
+        context.setDeploymentId(cloudifyAppId);
+        final Map<String, String> result = new HashMap<>();
+        cloudifyPaaSPovider.executeOperation(context, request, new IPaaSCallback<Map<String, String>>() {
 
-        Map<String, String> result = cloudifyPaaSPovider.executeOperation(cloudifyAppId, request);
+            @Override
+            public void onData(Map<String, String> data) {
+                if (data != null) {
+                    result.putAll(data);
+                }
+            }
 
+            @Override
+            public void onFailure(Throwable throwable) {
+                log.error("Error execution", throwable);
+                if (throwable instanceof RuntimeException) {
+                    throw (RuntimeException) throwable;
+                }
+            }
+        });
         log.info("Test result is: \n\t" + result);
         return result;
     }
