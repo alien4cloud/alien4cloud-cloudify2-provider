@@ -82,6 +82,7 @@ node_types:
             yourName:
               type: string
               required: true
+            os_version: { get_property: [HOST, os_version] }
           implementation: scripts/helloCmd.groovy
     artifacts:
       - scripts: scripts

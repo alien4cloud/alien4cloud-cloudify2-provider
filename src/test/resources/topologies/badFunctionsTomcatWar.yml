@@ -6,7 +6,7 @@ node_templates:
       os_type: linux
       os_distribution: ubuntu
       os_version: ubuntu
-      hostname: testHostname
+      customHostName: testHostname
   tomcat:
     type: fastconnect.nodes.Tomcat
     properties:

@@ -95,7 +95,7 @@ public class FunctionProcessorrTest {
     }
 
     @Test
-    public void getPropertySELFKeywordSucessTest() throws Throwable {
+    public void getPropertySELFAndHOSTKeywordsSucessTest() throws Throwable {
 
         String computeName = "comp_tomcat_war";
         Topology topology = testsUtils.parseYamlTopology("badFunctionsTomcatWar");
@@ -108,6 +108,14 @@ public class FunctionProcessorrTest {
 
         Assert.assertEquals(computePaaS.getNodeTemplate().getProperties().get("customHostName"),
                 processor.evaluateParam((AbstractPropertyValue) param, computePaaS, builtPaaSNodeTemplates));
+
+        // HOST keyword
+        String tomcatName = "tomcat";
+        PaaSNodeTemplate tomcatPaaS = builtPaaSNodeTemplates.get(tomcatName);
+        Operation customHelloOp = tomcatPaaS.getIndexedNodeType().getInterfaces().get("custom").getOperations().get("helloCmd");
+        param = customHelloOp.getInputParameters().get("os_version");
+        Assert.assertEquals(computePaaS.getNodeTemplate().getProperties().get("os_version"),
+                processor.evaluateParam((AbstractPropertyValue) param, tomcatPaaS, builtPaaSNodeTemplates));
     }
 
     @Test

@@ -35,6 +35,7 @@ import alien4cloud.paas.IConfigurablePaaSProvider;
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.events.BlockStorageEvent;
 import alien4cloud.paas.cloudify2.events.NodeInstanceState;
+import alien4cloud.paas.cloudify2.funtion.FunctionProcessor;
 import alien4cloud.paas.cloudify2.generator.RecipeGenerator;
 import alien4cloud.paas.exception.OperationExecutionException;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
@@ -47,6 +48,7 @@ import alien4cloud.tosca.container.ToscaFunctionProcessor;
 import alien4cloud.tosca.container.model.topology.NodeTemplate;
 import alien4cloud.tosca.container.model.topology.ScalingPolicy;
 import alien4cloud.tosca.container.model.topology.Topology;
+import alien4cloud.tosca.model.IOperationParameter;
 import alien4cloud.tosca.model.PropertyDefinition;
 
 import com.google.common.collect.Lists;
@@ -64,6 +66,9 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     protected RecipeGenerator recipeGenerator;
     @Resource(name = "alien-monitor-es-dao")
     private IGenericSearchDAO alienMonitorDao;
+
+    @Resource
+    private FunctionProcessor functionProcessor;
 
     private static final long TIMEOUT_IN_MILLIS = 1000L * 60L * 10L; // 10 minutes
     private static final long MAX_DEPLOYMENT_TIMEOUT_MILLIS = 1000L * 60L * 5L; // 5 minutes
@@ -755,6 +760,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         Map<String, String> operationResponse = Maps.newHashMap();
         String serviceName = retrieveServiceName(deploymentId, request.getNodeTemplateName());
         String operationFQN = operationFQN(serviceName, request);
+        evaluateAndFillInputsFunctionsParams(deploymentId, request);
         try {
             RestClient restClient = cloudifyRestClientManager.getRestClient();
             InvokeCustomCommandRequest invokeRequest = new InvokeCustomCommandRequest();
@@ -766,7 +772,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
 
             log.info("Trigerring operation <" + operationFQN + ">.");
             // case execute on an instance
-            if (StringUtils.isNoneBlank(request.getInstanceId())) {
+            if (StringUtils.isNotBlank(request.getInstanceId())) {
                 int instanceId = Integer.parseInt(request.getInstanceId());
                 InvokeInstanceCommandResponse response = restClient.invokeInstanceCommand(deploymentId, serviceName, instanceId, invokeRequest);
                 log.debug("RAW result is: \n" + response.getInvocationResult());
@@ -783,6 +789,22 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
 
         log.debug("Result is: \n" + operationResponse);
         return operationResponse;
+    }
+
+    private void evaluateAndFillInputsFunctionsParams(String deploymentId, NodeOperationExecRequest request) {
+        DeploymentInfo deploymenInfo = statusByDeployments.get(deploymentId);
+        Map<String, String> stringEvalResults = Maps.newHashMap();
+        PaaSNodeTemplate basePaaSTemplate = deploymenInfo.paaSNodeTemplates.get(request.getNodeTemplateName());
+        Map<String, IOperationParameter> inputParameters = basePaaSTemplate.getIndexedNodeType().getInterfaces().get(request.getInterfaceName())
+                .getOperations().get(request.getOperationName()).getInputParameters();
+        functionProcessor.processParameters(inputParameters, stringEvalResults, Maps.<String, String> newHashMap(), basePaaSTemplate,
+                deploymenInfo.paaSNodeTemplates);
+        if (request.getParameters() == null) {
+            request.setParameters(stringEvalResults.isEmpty() ? null : stringEvalResults);
+        } else {
+            stringEvalResults.putAll(request.getParameters());
+            request.setParameters(stringEvalResults);
+        }
     }
 
     private void parseServiceInvokeResponse(Map<String, String> operationResponse, Map<String, Map<String, String>> invocationResultPerInstance)
@@ -817,7 +839,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         }
         if (deploymentInfo.paaSNodeTemplates == null) {
             deploymentInfo.paaSNodeTemplates = getTopologyTreeBuilderService().buildPaaSNodeTemplate(deploymentInfo.topology);
-            // statusByDeployments.put(deploymentId, deploymentInfo);
+            getTopologyTreeBuilderService().getHostedOnTree(deploymentInfo.paaSNodeTemplates);
         }
         PaaSNodeTemplate nodeTemplate = deploymentInfo.paaSNodeTemplates.get(nodeTemplateName);
         return CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(nodeTemplate);

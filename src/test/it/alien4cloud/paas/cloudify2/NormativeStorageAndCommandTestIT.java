@@ -46,8 +46,8 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "comp_custom_cmd", 1000L * 120);
 
-            String resultSnipet = "hello <alien>, from <comp_custom_cmd";
-            String resultSnipetInst = "hello <alien>, from <comp_custom_cmd.1>";
+            String resultSnipet = "hello <alien>, os_version is <ubuntu>, from <comp_custom_cmd";
+            String resultSnipetInst = "hello <alien>, os_version is <ubuntu>, from <comp_custom_cmd.1>";
 
             testCustomCommandSuccess(cloudifyAppId, "tomcat", null, "helloCmd", Lists.newArrayList("alien"), resultSnipet);
             testCustomCommandFail(cloudifyAppId, "tomcat", null, "helloCmd", null);
@@ -116,8 +116,8 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
 
         if (expectedResultSnippet != null) {
             for (String opReslt : result.values()) {
-                Assert.assertTrue("Command result should have contain <" + expectedResultSnippet + ">",
-                        opReslt.toLowerCase().contains(expectedResultSnippet.toLowerCase()));
+                Assert.assertTrue("Command result is <" + opReslt.toLowerCase() + ">. It should have contain <" + expectedResultSnippet + ">", opReslt
+                        .toLowerCase().contains(expectedResultSnippet.toLowerCase()));
             }
         }
     }
