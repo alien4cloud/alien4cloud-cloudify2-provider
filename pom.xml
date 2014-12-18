@@ -44,7 +44,7 @@
 		<gigaspaces.version>9.7.0-10496-RELEASE</gigaspaces.version>
 
 
-		<spring.version>4.0.5.RELEASE</spring.version>
+		<spring.version>4.0.7.RELEASE</spring.version>
 		<lombok.version>0.12.0</lombok.version>
 
 		<!-- Tests -->
@@ -280,6 +280,27 @@
 
 
 	<profiles>
+        <profile>
+            <id>intellij</id>
+            <dependencies>
+                <dependency>
+                    <groupId>alien4cloud</groupId>
+                    <artifactId>alien4cloud-core</artifactId>
+                    <version>${alien4cloud.version}</version>
+                    <scope>compile</scope>
+                    <exclusions>
+                        <exclusion>
+                            <artifactId>log4j-over-slf4j</artifactId>
+                            <groupId>org.slf4j</groupId>
+                        </exclusion>
+                        <exclusion>
+                            <artifactId>logback-classic</artifactId>
+                            <groupId>ch.qos.logback</groupId>
+                        </exclusion>
+                    </exclusions>
+                </dependency>
+            </dependencies>
+        </profile>
 		<profile>
 			<id>no-test</id>
 			<activation>
