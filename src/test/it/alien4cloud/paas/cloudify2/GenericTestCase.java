@@ -21,9 +21,6 @@ import java.util.UUID;
 
 import javax.annotation.Resource;
 
-import alien4cloud.paas.model.PaaSNodeTemplate;
-import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
-import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.io.FileUtils;
@@ -55,6 +52,9 @@ import alien4cloud.model.cloud.ComputeTemplate;
 import alien4cloud.model.cloud.MatchedComputeTemplate;
 import alien4cloud.model.deployment.Deployment;
 import alien4cloud.paas.cloudify2.exception.A4CCloudifyDriverITException;
+import alien4cloud.paas.model.PaaSNodeTemplate;
+import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
+import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.plugin.PluginConfiguration;
 import alien4cloud.tosca.ArchiveUploadService;
 import alien4cloud.tosca.container.model.topology.Topology;
@@ -302,9 +302,7 @@ public class GenericTestCase {
         deploymentContext.setRecipeId(topologyFileName);
         deploymentContext.setDeploymentId(topology.getId());
         Map<String, PaaSNodeTemplate> nodes = topologyTreeBuilderService.buildPaaSNodeTemplate(topology);
-        List<PaaSNodeTemplate> computes = topologyTreeBuilderService.getHostedOnTree(nodes);
-        deploymentContext.setComputes(computes);
-        deploymentContext.setNodes(nodes);
+        deploymentContext.setPaaSTopology(topologyTreeBuilderService.buildPaaSTopology(nodes));
         cloudifyPaaSPovider.deploy(deploymentContext);
         return topology.getId();
     }

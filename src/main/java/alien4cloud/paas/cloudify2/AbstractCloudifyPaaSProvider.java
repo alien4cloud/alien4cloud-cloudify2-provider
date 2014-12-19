@@ -131,8 +131,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
 
     @Override
     public void deploy(PaaSTopologyDeploymentContext deploymentContext) {
-        doDeploy(deploymentContext.getRecipeId(), deploymentContext.getDeploymentId(), deploymentContext.getTopology(), deploymentContext.getComputes(),
-                deploymentContext.getNodes(), deploymentContext.getDeploymentSetup());
+        doDeploy(deploymentContext.getRecipeId(), deploymentContext.getDeploymentId(), deploymentContext.getTopology(), deploymentContext.getPaaSTopology()
+                .getComputes(), deploymentContext.getPaaSTopology().getAllNodes(), deploymentContext.getDeploymentSetup());
     }
 
     protected synchronized void doDeploy(String deploymentName, String deploymentId, Topology topology, List<PaaSNodeTemplate> roots,
