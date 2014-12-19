@@ -106,7 +106,7 @@ public class GenericTestCase {
         testUtils.cleanESFiles(IndiceClassesToClean);
 
         testUtils.uploadCsar("tosca-normative-types", "1.0.0.wd03-SNAPSHOT");
-        testUtils.uploadCsar("alien-base-types", "1.0");
+        testUtils.uploadCsar("alien-base-types", "1.0-SNAPSHOT");
 
         // String cloudifyURL = System.getenv("CLOUDIFY_URL");
         String cloudifyURL = null;

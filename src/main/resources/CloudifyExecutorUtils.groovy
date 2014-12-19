@@ -6,6 +6,9 @@ import groovy.transform.Synchronized
 import org.cloudifysource.utilitydomain.context.ServiceContextFactory
 
 public class CloudifyExecutorUtils {
+    
+    static def RESEVED_ENV_KEYWORD = "NAME_VALUE_TO_PARSE"
+    static def NAME_VALUE_SEPARATOR = "="
     static def counter = new AtomicInteger()
     static def threadPool = Executors.newFixedThreadPool(50, { r -> return new Thread(r as Runnable, "alien-executor-" + counter.incrementAndGet()) } as ThreadFactory )
     static def call = { c -> threadPool.submit(c as Callable) }
@@ -52,21 +55,6 @@ public class CloudifyExecutorUtils {
     }
     
     /**
-     * build env vars given a map. 
-     * @param argsMap
-     * @return
-     */
-    private static String[] buildEnv(Map argsMap) {
-        if(argsMap != null && !argsMap.isEmpty()) {
-            def merged = [:]
-            merged.putAll(System.getenv())
-            merged.putAll(argsMap)
-            return merged.collect { k, v -> "$k=$v" }
-        }
-        return null
-    }
-
-    /**
      * Execute a goovy script. Argument are passed to the groovy via the GroovyShell Binding, where they are injected as variables.
      * Consider to pass them as env vars
      * 
@@ -77,11 +65,7 @@ public class CloudifyExecutorUtils {
         Binding binding = new Binding()
         
         //setting the args as variables
-        if(argsMap != null && !argsMap.isEmpty()) {
-            argsMap.each {  k, v ->
-                binding.setVariable(k, v);
-            }
-        }
+        buildEnvForGroovy(argsMap, binding)
         
         //hack for a MissingPropertyException thrown for CloudifyExecutorUtils
         binding.setVariable("CloudifyExecutorUtils", this)
@@ -98,11 +82,7 @@ public class CloudifyExecutorUtils {
         Binding binding = new Binding()
         
         //setting the args as variables
-        if(argsMap != null && !argsMap.empty) {
-            argsMap.each {  k, v ->
-                binding.setVariable(k, v);
-            }
-        }
+        buildEnvForGroovy(argsMap, binding)
         
         //set the context variable
         binding.setVariable("context", context)
@@ -171,5 +151,59 @@ public class CloudifyExecutorUtils {
         println "Shutting down threadpool"
         threadPool.shutdownNow();
         println "threadpool shut down!"
+    }
+    
+    /**
+     * build env vars given a map for sh scripts.
+     * @param argsMap
+     * @return
+     */
+    private static String[] buildEnvForSh(Map argsMap) {
+        if(argsMap != null && !argsMap.isEmpty()) {
+            def merged = [:]
+            merged.putAll(System.getenv())
+            //parse a Name=Value
+            parseNameValueIfExist(argsMap)
+            merged.putAll(argsMap)
+            return merged.collect { k, v -> v=="null"? "$k=''": "$k=$v" }
+        }
+        return null
+    }
+    
+    /**
+     * build env vars given a map for groovy scripts.
+     * @param argsMap
+     * @param binding
+     * @return
+     */
+    private static def buildEnvForGroovy(Map argsMap, Binding binding) {
+        if(argsMap != null && !argsMap.isEmpty()) {
+            parseNameValueIfExist(argsMap)
+            argsMap.each {  k, v ->
+                if(v=="null") {
+                    binding.setVariable(k, null);
+                }else {
+                    binding.setVariable(k, v);
+                }
+            }
+        }
+    }
+    
+    private static def parseNameValueIfExist(Map argsMap) {
+        if(argsMap.containsKey(RESEVED_ENV_KEYWORD)) {
+            def parsed = [:];
+            def toParse = argsMap[RESEVED_ENV_KEYWORD];
+            if(toParse) {
+                toParse.each {
+                def index = it.indexOf(NAME_VALUE_SEPARATOR)
+                    if(index >= 0) {
+                        def key = it.substring(0, index)
+                        parsed.put(key, it.substring(key.size()+1,it.size()))
+                    }
+                }
+                argsMap.remove(RESEVED_ENV_KEYWORD)
+                argsMap.putAll(parsed)
+            }
+        }
     }
 }

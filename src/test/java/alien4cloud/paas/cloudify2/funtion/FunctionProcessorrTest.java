@@ -74,7 +74,7 @@ public class FunctionProcessorrTest {
     public void before() throws Throwable {
         testsUtils.cleanESFiles(indiceClassesToClean);
         testsUtils.uploadCsar("tosca-normative-types", "1.0.0.wd03-SNAPSHOT");
-        testsUtils.uploadCsar("alien-base-types", "1.0");
+        testsUtils.uploadCsar("alien-base-types", "1.0-SNAPSHOT");
         testsUtils.uploadCsar("test-types", "1.0-SNAPSHOT");
         testsUtils.uploadCsar("tomcat-test-types", "1.0-SNAPSHOT");
 

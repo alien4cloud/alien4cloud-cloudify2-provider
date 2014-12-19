@@ -8,6 +8,8 @@ import alien4cloud.tosca.container.model.NormativeComputeConstants;
 
 public class CloudifyPaaSUtils {
 
+    private static final String prefixSeparator = "_";
+
     private CloudifyPaaSUtils() {
     }
 
@@ -48,4 +50,21 @@ public class CloudifyPaaSUtils {
         return indexedToscaElement.getElementId() + "-" + indexedToscaElement.getArchiveVersion();
     }
 
+    /**
+     * prefix a string with another
+     *
+     * @param toPrefix
+     * @param prefix
+     * @return
+     */
+    public static String prefixWithTemplateId(String toPrefix, String templateId) {
+        if (toPrefix == null) {
+            return null;
+        }
+        if (templateId == null) {
+            return toPrefix;
+        }
+
+        return templateId.concat(prefixSeparator).concat(toPrefix);
+    }
 }

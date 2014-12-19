@@ -14,6 +14,7 @@ import javax.annotation.Resource;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.cloudifysource.dsl.internal.CloudifyConstants;
@@ -27,6 +28,7 @@ import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.cloudifysource.restclient.exceptions.RestClientResponseException;
 
+import alien4cloud.component.model.IndexedNodeType;
 import alien4cloud.dao.IGenericSearchDAO;
 import alien4cloud.exception.TechnicalException;
 import alien4cloud.model.application.DeploymentSetup;
@@ -759,17 +761,12 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     public Map<String, String> executeOperation(String deploymentId, NodeOperationExecRequest request) throws OperationExecutionException {
         Map<String, String> operationResponse = Maps.newHashMap();
         String serviceName = retrieveServiceName(deploymentId, request.getNodeTemplateName());
-        String operationFQN = operationFQN(serviceName, request);
-        evaluateAndFillInputsFunctionsParams(deploymentId, request);
+        InvokeCustomCommandRequest invokeRequest = new InvokeCustomCommandRequest();
+        invokeRequest.setCommandName(CloudifyPaaSUtils.prefixWithTemplateId(request.getOperationName(), request.getNodeTemplateName()));
+        buildParameters(deploymentId, request, invokeRequest);
+        String operationFQN = operationFQN(serviceName, request, invokeRequest);
         try {
             RestClient restClient = cloudifyRestClientManager.getRestClient();
-            InvokeCustomCommandRequest invokeRequest = new InvokeCustomCommandRequest();
-            invokeRequest.setCommandName(request.getOperationName());
-
-            if (MapUtils.isNotEmpty(request.getParameters())) {
-                invokeRequest.setParameters(new ArrayList<>(request.getParameters().values()));
-            }
-
             log.info("Trigerring operation <" + operationFQN + ">.");
             // case execute on an instance
             if (StringUtils.isNotBlank(request.getInstanceId())) {
@@ -791,19 +788,23 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         return operationResponse;
     }
 
-    private void evaluateAndFillInputsFunctionsParams(String deploymentId, NodeOperationExecRequest request) {
-        DeploymentInfo deploymenInfo = statusByDeployments.get(deploymentId);
-        Map<String, String> stringEvalResults = Maps.newHashMap();
-        PaaSNodeTemplate basePaaSTemplate = deploymenInfo.paaSNodeTemplates.get(request.getNodeTemplateName());
-        Map<String, IOperationParameter> inputParameters = basePaaSTemplate.getIndexedNodeType().getInterfaces().get(request.getInterfaceName())
-                .getOperations().get(request.getOperationName()).getInputParameters();
-        functionProcessor.processParameters(inputParameters, stringEvalResults, Maps.<String, String> newHashMap(), basePaaSTemplate,
-                deploymenInfo.paaSNodeTemplates);
-        if (request.getParameters() == null) {
-            request.setParameters(stringEvalResults.isEmpty() ? null : stringEvalResults);
-        } else {
-            stringEvalResults.putAll(request.getParameters());
-            request.setParameters(stringEvalResults);
+    private void buildParameters(String deploymentId, NodeOperationExecRequest request, InvokeCustomCommandRequest invokeRequest) {
+        invokeRequest.setParameters(Lists.<String> newArrayList());
+        if (MapUtils.isNotEmpty(request.getParameters())) {
+            for (Entry<String, String> entry : request.getParameters().entrySet()) {
+                invokeRequest.getParameters().add(entry.toString());
+            }
+        }
+
+        // if some params are missing, add them with null value
+        IndexedNodeType nodeType = statusByDeployments.get(deploymentId).paaSNodeTemplates.get(request.getNodeTemplateName()).getIndexedNodeType();
+        Map<String, IOperationParameter> params = nodeType.getInterfaces().get(request.getInterfaceName()).getOperations().get(request.getOperationName())
+                .getInputParameters();
+        Map<String, String> requestParams = request.getParameters() == null ? Maps.<String, String> newHashMap() : request.getParameters();
+        for (Entry<String, IOperationParameter> param : params.entrySet()) {
+            if (param.getValue().isDefinition() && !requestParams.containsKey(param.getKey())) {
+                invokeRequest.getParameters().add(param.getKey().concat("=").concat("null"));
+            }
         }
     }
 
@@ -845,7 +846,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         return CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(nodeTemplate);
     }
 
-    private String operationFQN(String serviceName, NodeOperationExecRequest request) {
+    private String operationFQN(String serviceName, NodeOperationExecRequest request, InvokeCustomCommandRequest invokeRequest) {
         StringBuilder fqnBuilder = new StringBuilder(serviceName);
         fqnBuilder.append(".").append(request.getNodeTemplateName());
         if (StringUtils.isNoneBlank(request.getInstanceId())) {
@@ -853,8 +854,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         }
         fqnBuilder.append(".").append(request.getInterfaceName()).append(".").append(request.getOperationName());
         fqnBuilder.append("(");
-        if (MapUtils.isNotEmpty(request.getParameters())) {
-            fqnBuilder.append(request.getParameters().values());
+        if (CollectionUtils.isNotEmpty(invokeRequest.getParameters())) {
+            fqnBuilder.append(invokeRequest.getParameters().toString());
         }
         fqnBuilder.append(")");
         return fqnBuilder.toString();

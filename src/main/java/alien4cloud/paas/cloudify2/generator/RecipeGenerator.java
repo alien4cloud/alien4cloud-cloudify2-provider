@@ -1,6 +1,7 @@
 package alien4cloud.paas.cloudify2.generator;
 
 import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.*;
+import static alien4cloud.tosca.container.ToscaFunctionConstants.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -42,7 +43,6 @@ import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
 import alien4cloud.paas.plan.*;
 import alien4cloud.tosca.ToscaUtils;
-import alien4cloud.tosca.container.ToscaFunctionConstants;
 import alien4cloud.tosca.container.model.AlienCustomTypes;
 import alien4cloud.tosca.container.model.NormativeBlockStorageConstants;
 import alien4cloud.tosca.container.model.topology.ScalingPolicy;
@@ -87,6 +87,8 @@ public class RecipeGenerator {
     private static final String START_DETECTION_SCRIPT_FILE_NAME = "startDetection";
     private static final String STOP_DETECTION_SCRIPT_FILE_NAME = "stopDetection";
     private static final String INIT_STORAGE_SCRIPT_FILE_NAME = "initStorage";
+
+    private static final String RESEVED_ENV_KEYWORD = "NAME_VALUE_TO_PARSE";
 
     private String STORAGE_STARTUP_FILE_NAME = "startupBlockStorage";
     private String DEFAULT_STORAGE_CREATE_FILE_NAME = "createAttachStorage";
@@ -506,7 +508,7 @@ public class RecipeGenerator {
 
                 // copy the implementation artifact of the custom command
                 artifactCopier.copyImplementationArtifact(context, nodeTemplate.getCsarPath(), relativePath, entry.getValue().getImplementationArtifact());
-                String key = entry.getKey();
+                String key = CloudifyPaaSUtils.prefixWithTemplateId(entry.getKey(), nodeTemplate.getId());
                 String artifactRef = relativePath + "/" + entry.getValue().getImplementationArtifact().getArtifactRef();
                 String artifactType = entry.getValue().getImplementationArtifact().getArtifactType();
 
@@ -516,8 +518,11 @@ public class RecipeGenerator {
                 funtionProcessor.processParameters(entry.getValue().getInputParameters(), stringEvalResults, runtimeEvalResults, nodeTemplate,
                         context.getTopologyNodeTemplates());
 
-                // add the args params
-                runtimeEvalResults.put("args", "args");
+                // add the reserved env params
+                runtimeEvalResults.put(RESEVED_ENV_KEYWORD, "args");
+
+                // add base env vars
+                addNodeBaseEnvVars(nodeTemplate, stringEvalResults, SELF, HOST, PARENT);
 
                 String command;
                 if (GROOVY_ARTIFACT_TYPE.equals(artifactType)) {
@@ -543,6 +548,27 @@ public class RecipeGenerator {
         // process attachedNodes
         if (nodeTemplate.getAttachedNode() != null) {
             addCustomCommands(nodeTemplate.getAttachedNode(), context);
+        }
+    }
+
+    private void addNodeBaseEnvVars(final PaaSNodeTemplate nodeTemplate, final Map<String, String> envMap, final String... envKeys) {
+        if (envKeys == null) {
+            return;
+        }
+        for (String envKey : envKeys) {
+            switch (envKey) {
+            case SELF:
+                envMap.put(envKey, nodeTemplate.getId());
+                break;
+            case HOST:
+                envMap.put(envKey, CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(nodeTemplate));
+                break;
+            case PARENT:
+                envMap.put(envKey, nodeTemplate.getParent() == null ? null : nodeTemplate.getParent().getId());
+                break;
+            default:
+                break;
+            }
         }
     }
 
@@ -662,13 +688,15 @@ public class RecipeGenerator {
 
     private String getOperationCommandFromInterface(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate nodeTemplate,
             final String interfaceName, final String operationName, final boolean closureCommand, final Map<String, String> paramsAsVar,
-            final Map<String, String> stringParams) throws IOException {
+            Map<String, String> stringParams) throws IOException {
         String command = null;
         Interface extensionsInterface = nodeTemplate.getIndexedNodeType().getInterfaces().get(interfaceName);
         if (extensionsInterface != null) {
             Operation operation = extensionsInterface.getOperations().get(operationName);
             if (operation != null) {
                 String relativePath = CloudifyPaaSUtils.getNodeTypeRelativePath(nodeTemplate.getIndexedNodeType());
+                stringParams = stringParams == null ? Maps.<String, String> newHashMap() : stringParams;
+                addNodeBaseEnvVars(nodeTemplate, stringParams, SELF, PARENT, HOST);
                 command = getCommandFromOperation(context, nodeTemplate, interfaceName, operationName, relativePath, operation.getImplementationArtifact(),
                         closureCommand, paramsAsVar, stringParams, operation.getInputParameters());
                 if (StringUtils.isNotBlank(command)) {
@@ -690,8 +718,7 @@ public class RecipeGenerator {
         // parameters = addCopiedPathsToParams(copiedArtifactPath, parameters);
         // we set as env var the node (self), and it host
         Map<String, String> nodesEnvVars = Maps.newHashMap();
-        nodesEnvVars.put(ToscaFunctionConstants.SELF, paaSNodeTemplate.getId());
-        nodesEnvVars.put(ToscaFunctionConstants.HOST, CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(paaSNodeTemplate));
+        addNodeBaseEnvVars(paaSNodeTemplate, nodesEnvVars, SELF, PARENT, HOST);
         generateOperationCallCommand(context, relativePath, operationCall, null, nodesEnvVars, executions, isAsynchronous);
     }
 
@@ -714,11 +741,10 @@ public class RecipeGenerator {
 
         // we set as env var the source, target, source_host and target_host of the relationship
         Map<String, String> nodesEnvVars = Maps.newHashMap();
-        nodesEnvVars.put(ToscaFunctionConstants.SOURCE, paaSRelationshipTemplate.getSource());
-        nodesEnvVars.put(ToscaFunctionConstants.TARGET, paaSRelationshipTemplate.getRelationshipTemplate().getTarget());
-        nodesEnvVars.put(ToscaFunctionConstants.SOURCE_HOST,
-                CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(context.getNodeTemplateById(paaSRelationshipTemplate.getSource())));
-        nodesEnvVars.put(ToscaFunctionConstants.TARGET_HOST,
+        nodesEnvVars.put(SOURCE, paaSRelationshipTemplate.getSource());
+        nodesEnvVars.put(TARGET, paaSRelationshipTemplate.getRelationshipTemplate().getTarget());
+        nodesEnvVars.put(SOURCE_HOST, CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(context.getNodeTemplateById(paaSRelationshipTemplate.getSource())));
+        nodesEnvVars.put(TARGET_HOST,
                 CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(context.getNodeTemplateById(paaSRelationshipTemplate.getRelationshipTemplate().getTarget())));
 
         generateOperationCallCommand(context, relativePath, operationCall, null, nodesEnvVars, executions, false);
