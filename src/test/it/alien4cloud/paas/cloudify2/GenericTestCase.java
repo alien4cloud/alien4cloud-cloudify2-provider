@@ -59,8 +59,6 @@ public class GenericTestCase {
     protected static final int HTTP_CODE_OK = 200;
     protected static final String DEFAULT_TOMCAT_PORT = "8080";
 
-    protected static final String CSAR_SOURCE_PATH = "src/test/resources/csars/";
-    private static final String TOPOLOGIES_PATH = "src/test/resources/topologies/";
     private static final String DEFAULT_COMPUTE_TEMPLATE_ID = "MEDIUM_LINUX";
 
     @Resource
@@ -108,8 +106,8 @@ public class GenericTestCase {
         testUtils.uploadCsar("tosca-normative-types", "1.0.0.wd03-SNAPSHOT");
         testUtils.uploadCsar("alien-base-types", "1.0-SNAPSHOT");
 
-        // String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        String cloudifyURL = null;
+        String cloudifyURL = System.getenv("CLOUDIFY_URL");
+        // String cloudifyURL = null;
         cloudifyURL = cloudifyURL == null ? "http://129.185.67.81:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL);
