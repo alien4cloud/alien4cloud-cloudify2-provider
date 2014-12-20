@@ -154,7 +154,7 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
         cloudifyPaaSPovider.executeOperation(context, request, new IPaaSCallback<Map<String, String>>() {
 
             @Override
-            public void onData(Map<String, String> data) {
+            public void onSuccess(Map<String, String> data) {
                 if (data != null) {
                     result.putAll(data);
                 }

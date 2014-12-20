@@ -303,7 +303,7 @@ public class GenericTestCase {
         deploymentContext.setDeploymentId(topology.getId());
         Map<String, PaaSNodeTemplate> nodes = topologyTreeBuilderService.buildPaaSNodeTemplate(topology);
         deploymentContext.setPaaSTopology(topologyTreeBuilderService.buildPaaSTopology(nodes));
-        cloudifyPaaSPovider.deploy(deploymentContext);
+        cloudifyPaaSPovider.deploy(deploymentContext, null);
         return topology.getId();
     }
 

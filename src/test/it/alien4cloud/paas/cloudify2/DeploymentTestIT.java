@@ -116,7 +116,7 @@ public class DeploymentTestIT extends GenericTestCase {
         deploymentContext.setDeploymentId(cloudifyAppId);
         Map<String, PaaSNodeTemplate> nodes = topologyTreeBuilderService.buildPaaSNodeTemplate(topo);
         deploymentContext.setPaaSTopology(topologyTreeBuilderService.buildPaaSTopology(nodes));
-        cloudifyPaaSPovider.deploy(deploymentContext);
+        cloudifyPaaSPovider.deploy(deploymentContext, null);
     }
 
     @Test
@@ -150,7 +150,7 @@ public class DeploymentTestIT extends GenericTestCase {
     private void testUndeployment(String applicationId) throws RestClientException {
         PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
         deploymentContext.setDeploymentId(applicationId);
-        cloudifyPaaSPovider.undeploy(deploymentContext);
+        cloudifyPaaSPovider.undeploy(deploymentContext, null);
         assertApplicationIsUninstalled(applicationId);
     }
 
@@ -170,7 +170,7 @@ public class DeploymentTestIT extends GenericTestCase {
         // FIXME this is a hack, for the provider to set the status of the application to UNDEPLOYED
         cloudifyPaaSPovider.getEventsSince(new Date(), 1, new IPaaSCallback<AbstractMonitorEvent[]>() {
             @Override
-            public void onData(AbstractMonitorEvent[] abstractMonitorEvents) {
+            public void onSuccess(AbstractMonitorEvent[] abstractMonitorEvents) {
             }
 
             @Override

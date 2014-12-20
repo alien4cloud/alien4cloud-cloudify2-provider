@@ -130,7 +130,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     }
 
     @Override
-    public void deploy(PaaSTopologyDeploymentContext deploymentContext) {
+    public void deploy(PaaSTopologyDeploymentContext deploymentContext, IPaaSCallback<?> callback) {
         doDeploy(deploymentContext.getRecipeId(), deploymentContext.getDeploymentId(), deploymentContext.getTopology(), deploymentContext.getPaaSTopology()
                 .getComputes(), deploymentContext.getPaaSTopology().getAllNodes(), deploymentContext.getDeploymentSetup());
     }
@@ -243,7 +243,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     }
 
     @Override
-    public synchronized void undeploy(PaaSDeploymentContext deploymentContext) {
+    public synchronized void undeploy(PaaSDeploymentContext deploymentContext, IPaaSCallback<?> callback) {
         String deploymentId = deploymentContext.getDeploymentId();
         try {
             log.info("Undeploying topology " + deploymentId);
@@ -295,7 +295,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     }
 
     @Override
-    public void scale(PaaSDeploymentContext deploymentContext, String nodeTemplateId, int instances) {
+    public void scale(PaaSDeploymentContext deploymentContext, String nodeTemplateId, int instances, IPaaSCallback<?> callback) {
         String deploymentId = deploymentContext.getDeploymentId();
         String serviceId = RecipeGenerator.serviceIdFromNodeTemplateId(nodeTemplateId);
         try {
@@ -568,7 +568,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     public void getEventsSince(Date date, int maxEvents, IPaaSCallback<AbstractMonitorEvent[]> eventsCallback) {
         final URI restEventEndpoint = this.cloudifyRestClientManager.getRestEventEndpoint();
         if (restEventEndpoint == null) {
-            eventsCallback.onData(new AbstractMonitorEvent[0]);
+            eventsCallback.onSuccess(new AbstractMonitorEvent[0]);
         }
 
         List<AbstractMonitorEvent> events = Lists.newArrayList();
@@ -588,7 +588,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             log.debug("applicationDescriptions: " + applicationDescriptions);
             if (applicationDescriptions == null) {
                 log.debug("GetEvents: Nothing in applicationDescriptions. Exiting...");
-                eventsCallback.onData(events.toArray(new AbstractMonitorEvent[events.size()]));
+                eventsCallback.onSuccess(events.toArray(new AbstractMonitorEvent[events.size()]));
             }
 
             List<String> appUnknownStatuses = Lists.newArrayList(statusByDeployments.keySet());
@@ -607,7 +607,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         } catch (Exception e) {
             eventsCallback.onFailure(new PaaSTechnicalException("Error while getting deployment events.", e));
         }
-        eventsCallback.onData(events.toArray(new AbstractMonitorEvent[events.size()]));
+        eventsCallback.onSuccess(events.toArray(new AbstractMonitorEvent[events.size()]));
     }
 
     private void processUnknownStatuses(List<AbstractMonitorEvent> events, List<ApplicationDescription> applicationDescriptions, List<String> appUnknownStatuses) {
@@ -815,7 +815,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         }
 
         log.debug("Result is: \n" + operationResponse);
-        callback.onData(operationResponse);
+        callback.onSuccess(operationResponse);
     }
 
     private void parseServiceInvokeResponse(Map<String, String> operationResponse, Map<String, Map<String, String>> invocationResultPerInstance)

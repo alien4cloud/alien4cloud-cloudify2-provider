@@ -51,7 +51,7 @@ public class InstanceInfoTestIT extends GenericTestCase {
         alienDAO.save(topo);
         PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
         deploymentContext.setDeploymentId(appId);
-        cloudifyPaaSPovider.scale(deploymentContext, nodeID, nbToAdd);
+        cloudifyPaaSPovider.scale(deploymentContext, nodeID, nbToAdd, null);
     }
 
     private void printStatuses(Map<String, Map<String, InstanceInformation>> instancesInformations) {
