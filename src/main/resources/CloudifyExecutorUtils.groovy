@@ -25,7 +25,7 @@ public class CloudifyExecutorUtils {
             echo(message: "${fullPathScript} will be mark as executable...")
             chmod(file: "${fullPathScript}", perm:"+xr")
         }
-        def scriptProcess = "${serviceDirectory}/${bashScript}".execute(buildEnv(argsMap), null)
+        def scriptProcess = "${serviceDirectory}/${bashScript}".execute(buildEnvForSh(argsMap), null)
         def scriptErr = new StringBuffer()
         def scriptOut = new StringBuffer()
         scriptProcess.consumeProcessOutput(scriptOut, scriptErr)
