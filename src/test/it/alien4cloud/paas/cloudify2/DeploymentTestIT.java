@@ -28,7 +28,7 @@ import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.DeploymentStatus;
-import alien4cloud.paas.plan.PlanGeneratorConstants;
+import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.tosca.container.model.topology.Topology;
 import alien4cloud.tosca.parser.ParsingException;
 
@@ -69,13 +69,10 @@ public class DeploymentTestIT extends GenericTestCase {
             waitForServiceToStarts(cloudifyAppId, "comp_tomcatsh", 1000L * 120);
             assertHttpCodeEquals(cloudifyAppId, "comp_tomcatsh", "8080", "", HTTP_CODE_OK, null);
 
-            testEvents(cloudifyAppId, new String[] { "comp_tomcatsh", "tomcat" }, PlanGeneratorConstants.STATE_CREATED,
-                    PlanGeneratorConstants.STATE_CONFIGURED, PlanGeneratorConstants.STATE_STARTED);
+            testEvents(cloudifyAppId, new String[] { "comp_tomcatsh", "tomcat" }, ToscaNodeLifecycleConstants.CREATED, ToscaNodeLifecycleConstants.CONFIGURED,
+                    ToscaNodeLifecycleConstants.STARTED);
 
             testUndeployment(cloudifyAppId);
-
-            // testEvents(applicationId, new String[] { "ComputeTomcat", "Tomcat" }, PlanGeneratorConstants.STATE_STOPPING,
-            // PlanGeneratorConstants.STATE_STOPPED);
 
             Iterator<String> idsIter = deployedCloudifyAppIds.iterator();
             while (idsIter.hasNext()) {
@@ -95,8 +92,8 @@ public class DeploymentTestIT extends GenericTestCase {
     public void applicationAlreadyDeployedTest() throws Exception {
         log.info("\n\n >> Executing Test applicationAlreadyDeployedTest \n");
 
-        this.initElasticSearch(new String[] { "tosca-normative-types" }, new String[] { "1.0.0.wd03-SNAPSHOT" });
-        String[] computesId = new String[] { "compute" };
+        this.initElasticSearch(new String[] { "test-types" }, new String[] { "1.0-SNAPSHOT" });
+        String[] computesId = new String[] { "compute", "compute_2" };
         String cloudifyAppId = deployTopology("compute_only", computesId);
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
         cloudifyPaaSPovider.deploy("lol", cloudifyAppId, topo, null);

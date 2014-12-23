@@ -43,11 +43,11 @@ public class RecipeGeneratorServiceContext {
     /**
      * Maps <nodeName -> Map <artifactName, artifactPath> > of path of different artifacts of nodes
      */
-    private final Map<String, Map<String, Path>> nodeArtifactsPaths = Maps.newHashMap();
+    private final Map<String, Map<String, String>> nodeArtifactsPaths = Maps.newHashMap();
 
     /**
      * Initialize a new context for service recipe generation.
-     * 
+     *
      * @param topologyNodeTemplates The map of all the nodes templates in the topology.
      */
     public RecipeGeneratorServiceContext(Map<String, PaaSNodeTemplate> topologyNodeTemplates) {
@@ -56,7 +56,7 @@ public class RecipeGeneratorServiceContext {
 
     /**
      * Get a node template from it's id.
-     * 
+     *
      * @param nodeTemplateId The id of the node template to get.
      * @return The node template in the recipe that match the given id or null if no node template exists for the given id.
      */

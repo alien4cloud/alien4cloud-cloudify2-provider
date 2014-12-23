@@ -3,7 +3,7 @@
 
 	<groupId>alien4cloud</groupId>
 	<artifactId>alien4cloud-cloudify2-provider</artifactId>
-	<version>1.0.0-M3</version>
+	<version>1.0.0-SM18</version>
 
 	<name>Cloudify 2.x PaaS Provider for Alien 4 Cloud</name>
 
@@ -38,7 +38,7 @@
 		<maven.compiler.version>2.3.2</maven.compiler.version>
 		<java.version>1.7</java.version>
 
-		<alien4cloud.version>1.0.0-M3</alien4cloud.version>
+		<alien4cloud.version>${project.version}</alien4cloud.version>
 		<a4c-cdfy2-extension.version>0.0.2-SNAPSHOT</a4c-cdfy2-extension.version>
 		<cloudify.version>2.7.0-5996-RELEASE</cloudify.version>
 		<gigaspaces.version>9.7.0-10496-RELEASE</gigaspaces.version>

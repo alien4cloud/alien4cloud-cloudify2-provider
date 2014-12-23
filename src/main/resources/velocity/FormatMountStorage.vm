@@ -1,14 +1,22 @@
 import org.cloudifysource.utilitydomain.context.ServiceContextFactory
 
 def context = ServiceContextFactory.getServiceContext()
-def device = args[0]
+
+// Note: Newer Linux kernels may rename your devices to /dev/xvdf through /dev/xvdp internally, even when the device name entered here (and shown in the details) is /dev/sdf through /dev/sdp.
+def alternate = device.replaceAll("/s", "/xv")
 
 if(context.attributes.thisInstance.volumeCreated) {
 	println "formating the attached storage <${device}>... "
-	context.storage.format(device, "$fileSystem")
+	try {
+		context.storage.format(device, file_system)
+	} catch(any) {
+		device = alternate
+		context.storage.format(device, file_system)
+	}
 }
 
-println "mounting the attached storage <${device}> to <$path>... "
-context.storage.mount(device, "$path")
+println "mounting the attached storage <${device}> to <${location}>... "
+context.storage.mount(device, location)
 
-return "$path"
+return location
+

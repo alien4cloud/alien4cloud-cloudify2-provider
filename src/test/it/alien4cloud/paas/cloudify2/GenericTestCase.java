@@ -4,20 +4,10 @@ import java.io.File;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
-import java.util.UUID;
 
 import javax.annotation.Resource;
 
@@ -31,7 +21,6 @@ import org.cloudifysource.dsl.rest.response.ServiceDescription;
 import org.cloudifysource.dsl.rest.response.ServiceInstanceDetails;
 import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
-import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.mapping.ElasticSearchClient;
 import org.junit.After;
 import org.junit.Assert;
@@ -52,13 +41,12 @@ import alien4cloud.model.cloud.ComputeTemplate;
 import alien4cloud.model.cloud.MatchedComputeTemplate;
 import alien4cloud.model.deployment.Deployment;
 import alien4cloud.paas.cloudify2.exception.A4CCloudifyDriverITException;
+import alien4cloud.paas.cloudify2.testutils.TestsUtils;
 import alien4cloud.plugin.PluginConfiguration;
 import alien4cloud.tosca.ArchiveUploadService;
 import alien4cloud.tosca.container.model.topology.Topology;
 import alien4cloud.tosca.model.Csar;
 import alien4cloud.tosca.parser.ParsingException;
-import alien4cloud.utils.FileUtil;
-import alien4cloud.utils.YamlParserUtil;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -71,8 +59,6 @@ public class GenericTestCase {
     protected static final int HTTP_CODE_OK = 200;
     protected static final String DEFAULT_TOMCAT_PORT = "8080";
 
-    protected static final String CSAR_SOURCE_PATH = "src/test/resources/csars/";
-    private static final String TOPOLOGIES_PATH = "src/test/resources/topologies/";
     private static final String DEFAULT_COMPUTE_TEMPLATE_ID = "MEDIUM_LINUX";
 
     @Resource
@@ -89,6 +75,8 @@ public class GenericTestCase {
     private ApplicationService applicationService;
     @Resource
     private ElasticSearchClient esClient;
+    @Resource
+    private TestsUtils testUtils;
 
     protected List<String> deployedCloudifyAppIds = new ArrayList<>();
     private List<Class<?>> IndiceClassesToClean;
@@ -107,20 +95,20 @@ public class GenericTestCase {
 
     @BeforeClass
     public static void beforeClass() {
-        cleanAlienTargetDir();
+        TestsUtils.cleanAlienTargetDir();
     }
 
     @Before
     public void before() throws Throwable {
         log.info("In beforeTest");
-        cleanESFiles();
+        testUtils.cleanESFiles(IndiceClassesToClean);
 
-        uploadCsar("tosca-normative-types", "1.0.0.wd03-SNAPSHOT");
-        uploadCsar("fastconnect-base-types", "1.0");
+        testUtils.uploadCsar("tosca-normative-types", "1.0.0.wd03-SNAPSHOT");
+        testUtils.uploadCsar("alien-base-types", "1.0-SNAPSHOT");
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
         // String cloudifyURL = null;
-        cloudifyURL = cloudifyURL == null ? "http://129.185.67.64:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "http://129.185.67.81:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL);
         pluginConfigurationBean.setSynchronousDeployment(true);
@@ -141,31 +129,6 @@ public class GenericTestCase {
         } catch (RestClientException | IOException e) {
             log.warn("error in after:", e);
         }
-    }
-
-    public static void cleanAlienTargetDir() {
-        FileUtils.deleteQuietly(new File("target/alien"));
-    }
-
-    public void cleanESFiles() throws Throwable {
-        log.info("Cleaning repositories files");
-        if (Files.exists(Paths.get("target/tmp/"))) {
-            FileUtil.delete(Paths.get("target/tmp/"));
-        }
-        Path csarrepo = Paths.get("target/alien/csar");
-        if (Files.exists(csarrepo)) {
-            FileUtil.delete(csarrepo);
-        }
-
-        Files.createDirectories(csarrepo);
-
-        // Clean elastic search cluster
-        for (Class<?> indiceClass : IndiceClassesToClean) {
-            esClient.getClient().prepareDeleteByQuery(new String[] { indiceClass.getSimpleName().toLowerCase() }).setQuery(QueryBuilders.matchAllQuery())
-                    .execute().get();
-        }
-        esClient.getClient().prepareDeleteByQuery(new String[] { ElasticSearchDAO.TOSCA_ELEMENT_INDEX }).setQuery(QueryBuilders.matchAllQuery()).execute()
-                .get();
     }
 
     private void undeployAllApplications() throws RestClientException, IOException {
@@ -211,16 +174,9 @@ public class GenericTestCase {
         log.info("Initializing ALIEN repository.");
 
         for (int i = 0; i < csarNames.length; i++) {
-            uploadCsar(csarNames[i], versions[i]);
+            testUtils.uploadCsar(csarNames[i], versions[i]);
         }
         log.info("Types have been added to the repository.");
-    }
-
-    protected void uploadCsar(String name, String version) throws IOException, CSARVersionAlreadyExistsException, ParsingException {
-        Path inputPath = Paths.get(CSAR_SOURCE_PATH + name + "/" + version);
-        Path zipPath = Files.createTempFile("csar", ".zip");
-        FileUtil.zip(inputPath, zipPath);
-        archiveUploadService.upload(zipPath);
     }
 
     protected void waitForServiceToStarts(final String applicationId, final String serviceName, final long timeoutInMillis) throws RestClientException {
@@ -298,7 +254,7 @@ public class GenericTestCase {
     protected Topology createAlienApplication(String applicationName, String topologyFileName) throws IOException, JsonParseException, JsonMappingException,
             ParsingException, CSARVersionAlreadyExistsException {
 
-        Topology topology = parseYamlTopology(topologyFileName);
+        Topology topology = testUtils.parseYamlTopology(topologyFileName);
 
         String applicationId = applicationService.create("alien", applicationName, null, null);
         topology.setDelegateId(applicationId);
@@ -308,12 +264,6 @@ public class GenericTestCase {
         log.info("topology.getDelegateId()=" + topology.getDelegateId());
         log.info("topology.getId()=" + topology.getId());
 
-        return topology;
-    }
-
-    private Topology parseYamlTopology(String topologyFileName) throws IOException {
-        Topology topology = YamlParserUtil.parseFromUTF8File(Paths.get(TOPOLOGIES_PATH + topologyFileName + ".yml"), Topology.class);
-        topology.setId(UUID.randomUUID().toString());
         return topology;
     }
 

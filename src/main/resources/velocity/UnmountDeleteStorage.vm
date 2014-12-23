@@ -3,17 +3,17 @@ import org.cloudifysource.utilitydomain.context.ServiceContextFactory
 println "shutdownBlockStorage.groovy : starting shutdownBlockStorage script"
 def context = ServiceContextFactory.getServiceContext()
 
-if(context.attributes.thisInstance.volumeId==null || context.attributes.thisInstance.storageDevice==null){
+if(volumeId==null || device==null){
   println "A volume Id or a storage device is expected!... doing nothing"
   return;
 }
 
-println "Storage volume: volumeId <${context.attributes.thisInstance.volumeId}>, device <${context.attributes.thisInstance.storageDevice}>"
+println "Storage volume: volumeId <${volumeId}>, device <${device}>"
 println "shutdownBlockStorage.groovy: unmounting storage volume... "
-context.storage.unmount(context.attributes.thisInstance.storageDevice)
+context.storage.unmount(device)
 println "shutdownBlockStorage.groovy: detaching storage volume... "
-context.storage.detachVolume(context.attributes.thisInstance.volumeId) 
+context.storage.detachVolume(volumeId) 
 #if($deletable == true)
 println "shutdownBlockStorage.groovy: deleting storage volume... "
-context.storage.deleteVolume(context.attributes.thisInstance.volumeId);
+context.storage.deleteVolume(volumeId);
 #end

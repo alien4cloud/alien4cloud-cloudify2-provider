@@ -3,6 +3,7 @@ package alien4cloud.paas.cloudify2;
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 import javax.annotation.Resource;
@@ -18,7 +19,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import alien4cloud.component.model.IndexedNodeType;
 import alien4cloud.paas.cloudify2.generator.CloudifyCommandGenerator;
 import alien4cloud.paas.cloudify2.matcher.StorageTemplateMatcher;
-import alien4cloud.paas.cloudify2.testutils.ElasticSearchUtils;
+import alien4cloud.paas.cloudify2.testutils.TestsUtils;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.tosca.container.model.NormativeBlockStorageConstants;
@@ -32,7 +33,7 @@ import com.google.common.collect.Lists;
 public class CloudifyPaaSPoviderTest {
 
     @Resource
-    private ElasticSearchUtils elasticSearchUtils;
+    private TestsUtils elasticSearchUtils;
 
     @Resource(name = "cloudify-paas-provider-bean")
     private CloudifyPaaSProvider cloudifyPaaSPovider;
@@ -50,11 +51,20 @@ public class CloudifyPaaSPoviderTest {
     }
 
     @Test
-    public void loopedGroovyCommand() {
+    public void loopedGroovyCommand() throws IOException {
         String first = "while(!CloudifyExecutorUtils.executeGroovy(\"totototot/titit\", null)){\n\t  \n}";
-        String second = "while(true){\n\t CloudifyExecutorUtils.executeGroovy(\"totototot/titit\", \"ha\") \n}";
-        assertEquals(first, generator.getLoopedGroovyCommand(generator.getGroovyCommand("totototot/titit", (String[]) null), null));
-        assertEquals(second, generator.getLoopedGroovyCommand(generator.getGroovyCommand("totototot/titit", "ha"), "true"));
+        String second = "while(true){\n\t CloudifyExecutorUtils.executeGroovy(\"totototot/titit\", [\"ha\":\"ho\"]) \n}";
+        String third = "while(true){\n\t CloudifyExecutorUtils.executeGroovy(\"totototot/titit\", [\"hi\":\"hu\", \"ha\":ho]) \n}";
+        assertEquals(first, generator.getLoopedGroovyCommand(generator.getGroovyCommand("totototot/titit", null, null), null));
+        assertEquals(
+                second,
+                generator.getLoopedGroovyCommand(
+                        generator.getGroovyCommand("totototot/titit", null, MapUtil.newHashMap(new String[] { "ha" }, new String[] { "ho" })), "true"));
+        assertEquals(
+                third,
+                generator.getLoopedGroovyCommand(
+                        generator.getGroovyCommand("totototot/titit", MapUtil.newHashMap(new String[] { "ha" }, new String[] { "ho" }),
+                                MapUtil.newHashMap(new String[] { "hi" }, new String[] { "hu" })), "true"));
     }
 
     @SuppressWarnings("unchecked")

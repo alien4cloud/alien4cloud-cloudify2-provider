@@ -25,6 +25,7 @@ import org.springframework.stereotype.Component;
 import alien4cloud.component.model.IndexedArtifactToscaElement;
 import alien4cloud.component.repository.ArtifactLocalRepository;
 import alien4cloud.component.repository.ArtifactRepositoryConstants;
+import alien4cloud.paas.cloudify2.CloudifyPaaSUtils;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
 import alien4cloud.tosca.container.model.template.DeploymentArtifact;
@@ -85,10 +86,10 @@ public class RecipeGeneratorArtifactCopier {
             Map<String, DeploymentArtifact> overrideArtifacts) throws IOException {
 
         Map<String, DeploymentArtifact> artifacts = indexedToscaElement.getArtifacts();
-        Map<String, Path> artifactsPaths = null;
+        Map<String, String> artifactsPaths = null;
         if (artifacts != null) {
             // create a folder for this node type
-            String nodeTypeRelativePath = RecipeGenerator.getNodeTypeRelativePath(indexedToscaElement);
+            String nodeTypeRelativePath = CloudifyPaaSUtils.getNodeTypeRelativePath(indexedToscaElement);
             Path nodeTypePath = context.getServicePath().resolve(nodeTypeRelativePath);
             Files.createDirectories(nodeTypePath);
 
@@ -112,7 +113,7 @@ public class RecipeGeneratorArtifactCopier {
 
                 if (artifact != null && StringUtils.isNotBlank(artifactTarget)) {
                     Path copyPath = copyArtifact(csarPath, nodeTypePath, nodeTypeRelativePath, artifactTarget, artifact);
-                    artifactsPaths.put(artifactEntry.getKey(), context.getServicePath().relativize(copyPath));
+                    artifactsPaths.put(artifactEntry.getKey(), context.getServicePath().relativize(copyPath).toString());
                 }
             }
         }
