@@ -5,8 +5,8 @@ println "initStorage.groovy : starting initStorage script"
 def context = ServiceContextFactory.getServiceContext()
 //only run it once
 if(!context.attributes.thisService.initialized) {
-    println "Setting service storage template id : $storageTemplateId"
-    context.attributes.thisService.storageTemplateId = "$storageTemplateId"
+    println "Setting service storage template id : $storageTemplate"
+    context.attributes.thisService.storageTemplate = "$storageTemplate"
     def storageVolumeIds = $instancesVolumeIds
     if(storageVolumeIds != null ){
         println "Provided volumes Ids are: ${storageVolumeIds}"

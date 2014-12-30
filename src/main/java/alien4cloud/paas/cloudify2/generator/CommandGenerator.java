@@ -20,13 +20,16 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
+import alien4cloud.paas.exception.PaaSDeploymentException;
+import alien4cloud.tosca.model.ImplementationArtifact;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Generate properly formated commands for cloudify recipes.
  */
 @Component
-public class CloudifyCommandGenerator {
+public class CommandGenerator {
     private final static String[] SERVICE_RECIPE_RESOURCES = new String[] { "chmod-init.groovy", "CloudifyUtils.groovy", "GigaSpacesEventsManager.groovy",
             "CloudifyExecutorUtils.groovy", "CloudifyAttributesUtils.groovy" };
 
@@ -35,9 +38,8 @@ public class CloudifyCommandGenerator {
     private static final String WAIT_EVENT_FORMAT = "CloudifyExecutorUtils.waitFor(\"%s\", \"%s\", \"%s\")";
     private static final String EXECUTE_PARALLEL_FORMAT = "CloudifyExecutorUtils.executeParallel(%s, %s)";
     private static final String EXECUTE_ASYNC_FORMAT = "CloudifyExecutorUtils.executeAsync(%s, %s)";
-    private static final String EXECUTE_GROOVY_FORMAT = "CloudifyExecutorUtils.executeGroovy(\"%s\", %s)";
-    private static final String EXECUTE_CLOSURE_GROOVY_FORMAT = "CloudifyExecutorUtils.executeGroovyInClosure(context, \"%s\", %s)";
-    private static final String EXECUTE_BASH_FORMAT = "CloudifyExecutorUtils.executeBash(\"%s\", %s)";
+    private static final String EXECUTE_GROOVY_FORMAT = "CloudifyExecutorUtils.executeGroovy(context, \"%s\", %s)";
+    private static final String EXECUTE_SCRIPT_FORMAT = "CloudifyExecutorUtils.executeScript(\"%s\", %s)";
     public static final String SHUTDOWN_COMMAND = "CloudifyExecutorUtils.shutdown()";
     public static final String DESTROY_COMMAND = "CloudifyUtils.destroy()";
     private static final String EXECUTE_LOOPED_GROOVY_FORMAT = "while(%s){\n\t %s \n}";
@@ -86,6 +88,39 @@ public class CloudifyCommandGenerator {
     }
 
     /**
+     * Return the execution command for an artifact implementation, based on it artifact type.
+     *
+     * @param operationFQN The full qualified name of the artifact implementation: nodeId.interface.operation
+     * @param artifact The artifact to process
+     * @param varParamsMap The names of the vars to pass as params for the command. This assumes the var is defined before calling this
+     *            command
+     * @param stringParamsMap The string params to pass in the command.
+     * @param scriptPath Path to the script relative to the service root directory.
+     * @param supportedArtifactTypes The supported artifacts types for the related operation
+     * @return
+     * @throws IOException
+     */
+
+    public String getCommandBasedOnArtifactType(final String operationFQN, final ImplementationArtifact artifact, Map<String, String> varParamsMap,
+            Map<String, String> stringParamsMap, String scriptPath, String... supportedArtifactTypes) throws IOException {
+
+        if (ArrayUtils.isEmpty(supportedArtifactTypes) || ArrayUtils.contains(supportedArtifactTypes, artifact.getArtifactType())) {
+            switch (artifact.getArtifactType()) {
+                case AlienExtentedConstants.GROOVY_ARTIFACT_TYPE:
+                    return getGroovyCommand(scriptPath, varParamsMap, stringParamsMap);
+                case AlienExtentedConstants.SHELL_ARTIFACT_TYPE:
+                case AlienExtentedConstants.BATCH_ARTIFACT_TYPE:
+                    return getScriptCommand(scriptPath, varParamsMap, stringParamsMap);
+                default:
+                    throw new PaaSDeploymentException("Operation implementation <" + operationFQN + "> is defined using an unsupported artifact type <"
+                            + artifact.getArtifactType() + ">.");
+            }
+        }
+        throw new PaaSDeploymentException("Operation implementation <" + operationFQN + "> is defined using an unsupported artifact type <"
+                + artifact.getArtifactType() + ">.");
+    }
+
+    /**
      * Return the execution command for a groovy script as a string.
      *
      * @param groovyScriptRelativePath Path to the groovy script relative to the service root directory.
@@ -98,37 +133,6 @@ public class CloudifyCommandGenerator {
     public String getGroovyCommand(String groovyScriptRelativePath, Map<String, String> varParamsMap, Map<String, String> stringParamsMap) throws IOException {
         String formatedParams = formatParams(stringParamsMap, varParamsMap);
         return String.format(EXECUTE_GROOVY_FORMAT, groovyScriptRelativePath, formatedParams);
-    }
-
-    /**
-     * Return the execution command for a groovy script as a string.
-     * The command is made such as it can be run in a closure.
-     *
-     * @param groovyScriptRelativePath Path to the groovy script relative to the service root directory.
-     * @param varParamsMap The names of the vars to pass as params for the command. This assumes the var is defined before calling this
-     *            command
-     * @param stringParamsMap The string params to pass in the command.
-     * @return The execution command.
-     * @throws IOException
-     */
-    public String getClosureGroovyCommand(String groovyScriptRelativePath, Map<String, String> varParamsMap, Map<String, String> stringParamsMap)
-            throws IOException {
-        String formatedParams = formatParams(stringParamsMap, varParamsMap);
-        return String.format(EXECUTE_CLOSURE_GROOVY_FORMAT, groovyScriptRelativePath, formatedParams);
-    }
-
-    /**
-     *
-     * transform a simple Groovy formated command to a closure groovy command (changes executeGroovy into executeGroovyInClosure )
-     *
-     * @param groovycommand
-     * @return
-     */
-    public String fromSimpleToClosureGroovyCommand(String groovycommand) {
-        if (groovycommand != null) {
-            return groovycommand.replaceAll("executeGroovy(", "executeGroovyInClosure(");
-        }
-        return null;
     }
 
     /**
@@ -151,7 +155,13 @@ public class CloudifyCommandGenerator {
     }
 
     /**
+     * <p>
      * Return the "while" wrapped execution command for a groovy script as a string.
+     * </p>
+     *
+     * <pre>
+     * getLoopedGroovyCommand("command", loopCondition) ==> while(loopCondition){ command }
+     * </pre>
      *
      * @param groovyCommand the groovy command to wrap by the "while" loop.
      * @param loopCondition the condition to satisfy to continue the loop.
@@ -192,40 +202,40 @@ public class CloudifyCommandGenerator {
     }
 
     /**
-     * Return the execution command for a bash script as a string.
+     * Return the execution command for a script (bash or batch) as a string.
      *
-     * @param groovyScriptRelativePath Path to the bash script relative to the service root directory.
+     * @param scriptRelativePath Path to the script relative to the service root directory.
      * @param varParamsMap The names of the vars to pass as params for the command. This assumes the var is defined before calling this
      *            command
      * @param stringParamsMap The string params to pass in the command.
      * @return The execution command.
      * @throws IOException
      */
-    public String getBashCommand(String bashScriptRelativePath, Map<String, String> varParamsMap, Map<String, String> stringParamsMap) throws IOException {
+    public String getScriptCommand(String scriptRelativePath, Map<String, String> varParamsMap, Map<String, String> stringParamsMap) throws IOException {
         String formatedParams = formatParams(stringParamsMap, varParamsMap);
-        return String.format(EXECUTE_BASH_FORMAT, bashScriptRelativePath, formatedParams);
+        return String.format(EXECUTE_SCRIPT_FORMAT, scriptRelativePath, formatedParams);
     }
 
     /**
      * Return a command to execute a number of scripts in parallel and then join for all the script to complete.
      *
      * @param groovyScripts The groovy scripts to execute in parallel.
-     * @param bashScripts The bash scripts to execute in parallel.
+     * @param otherScripts Other scripts (bash or batch) to execute in parallel.
      * @return The execution command to execute the scripts in parallel and then join for all the script to complete.
      */
-    public String getParallelCommand(List<String> groovyScripts, List<String> bashScripts) {
-        return String.format(EXECUTE_PARALLEL_FORMAT, generateParallelScriptsParameters(groovyScripts), generateParallelScriptsParameters(bashScripts));
+    public String getParallelCommand(List<String> groovyScripts, List<String> otherScripts) {
+        return String.format(EXECUTE_PARALLEL_FORMAT, generateParallelScriptsParameters(groovyScripts), generateParallelScriptsParameters(otherScripts));
     }
 
     /**
      * Return a command to execute a number of scripts in parallel.
      *
      * @param groovyScripts The groovy scripts to execute in parallel.
-     * @param bashScripts The bash scripts to execute in parallel.
+     * @param otherScripts Other scripts (bash or batch) to execute in parallel.
      * @return The execution command to execute the scripts in parallel.
      */
-    public String getAsyncCommand(List<String> groovyScripts, List<String> bashScripts) {
-        return String.format(EXECUTE_ASYNC_FORMAT, generateParallelScriptsParameters(groovyScripts), generateParallelScriptsParameters(bashScripts));
+    public String getAsyncCommand(List<String> groovyScripts, List<String> otherScripts) {
+        return String.format(EXECUTE_ASYNC_FORMAT, generateParallelScriptsParameters(groovyScripts), generateParallelScriptsParameters(otherScripts));
     }
 
     private String generateParallelScriptsParameters(List<String> scripts) {

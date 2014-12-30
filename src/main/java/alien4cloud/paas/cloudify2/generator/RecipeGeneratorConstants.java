@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
  * All the properties can be modified as needed by a template string engine
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-public class RecipeGeneratorConstants {
+public final class RecipeGeneratorConstants {
     /** Name of the application property string. */
     public static final String APPLICATION_NAME = "applicationName";
 
@@ -64,12 +64,6 @@ public class RecipeGeneratorConstants {
 
     public static final String CONTEXT_THIS_INSTANCE_ATTRIBUTES = "context.attributes.thisInstance";
     public static final String CONTEXT_THIS_SERVICE_ATTRIBUTES = "context.attributes.thisService";
-
-    /** BlockStorages **/
-    public static final String VOLUME_ID_KEY = "volumeId";
-    public static final String PATH_KEY = "path";
-    public static final String DEVICE_KEY = "device";
-    public static final String FS_KEY = "fileSystem";
 
     /** Name of the service property that contains a poststart script. */
     public static final String POSTSTART_COMMAND = "postStartCommand";

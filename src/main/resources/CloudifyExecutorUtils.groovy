@@ -13,28 +13,34 @@ public class CloudifyExecutorUtils {
     static def threadPool = Executors.newFixedThreadPool(50, { r -> return new Thread(r as Runnable, "alien-executor-" + counter.incrementAndGet()) } as ThreadFactory )
     static def call = { c -> threadPool.submit(c as Callable) }
 
-    static def executeBash(bashScript, Map argsMap) {
+    static def executeScript(script, Map argsMap) {
         
         // Execute bash script
         def context = ServiceContextFactory.getServiceContext()
 
         def serviceDirectory = context.getServiceDirectory()
-        println "service dir is: ${serviceDirectory}; script is: ${bashScript}"
-        def fullPathScript = "${serviceDirectory}/${bashScript}";
+        println "service dir is: ${serviceDirectory}; script is: ${script}"
+        def fullPathScript = "${serviceDirectory}/${script}";
         new AntBuilder().sequential {
             echo(message: "${fullPathScript} will be mark as executable...")
             chmod(file: "${fullPathScript}", perm:"+xr")
         }
-        def scriptProcess = "${serviceDirectory}/${bashScript}".execute(buildEnvForSh(argsMap), null)
+        def scriptProcess = "${serviceDirectory}/${script}".execute(buildEnvForShOrBat(argsMap), null)
         def scriptErr = new StringBuffer()
         def scriptOut = new StringBuffer()
         scriptProcess.consumeProcessOutput(scriptOut, scriptErr)
 
         def scriptExitValue = scriptProcess.waitFor()
+        
+        print """
+      ----------${script} : bash : Return Code ----------
+      Return Code : $scriptExitValue
+      ---------------------------------\n
+      """
 
         if(scriptErr) {
             print """
-      ---------- bash:stderr ----------
+      ---------- ${script} : bash :stderr ----------
       Return Code : $scriptExitValue
       $scriptErr
       ---------------------------------
@@ -42,42 +48,28 @@ public class CloudifyExecutorUtils {
         }
         if(scriptOut) {
             print """
-      ---------- bash:stdout ----------
+      ---------- ${script} : bash : stdout ----------
+      Return Code : $scriptExitValue
       $scriptOut
       ---------------------------------
       """
         }
 
-        scriptExitValue = scriptProcess.exitValue()
         if(scriptExitValue) {
-            throw new RuntimeException("Error executing the script ${bashScript} (return code: $scriptExitValue)")
+            throw new RuntimeException("Error executing the script ${script} (return code: $scriptExitValue)")
         }
+        
+        return scriptOut;
     }
+    
     
     /**
      * Execute a goovy script. Argument are passed to the groovy via the GroovyShell Binding, where they are injected as variables.
      * Consider to pass them as env vars
-     * 
-     * */
-    static def executeGroovy(groovyScript,  Map argsMap) {
-        def context = ServiceContextFactory.getServiceContext()
-        def serviceDirectory = context.getServiceDirectory()
-        Binding binding = new Binding()
-        
-        //setting the args as variables
-        buildEnvForGroovy(argsMap, binding)
-        
-        //hack for a MissingPropertyException thrown for CloudifyExecutorUtils
-        binding.setVariable("CloudifyExecutorUtils", this)
-        def shell = new GroovyShell(CloudifyExecutorUtils.class.classLoader, binding)
-        return shell.evaluate(new File("${serviceDirectory}/${groovyScript}"))
-    }
-    
-    
-    /**
      * for a closure, we should not use the ServiceContextFactory as the context instance is already injected in the service file
+     * Therefore, the caller script should have a defined "context" variable
      * */
-    static def executeGroovyInClosure(context, groovyScript,  Map argsMap) {
+    static def executeGroovy(context, groovyScript,  Map argsMap) {
         def serviceDirectory = context.getServiceDirectory()
         Binding binding = new Binding()
         
@@ -92,34 +84,34 @@ public class CloudifyExecutorUtils {
         return shell.evaluate(new File("${serviceDirectory}/${groovyScript}"))
     }
 
-    static def executeParallel(groovyScripts, bashScripts) {
+    static def executeParallel(groovyScripts, otherScripts) {
         def executionList = []
         println "$groovyScripts"
         for(script in groovyScripts) {
             println "parallel launch is $script"
             def theScript = script
-            executionList.add(call{ executeGroovy(theScript, null) })
+            executionList.add(call{ executeGroovy(ServiceContextFactory.getServiceContext(), theScript, null) })
         }
-        for(script in bashScripts) {
+        for(script in otherScripts) {
             def theScript = script
-            executionList.add(call{ executeBash(theScript, null) })
+            executionList.add(call{ executeScript(theScript, null) })
         }
         for(execution in executionList) {
             execution.get();
         }
     }
 
-    static def executeAsync(groovyScripts, bashScripts) {
+    static def executeAsync(groovyScripts, otherScripts) {
         def executionList = []
         println "$groovyScripts"
         for(script in groovyScripts) {
             println "asynchronous launch is $script"
             def theScript = script
-            executionList.add(call{ executeGroovy(theScript, null) })
+            executionList.add(call{ executeGroovy(ServiceContextFactory.getServiceContext(), theScript, null) })
         }
-        for(script in bashScripts) {
+        for(script in otherScripts) {
             def theScript = script
-            executionList.add(call{ executeBash(theScript, null) })
+            executionList.add(call{ executeScript(theScript, null) })
         }
     }
 
@@ -158,7 +150,7 @@ public class CloudifyExecutorUtils {
      * @param argsMap
      * @return
      */
-    private static String[] buildEnvForSh(Map argsMap) {
+    private static String[] buildEnvForShOrBat(Map argsMap) {
         if(argsMap != null && !argsMap.isEmpty()) {
             def merged = [:]
             merged.putAll(System.getenv())

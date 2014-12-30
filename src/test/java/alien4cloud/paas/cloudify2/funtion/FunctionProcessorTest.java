@@ -13,13 +13,17 @@ import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
+import alien4cloud.component.model.IndexedToscaElement;
 import alien4cloud.model.application.Application;
 import alien4cloud.model.application.ApplicationEnvironment;
 import alien4cloud.model.application.ApplicationVersion;
 import alien4cloud.model.application.DeploymentSetup;
 import alien4cloud.model.deployment.Deployment;
-import alien4cloud.paas.cloudify2.generator.CloudifyCommandGenerator;
+import alien4cloud.paas.IPaaSTemplate;
+import alien4cloud.paas.cloudify2.funtion.FunctionProcessor.IParamEvalResult;
+import alien4cloud.paas.cloudify2.generator.CommandGenerator;
 import alien4cloud.paas.cloudify2.testutils.TestsUtils;
+import alien4cloud.paas.function.BadUsageKeywordException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
@@ -36,7 +40,7 @@ import com.google.common.collect.Lists;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("classpath:application-context-testit.xml")
-public class FunctionProcessorrTest {
+public class FunctionProcessorTest {
 
     private static final String GET_INSTANCE_ATTRIBUTE_FORMAT = "CloudifyAttributesUtils.getAttribute(context, %s, %s, %s)";
     private static final String GET_IP_FORMAT = "CloudifyAttributesUtils.getIp(context, %s, %s)";
@@ -47,13 +51,13 @@ public class FunctionProcessorrTest {
     @Resource
     private TopologyTreeBuilderService treeBuilder;
     @Resource
-    CloudifyCommandGenerator commandGen;
+    CommandGenerator commandGen;
 
     @Resource
     private TestsUtils testsUtils;
     private List<Class<?>> indiceClassesToClean;
 
-    public FunctionProcessorrTest() {
+    public FunctionProcessorTest() {
         indiceClassesToClean = Lists.newArrayList();
         indiceClassesToClean.add(ApplicationEnvironment.class);
         indiceClassesToClean.add(ApplicationVersion.class);
@@ -91,7 +95,7 @@ public class FunctionProcessorrTest {
                 .get(ToscaNodeLifecycleConstants.CONFIGURE);
         IOperationParameter param = configOp.getInputParameters().get("testScalar");
 
-        Assert.assertEquals("test", processor.evaluateParam((AbstractPropertyValue) param, computePaaS, builtPaaSNodeTemplates));
+        Assert.assertEquals("test", evaluateParam((AbstractPropertyValue) param, computePaaS, builtPaaSNodeTemplates));
     }
 
     @Test
@@ -107,7 +111,7 @@ public class FunctionProcessorrTest {
         IOperationParameter param = configOp.getInputParameters().get("customHostName");
 
         Assert.assertEquals(computePaaS.getNodeTemplate().getProperties().get("customHostName"),
-                processor.evaluateParam((AbstractPropertyValue) param, computePaaS, builtPaaSNodeTemplates));
+                evaluateParam((AbstractPropertyValue) param, computePaaS, builtPaaSNodeTemplates));
 
         // HOST keyword
         String tomcatName = "tomcat";
@@ -115,7 +119,7 @@ public class FunctionProcessorrTest {
         Operation customHelloOp = tomcatPaaS.getIndexedNodeType().getInterfaces().get("custom").getOperations().get("helloCmd");
         param = customHelloOp.getInputParameters().get("os_version");
         Assert.assertEquals(computePaaS.getNodeTemplate().getProperties().get("os_version"),
-                processor.evaluateParam((AbstractPropertyValue) param, tomcatPaaS, builtPaaSNodeTemplates));
+                evaluateParam((AbstractPropertyValue) param, tomcatPaaS, builtPaaSNodeTemplates));
     }
 
     @Test
@@ -136,12 +140,12 @@ public class FunctionProcessorrTest {
         // test SOURCE keyword
         IOperationParameter param = configOp.getInputParameters().get("contextPath");
         Assert.assertEquals(warPaaS.getNodeTemplate().getProperties().get("contextPath"),
-                processor.evaluateParam((AbstractPropertyValue) param, hostedOnRelTemp, builtPaaSNodeTemplates));
+                evaluateParam((AbstractPropertyValue) param, hostedOnRelTemp, builtPaaSNodeTemplates));
 
         // test TARGET keyword
         param = configOp.getInputParameters().get("tomcatVersion");
         Assert.assertEquals(tomcatPaaS.getNodeTemplate().getProperties().get("version"),
-                processor.evaluateParam((AbstractPropertyValue) param, hostedOnRelTemp, builtPaaSNodeTemplates));
+                evaluateParam((AbstractPropertyValue) param, hostedOnRelTemp, builtPaaSNodeTemplates));
 
     }
 
@@ -158,16 +162,16 @@ public class FunctionProcessorrTest {
 
         // case insufficient params for the function prop
         IOperationParameter param = configOp.getInputParameters().get("insufficientParams");
-        Assert.assertNull(processor.evaluateParam((AbstractPropertyValue) param, computePaaS, builtPaaSNodeTemplates));
+        Assert.assertNull(evaluateParam((AbstractPropertyValue) param, computePaaS, builtPaaSNodeTemplates));
 
         // case keyword SOURCE used on a NodeType
         param = configOp.getInputParameters().get("keywordSourceBadUsage");
         try {
-            processor.evaluateParam((AbstractPropertyValue) param, computePaaS, builtPaaSNodeTemplates);
+            evaluateParam((AbstractPropertyValue) param, computePaaS, builtPaaSNodeTemplates);
         } catch (BadUsageKeywordException e) {
             // case keyword TARGET used on a NodeType
             param = configOp.getInputParameters().get("KeywordTargetBadUsage");
-            processor.evaluateParam((AbstractPropertyValue) param, computePaaS, builtPaaSNodeTemplates);
+            evaluateParam((AbstractPropertyValue) param, computePaaS, builtPaaSNodeTemplates);
         }
 
     }
@@ -189,13 +193,19 @@ public class FunctionProcessorrTest {
         // test SOURCE keyword
         String expected = String.format(GET_INSTANCE_ATTRIBUTE_FORMAT, "\"" + computeName + "\"", null, "\"warNodeContext\"");
         IOperationParameter param = configOp.getInputParameters().get("warNodeContext");
-        Assert.assertEquals(expected, processor.evaluateParam((AbstractPropertyValue) param, hostedOnRelTemp, builtPaaSNodeTemplates));
+        Assert.assertEquals(expected, evaluateParam((AbstractPropertyValue) param, hostedOnRelTemp, builtPaaSNodeTemplates));
 
         // test TARGET keyword
         expected = String.format(GET_IP_FORMAT, "\"" + computeName + "\"", null);
         param = configOp.getInputParameters().get("tomcatIp");
-        Assert.assertEquals(expected, processor.evaluateParam((AbstractPropertyValue) param, hostedOnRelTemp, builtPaaSNodeTemplates));
+        Assert.assertEquals(expected, evaluateParam((AbstractPropertyValue) param, hostedOnRelTemp, builtPaaSNodeTemplates));
 
+    }
+
+    private String evaluateParam(final AbstractPropertyValue param, final IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
+            final Map<String, PaaSNodeTemplate> builtPaaSTemplates) {
+        IParamEvalResult result = processor.evaluate(param, basePaaSTemplate, builtPaaSTemplates);
+        return result != null ? result.get() : null;
     }
 
 }

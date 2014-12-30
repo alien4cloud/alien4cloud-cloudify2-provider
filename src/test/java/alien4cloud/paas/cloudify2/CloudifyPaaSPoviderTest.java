@@ -17,7 +17,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import alien4cloud.component.model.IndexedNodeType;
-import alien4cloud.paas.cloudify2.generator.CloudifyCommandGenerator;
+import alien4cloud.paas.cloudify2.generator.CommandGenerator;
 import alien4cloud.paas.cloudify2.matcher.StorageTemplateMatcher;
 import alien4cloud.paas.cloudify2.testutils.TestsUtils;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
@@ -39,7 +39,7 @@ public class CloudifyPaaSPoviderTest {
     private CloudifyPaaSProvider cloudifyPaaSPovider;
 
     @Resource
-    private CloudifyCommandGenerator generator;
+    private CommandGenerator generator;
 
     @Before
     public void beforeClass() {

@@ -1,10 +1,8 @@
 package alien4cloud.paas.cloudify2;
 
 import alien4cloud.component.model.IndexedToscaElement;
-import alien4cloud.paas.exception.PaaSTechnicalException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.tosca.ToscaUtils;
-import alien4cloud.tosca.container.model.NormativeComputeConstants;
 
 public class CloudifyPaaSUtils {
 
@@ -25,19 +23,7 @@ public class CloudifyPaaSUtils {
      *
      */
     public static String cfyServiceNameFromNodeTemplate(final PaaSNodeTemplate paaSNodeTemplate) {
-        return serviceIdFromNodeTemplateId(getHostTemplate(paaSNodeTemplate).getId());
-    }
-
-    public static PaaSNodeTemplate getHostTemplate(final PaaSNodeTemplate paaSNodeTemplate) {
-        PaaSNodeTemplate parent = paaSNodeTemplate;
-        while (parent != null) {
-            if (ToscaUtils.isFromType(NormativeComputeConstants.COMPUTE_TYPE, parent.getIndexedNodeType())) {
-                return parent;
-            }
-            parent = parent.getParent();
-        }
-        throw new PaaSTechnicalException("Cannot get the service name: The node template <" + paaSNodeTemplate.getId()
-                + "> is not declared as hosted on a compute.");
+        return serviceIdFromNodeTemplateId(ToscaUtils.getHostTemplate(paaSNodeTemplate).getId());
     }
 
     /**

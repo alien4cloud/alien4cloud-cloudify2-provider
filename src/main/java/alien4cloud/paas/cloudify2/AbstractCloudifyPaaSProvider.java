@@ -44,9 +44,9 @@ import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.exception.PaaSNotYetDeployedException;
 import alien4cloud.paas.exception.PaaSTechnicalException;
+import alien4cloud.paas.function.FunctionEvaluator;
 import alien4cloud.paas.model.*;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
-import alien4cloud.tosca.container.ToscaFunctionProcessor;
 import alien4cloud.tosca.container.model.topology.NodeTemplate;
 import alien4cloud.tosca.container.model.topology.ScalingPolicy;
 import alien4cloud.tosca.container.model.topology.Topology;
@@ -104,7 +104,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
      */
     protected void configureDefault() {
         log.info("Setting default configuration for storage templates matchers");
-        recipeGenerator.getStorageTemplateMatcher().configure(getPluginConfigurationBean().getStorageTemplates());
+        recipeGenerator.getStorageScriptGenerator().configure(getPluginConfigurationBean().getStorageTemplates());
     }
 
     @Override
@@ -194,18 +194,18 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
                 currentDeploymentState = applicationDescription.getApplicationState();
 
                 switch (currentDeploymentState) {
-                case STARTED:
-                    log.info(String.format("Deployment of application '%s' is finished with success", applicationName));
-                    return;
-                case FAILED:
-                    throw new PaaSDeploymentException(String.format("Failed deploying application '%s'", applicationName));
-                default:
-                    try {
-                        Thread.sleep(DEFAULT_SLEEP_TIME);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        log.warn("Waiting to retrieve application '" + applicationName + "' state interrupted... ", e);
-                    }
+                    case STARTED:
+                        log.info(String.format("Deployment of application '%s' is finished with success", applicationName));
+                        return;
+                    case FAILED:
+                        throw new PaaSDeploymentException(String.format("Failed deploying application '%s'", applicationName));
+                    default:
+                        try {
+                            Thread.sleep(DEFAULT_SLEEP_TIME);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            log.warn("Waiting to retrieve application '" + applicationName + "' state interrupted... ", e);
+                        }
                 }
             }
         } catch (RestClientException e) {
@@ -436,13 +436,13 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             for (Entry<Integer, InstanceInformation> entry : nodeInstanceInfo.entrySet()) {
                 if (entry.getValue().getAttributes() != null) {
                     for (Entry<String, String> attributeEntry : entry.getValue().getAttributes().entrySet()) {
-                        String parsedAttribute = ToscaFunctionProcessor.parseString(attributeEntry.getValue(), topology, instanceInformations, entry.getKey());
+                        String parsedAttribute = FunctionEvaluator.parseString(attributeEntry.getValue(), topology, instanceInformations, entry.getKey());
                         attributeEntry.setValue(parsedAttribute);
                     }
                 }
                 if (entry.getValue().getProperties() != null) {
                     for (Entry<String, String> propertyEntry : entry.getValue().getProperties().entrySet()) {
-                        String parsedAttribute = ToscaFunctionProcessor.parseString(propertyEntry.getValue(), topology, instanceInformations, entry.getKey());
+                        String parsedAttribute = FunctionEvaluator.parseString(propertyEntry.getValue(), topology, instanceInformations, entry.getKey());
                         propertyEntry.setValue(parsedAttribute);
                     }
                 }
@@ -694,12 +694,12 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
 
     private DeploymentStatus statusFromState(DeploymentState deploymentState) {
         switch (deploymentState) {
-        case FAILED:
-            return DeploymentStatus.FAILURE;
-        case IN_PROGRESS:
-            return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-        case STARTED:
-            return null;
+            case FAILED:
+                return DeploymentStatus.FAILURE;
+            case IN_PROGRESS:
+                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+            case STARTED:
+                return null;
         }
         return null;
     }
@@ -723,16 +723,16 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         try {
             USMState state = USMState.valueOf(instanceStatus);
             switch (state) {
-            case INITIALIZING:
-                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-            case LAUNCHING:
-                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-            case RUNNING:
-                return DeploymentStatus.DEPLOYED;
-            case SHUTTING_DOWN:
-                return DeploymentStatus.UNDEPLOYMENT_IN_PROGRESS;
-            case ERROR:
-                return DeploymentStatus.FAILURE;
+                case INITIALIZING:
+                    return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+                case LAUNCHING:
+                    return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+                case RUNNING:
+                    return DeploymentStatus.DEPLOYED;
+                case SHUTTING_DOWN:
+                    return DeploymentStatus.UNDEPLOYMENT_IN_PROGRESS;
+                case ERROR:
+                    return DeploymentStatus.FAILURE;
             }
             return DeploymentStatus.WARNING;
         } catch (IllegalArgumentException e) {
