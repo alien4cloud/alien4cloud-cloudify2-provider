@@ -22,14 +22,14 @@ import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
-import alien4cloud.component.model.IndexedArtifactToscaElement;
+import alien4cloud.model.components.IndexedArtifactToscaElement;
 import alien4cloud.component.repository.ArtifactLocalRepository;
 import alien4cloud.component.repository.ArtifactRepositoryConstants;
 import alien4cloud.paas.cloudify2.CloudifyPaaSUtils;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
-import alien4cloud.tosca.container.model.template.DeploymentArtifact;
-import alien4cloud.tosca.model.ImplementationArtifact;
+import alien4cloud.model.components.DeploymentArtifact;
+import alien4cloud.model.components.ImplementationArtifact;
 
 import com.google.common.collect.Maps;
 

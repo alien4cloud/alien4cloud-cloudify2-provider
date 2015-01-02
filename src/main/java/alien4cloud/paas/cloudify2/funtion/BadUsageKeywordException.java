@@ -1,6 +1,6 @@
 package alien4cloud.paas.cloudify2.funtion;
 
-import alien4cloud.tosca.container.ToscaFunctionConstants;
+import alien4cloud.tosca.normative.ToscaFunctionConstants;
 
 /**
  * Exception thrown when using a {@link ToscaFunctionConstants} keyword in a bad way.

@@ -26,11 +26,11 @@ import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.paas.plan.ToscaRelationshipLifecycleConstants;
 import alien4cloud.plugin.PluginConfiguration;
-import alien4cloud.tosca.container.model.topology.Topology;
-import alien4cloud.tosca.model.AbstractPropertyValue;
-import alien4cloud.tosca.model.Csar;
-import alien4cloud.tosca.model.IOperationParameter;
-import alien4cloud.tosca.model.Operation;
+import alien4cloud.model.topology.Topology;
+import alien4cloud.model.components.AbstractPropertyValue;
+import alien4cloud.model.components.Csar;
+import alien4cloud.model.components.IOperationParameter;
+import alien4cloud.model.components.Operation;
 
 import com.google.common.collect.Lists;
 

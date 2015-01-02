@@ -44,8 +44,8 @@ import alien4cloud.paas.cloudify2.exception.A4CCloudifyDriverITException;
 import alien4cloud.paas.cloudify2.testutils.TestsUtils;
 import alien4cloud.plugin.PluginConfiguration;
 import alien4cloud.tosca.ArchiveUploadService;
-import alien4cloud.tosca.container.model.topology.Topology;
-import alien4cloud.tosca.model.Csar;
+import alien4cloud.model.topology.Topology;
+import alien4cloud.model.components.Csar;
 import alien4cloud.tosca.parser.ParsingException;
 
 import com.fasterxml.jackson.core.JsonParseException;

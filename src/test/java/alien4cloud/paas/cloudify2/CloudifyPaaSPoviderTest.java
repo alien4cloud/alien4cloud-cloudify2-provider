@@ -16,14 +16,14 @@ import org.mockito.Mockito;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import alien4cloud.component.model.IndexedNodeType;
+import alien4cloud.model.components.IndexedNodeType;
 import alien4cloud.paas.cloudify2.generator.CloudifyCommandGenerator;
 import alien4cloud.paas.cloudify2.matcher.StorageTemplateMatcher;
 import alien4cloud.paas.cloudify2.testutils.TestsUtils;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
-import alien4cloud.tosca.container.model.NormativeBlockStorageConstants;
-import alien4cloud.tosca.container.model.topology.NodeTemplate;
+import alien4cloud.tosca.normative.NormativeBlockStorageConstants;
+import alien4cloud.model.topology.NodeTemplate;
 import alien4cloud.utils.MapUtil;
 
 import com.google.common.collect.Lists;
