@@ -505,6 +505,17 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         }
     }
 
+    @Override
+    public void getStatus(PaaSDeploymentContext deploymentContext, IPaaSCallback<DeploymentStatus> callback) {
+        callback.onSuccess(getStatus(deploymentContext.getDeploymentId()));
+    }
+
+    @Override
+    public void getInstancesInformation(PaaSDeploymentContext deploymentContext, Topology topology,
+            IPaaSCallback<Map<String, Map<String, InstanceInformation>>> callback) {
+        callback.onSuccess(getInstancesInformation(deploymentContext.getDeploymentId(), topology));
+    }
+
     /**
      * Dispatch a message event to ALIEN.
      *
