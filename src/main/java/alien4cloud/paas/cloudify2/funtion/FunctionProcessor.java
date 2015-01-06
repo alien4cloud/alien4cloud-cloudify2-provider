@@ -11,7 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Component;
 
-import alien4cloud.component.model.IndexedToscaElement;
+import alien4cloud.model.components.IndexedToscaElement;
 import alien4cloud.paas.IPaaSTemplate;
 import alien4cloud.paas.cloudify2.CloudifyPaaSUtils;
 import alien4cloud.paas.cloudify2.generator.CloudifyCommandGenerator;
@@ -19,11 +19,11 @@ import alien4cloud.paas.exception.NotSupportedException;
 import alien4cloud.paas.exception.PaaSTechnicalException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
-import alien4cloud.tosca.container.ToscaFunctionConstants;
-import alien4cloud.tosca.model.AbstractPropertyValue;
-import alien4cloud.tosca.model.FunctionPropertyValue;
-import alien4cloud.tosca.model.IOperationParameter;
-import alien4cloud.tosca.model.ScalarPropertyValue;
+import alien4cloud.tosca.normative.ToscaFunctionConstants;
+import alien4cloud.model.components.AbstractPropertyValue;
+import alien4cloud.model.components.FunctionPropertyValue;
+import alien4cloud.model.components.IOperationParameter;
+import alien4cloud.model.components.ScalarPropertyValue;
 
 /**
  * Utility class to process functions

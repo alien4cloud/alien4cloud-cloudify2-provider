@@ -1,7 +1,7 @@
 package alien4cloud.paas.cloudify2.generator;
 
 import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.*;
-import static alien4cloud.tosca.container.ToscaFunctionConstants.*;
+import static alien4cloud.tosca.normative.ToscaFunctionConstants.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -28,7 +28,7 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import alien4cloud.component.model.IndexedToscaElement;
+import alien4cloud.model.components.IndexedToscaElement;
 import alien4cloud.model.cloud.ComputeTemplate;
 import alien4cloud.model.cloud.Network;
 import alien4cloud.paas.IPaaSTemplate;
@@ -43,13 +43,13 @@ import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
 import alien4cloud.paas.plan.*;
 import alien4cloud.tosca.ToscaUtils;
-import alien4cloud.tosca.container.model.AlienCustomTypes;
-import alien4cloud.tosca.container.model.NormativeBlockStorageConstants;
-import alien4cloud.tosca.container.model.topology.ScalingPolicy;
-import alien4cloud.tosca.model.IOperationParameter;
-import alien4cloud.tosca.model.ImplementationArtifact;
-import alien4cloud.tosca.model.Interface;
-import alien4cloud.tosca.model.Operation;
+import alien4cloud.tosca.normative.AlienCustomTypes;
+import alien4cloud.tosca.normative.NormativeBlockStorageConstants;
+import alien4cloud.model.topology.ScalingPolicy;
+import alien4cloud.model.components.IOperationParameter;
+import alien4cloud.model.components.ImplementationArtifact;
+import alien4cloud.model.components.Interface;
+import alien4cloud.model.components.Operation;
 import alien4cloud.utils.CollectionUtils;
 import alien4cloud.utils.FileUtil;
 import alien4cloud.utils.MapUtil;

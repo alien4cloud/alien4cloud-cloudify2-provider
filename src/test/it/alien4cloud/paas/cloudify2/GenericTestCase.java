@@ -47,8 +47,8 @@ import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.plugin.PluginConfiguration;
 import alien4cloud.tosca.ArchiveUploadService;
-import alien4cloud.tosca.container.model.topology.Topology;
-import alien4cloud.tosca.model.Csar;
+import alien4cloud.model.topology.Topology;
+import alien4cloud.model.components.Csar;
 import alien4cloud.tosca.parser.ParsingException;
 
 import com.fasterxml.jackson.core.JsonParseException;
