@@ -90,4 +90,5 @@ public class RecipeGeneratorConstants {
     /** Name of the service property that contains a shutdown script. */
     public static final String SHUTDOWN_COMMAND = "shutdownCommand";
     public static final String SHUTDOWN_LIFECYCLE = "shutdown";
+
 }

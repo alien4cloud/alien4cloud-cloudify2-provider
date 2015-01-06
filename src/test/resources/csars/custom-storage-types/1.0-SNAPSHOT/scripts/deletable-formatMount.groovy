@@ -1,8 +1,7 @@
 import org.cloudifysource.utilitydomain.context.ServiceContextFactory
 
 def context = ServiceContextFactory.getServiceContext()
-def device = args[2]
-def path = "/mountTest"
+def location = "/mountTest"
 def builder = new AntBuilder()
 builder.sequential {
   chmod(dir:"${context.serviceDirectory}/scripts", perm:"+x", includes:"*.sh")
@@ -11,11 +10,11 @@ builder.sequential {
     arg(value:"${device}")			
   }
   echo(message:"deletable-formatMount.groovy: Running ${context.serviceDirectory}/scripts/mountStorage.sh...")
-  mkdir(dir: path)
+  mkdir(dir: location)
   exec(executable: "${context.serviceDirectory}/scripts/mountStorage.sh",failonerror: "true") {
     arg(value:"${device}")			
-    arg(value:"${path}")			
+    arg(value:"${location}")			
   }
 }
 
-return path
+return location

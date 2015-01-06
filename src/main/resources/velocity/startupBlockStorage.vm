@@ -14,14 +14,15 @@ $createdEvent
 
 def configureResult = $configureCommand
 if(configureResult == null ){
-		throw new IllegalStateException("The volume configuring script must return the mounted path of the volume, \"storagePath\".")
+		throw new IllegalStateException("The volume configuring script must return the mounted path of the volume, \"storageLocation\".")
 }
 $configuredEvent
 
 println "Storage volume: volumeId <${volumeId}>, device <${device}>, path <${configureResult}>"
 context.attributes.thisInstance.volumeId = volumeId 
 context.attributes.thisInstance.storageDevice = device
-context.attributes.thisInstance.storagePath = configureResult
+context.attributes.thisInstance.storageLocation = configureResult
 $startedEvent
+$availableEvent
 
 println "startupBlockStorage.groovy : startupBlockStorage script  End"

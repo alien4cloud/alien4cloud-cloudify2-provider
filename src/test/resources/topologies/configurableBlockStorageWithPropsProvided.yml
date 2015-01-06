@@ -7,11 +7,11 @@ node_templates:
       os_distribution: ubuntu
       os_version: ubuntu
   blockstorage:
-    type: alien.nodes.ConfigurableBlockStorage
+    type: alien.test.nodes.ConfigurableBlockStorage
     properties:
       volume_id: 758e985c-a1ac-4eb4-83ce-e1fc516ec18e
       device: /dev/vdb
-      path: /testMount
+      location: /testMount
       file_system: ext4
     relationships:
       attachToServeurWeb:

@@ -1,0 +1,51 @@
+tosca_definitions_version: tosca_simple_yaml_1_0_0_wd03
+
+template_name: test-types
+template_author: TOSCA TC
+template_version: 1.0-SNAPSHOT
+
+imports:
+  - tosca-normative-types:1.0.0.wd03-SNAPSHOT
+
+  
+node_types:
+  alien.test.TestCompute:
+    derived_from: tosca.nodes.Compute
+    properties:
+      customHostName:
+        type: string
+    attributes:
+      ip_address:
+        type: string
+        description: >
+          The primary IP address assigned by the cloud provider that applications may use to access the Compute node.
+          Note: This is used by the platform provider to convey the primary address used to access the compute node.  Future working drafts will address implementations that support floating or multiple IP addresses.
+    interfaces:
+      Standard:
+        configure:
+          inputs:
+            customHostName: { get_property: [SELF, customHostName]}
+          implementation: scripts/setHostname.sh
+
+  alien.test.BadTestCompute:
+    derived_from: tosca.nodes.Compute
+    properties:
+      customHostName:
+        type: string
+    attributes:
+      ip_address:
+        type: string
+        description: >
+          The primary IP address assigned by the cloud provider that applications may use to access the Compute node.
+          Note: This is used by the platform provider to convey the primary address used to access the compute node.  Future working drafts will address implementations that support floating or multiple IP addresses.
+    interfaces:
+      Standard:
+        configure:
+          inputs:
+            testScalar: test
+            customHostName: { get_property: [SELF, customHostName]}
+            insufficientParams: { get_property: [SELF] } 
+            keywordSourceBadUsage: { get_property: [SOURCE, customHostName]} 
+            KeywordTargetBadUsage: { get_property: [TARGET, customHostName]} 
+          implementation: scripts/setHostname.sh
+            

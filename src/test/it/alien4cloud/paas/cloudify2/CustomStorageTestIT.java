@@ -23,46 +23,6 @@ public class CustomStorageTestIT extends GenericStorageTestCase {
     }
 
     @Test
-    public void customBlockStorageVolumeIdProvidedSucessTest() throws Throwable {
-        log.info("\n\n >> Executing Test customBlockStorageVolumeIdProvidedSucessTest \n");
-        String cloudifyAppId = null;
-        this.initElasticSearch(new String[] { "custom-storage-types" }, new String[] { "1.0-SNAPSHOT" });
-        try {
-            String[] computesId = new String[] { "custom_storage_volumeid" };
-            cloudifyAppId = deployTopology("customBlockStorageWithVolumeId", computesId);
-
-            this.assertApplicationIsInstalled(cloudifyAppId);
-            waitForServiceToStarts(cloudifyAppId, "custom_storage_volumeid", 1000L * 120);
-            assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, ToscaNodeLifecycleConstants.CREATED);
-
-        } catch (Exception e) {
-            log.error("Test Failed", e);
-            throw e;
-        }
-    }
-
-    @Test
-    // @Ignore
-    public void configurableBlockStorageWithPropsProvidedSucessTest() throws Throwable {
-        log.info("\n\n >> Executing Test customBlockStoragePropsProvidedSucessTest \n");
-        String cloudifyAppId = null;
-        this.initElasticSearch(new String[] { "custom-storage-types" }, new String[] { "1.0-SNAPSHOT" });
-        try {
-
-            String[] computesId = new String[] { "config_storage_props" };
-            cloudifyAppId = deployTopology("configurableBlockStorageWithPropsProvided", computesId);
-
-            this.assertApplicationIsInstalled(cloudifyAppId);
-            waitForServiceToStarts(cloudifyAppId, "config_storage_props", 1000L * 120);
-            assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, ToscaNodeLifecycleConstants.CREATED);
-
-        } catch (Exception e) {
-            log.error("Test Failed", e);
-            throw e;
-        }
-    }
-
-    @Test
     // @Ignore
     public void customBlockStorageSizeProvidedSucessTest() throws Throwable {
         log.info("\n\n >> Executing Test customBlockStorageSizeProvidedSucessTest \n");
@@ -75,6 +35,27 @@ public class CustomStorageTestIT extends GenericStorageTestCase {
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "custom_storage_size", 1000L * 120);
+            assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, ToscaNodeLifecycleConstants.CREATED);
+
+        } catch (Exception e) {
+            log.error("Test Failed", e);
+            throw e;
+        }
+    }
+
+    @Test
+    // @Ignore
+    public void configurableBlockStorageWithPropsProvidedSucessTest() throws Throwable {
+        log.info("\n\n >> Executing Test configurableBlockStorageWithPropsProvidedSucessTest \n");
+        String cloudifyAppId = null;
+        this.initElasticSearch(new String[] { "custom-storage-types" }, new String[] { "1.0-SNAPSHOT" });
+        try {
+
+            String[] computesId = new String[] { "config_storage_props" };
+            cloudifyAppId = deployTopology("configurableBlockStorageWithPropsProvided", computesId);
+
+            this.assertApplicationIsInstalled(cloudifyAppId);
+            waitForServiceToStarts(cloudifyAppId, "config_storage_props", 1000L * 120);
             assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, ToscaNodeLifecycleConstants.CREATED);
 
         } catch (Exception e) {

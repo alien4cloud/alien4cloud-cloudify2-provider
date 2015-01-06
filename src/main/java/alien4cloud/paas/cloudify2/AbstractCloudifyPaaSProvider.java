@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -20,6 +19,7 @@ import javax.annotation.Resource;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.cloudifysource.dsl.internal.CloudifyConstants;
@@ -41,6 +41,7 @@ import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.cloudifysource.restclient.exceptions.RestClientResponseException;
 
+import alien4cloud.component.model.IndexedNodeType;
 import alien4cloud.dao.IGenericSearchDAO;
 import alien4cloud.exception.TechnicalException;
 import alien4cloud.model.application.DeploymentSetup;
@@ -50,6 +51,7 @@ import alien4cloud.paas.IPaaSProvider;
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.events.BlockStorageEvent;
 import alien4cloud.paas.cloudify2.events.NodeInstanceState;
+import alien4cloud.paas.cloudify2.funtion.FunctionProcessor;
 import alien4cloud.paas.cloudify2.generator.RecipeGenerator;
 import alien4cloud.paas.exception.OperationExecutionException;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
@@ -74,6 +76,7 @@ import alien4cloud.tosca.container.ToscaFunctionProcessor;
 import alien4cloud.tosca.container.model.topology.NodeTemplate;
 import alien4cloud.tosca.container.model.topology.ScalingPolicy;
 import alien4cloud.tosca.container.model.topology.Topology;
+import alien4cloud.tosca.model.IOperationParameter;
 import alien4cloud.tosca.model.PropertyDefinition;
 
 import com.google.common.collect.Lists;
@@ -93,6 +96,9 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     private IGenericSearchDAO alienMonitorDao;
     @Resource
     private TopologyTreeBuilderService topologyTreeBuilderService;
+
+    @Resource
+    private FunctionProcessor functionProcessor;
 
     private static final long TIMEOUT_IN_MILLIS = 1000L * 60L * 10L; // 10 minutes
     private static final long MAX_DEPLOYMENT_TIMEOUT_MILLIS = 1000L * 60L * 5L; // 5 minutes
@@ -297,7 +303,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     @Override
     public void scale(PaaSDeploymentContext deploymentContext, String nodeTemplateId, int instances, IPaaSCallback<?> callback) {
         String deploymentId = deploymentContext.getDeploymentId();
-        String serviceId = RecipeGenerator.serviceIdFromNodeTemplateId(nodeTemplateId);
+        String serviceId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(nodeTemplateId);
         try {
             CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
             ServiceDescription serviceDescription = restClient.getServiceDescription(deploymentId, serviceId);
@@ -373,7 +379,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             Integer instanceId = Integer.valueOf(instanceState.getInstanceId());
 
             InstanceStatus instanceStatus = InstanceStatus.PROCESSING;
-            if (ToscaNodeLifecycleConstants.STARTED.equals(instanceState.getInstanceState())) {
+            if (ToscaNodeLifecycleConstants.STARTED.equals(instanceState.getInstanceState())
+                    || ToscaNodeLifecycleConstants.AVAILABLE.equals(instanceState.getInstanceState())) {
                 instanceStatus = InstanceStatus.SUCCESS;
             }
 
@@ -419,7 +426,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
 
         for (String nodeTemplateKey : instanceInformations.keySet()) {
             Map<String, InstanceInformation> nodeTemplateInstanceInformations = instanceInformations.get(nodeTemplateKey);
-            String serviceId = RecipeGenerator.serviceIdFromNodeTemplateId(nodeTemplateKey);
+            String serviceId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(nodeTemplateKey);
             ServiceDescription serviceDescription = serviceDescriptions.get(serviceId);
             if (serviceDescription == null) {
                 // not a compute node
@@ -798,19 +805,15 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         String deploymentId = deploymentContext.getDeploymentId();
         Map<String, String> operationResponse = Maps.newHashMap();
         String serviceName = retrieveServiceName(deploymentId, request.getNodeTemplateName());
-        String operationFQN = operationFQN(serviceName, request);
+        InvokeCustomCommandRequest invokeRequest = new InvokeCustomCommandRequest();
+        invokeRequest.setCommandName(CloudifyPaaSUtils.prefixWithTemplateId(request.getOperationName(), request.getNodeTemplateName()));
+        buildParameters(deploymentId, request, invokeRequest);
+        String operationFQN = operationFQN(serviceName, request, invokeRequest);
         try {
             RestClient restClient = cloudifyRestClientManager.getRestClient();
-            InvokeCustomCommandRequest invokeRequest = new InvokeCustomCommandRequest();
-            invokeRequest.setCommandName(request.getOperationName());
-
-            if (MapUtils.isNotEmpty(request.getParameters())) {
-                invokeRequest.setParameters(new ArrayList<>(request.getParameters().values()));
-            }
-
             log.info("Trigerring operation <" + operationFQN + ">.");
             // case execute on an instance
-            if (StringUtils.isNoneBlank(request.getInstanceId())) {
+            if (StringUtils.isNotBlank(request.getInstanceId())) {
                 int instanceId = Integer.parseInt(request.getInstanceId());
                 InvokeInstanceCommandResponse response = restClient.invokeInstanceCommand(deploymentId, serviceName, instanceId, invokeRequest);
                 log.debug("RAW result is: \n" + response.getInvocationResult());
@@ -827,6 +830,26 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
 
         log.debug("Result is: \n" + operationResponse);
         callback.onSuccess(operationResponse);
+    }
+
+    private void buildParameters(String deploymentId, NodeOperationExecRequest request, InvokeCustomCommandRequest invokeRequest) {
+        invokeRequest.setParameters(Lists.<String> newArrayList());
+        if (MapUtils.isNotEmpty(request.getParameters())) {
+            for (Entry<String, String> entry : request.getParameters().entrySet()) {
+                invokeRequest.getParameters().add(entry.toString());
+            }
+        }
+
+        // if some params are missing, add them with null value
+        IndexedNodeType nodeType = statusByDeployments.get(deploymentId).paaSNodeTemplates.get(request.getNodeTemplateName()).getIndexedNodeType();
+        Map<String, IOperationParameter> params = nodeType.getInterfaces().get(request.getInterfaceName()).getOperations().get(request.getOperationName())
+                .getInputParameters();
+        Map<String, String> requestParams = request.getParameters() == null ? Maps.<String, String> newHashMap() : request.getParameters();
+        for (Entry<String, IOperationParameter> param : params.entrySet()) {
+            if (param.getValue().isDefinition() && !requestParams.containsKey(param.getKey())) {
+                invokeRequest.getParameters().add(param.getKey().concat("=").concat("null"));
+            }
+        }
     }
 
     private void parseServiceInvokeResponse(Map<String, String> operationResponse, Map<String, Map<String, String>> invocationResultPerInstance)
@@ -860,14 +883,13 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             throw new PaaSNotYetDeployedException("Application <" + deploymentId + "> is not deloyed!");
         }
         if (deploymentInfo.paaSNodeTemplates == null) {
-            deploymentInfo.paaSNodeTemplates = topologyTreeBuilderService.buildPaaSNodeTemplate(deploymentInfo.topology);
-            // statusByDeployments.put(deploymentId, deploymentInfo);
+            deploymentInfo.paaSNodeTemplates = topologyTreeBuilderService.buildPaaSTopology(deploymentInfo.topology).getAllNodes();
         }
         PaaSNodeTemplate nodeTemplate = deploymentInfo.paaSNodeTemplates.get(nodeTemplateName);
-        return recipeGenerator.cfyServiceNameFromNodeTemplate(nodeTemplate);
+        return CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(nodeTemplate);
     }
 
-    private String operationFQN(String serviceName, NodeOperationExecRequest request) {
+    private String operationFQN(String serviceName, NodeOperationExecRequest request, InvokeCustomCommandRequest invokeRequest) {
         StringBuilder fqnBuilder = new StringBuilder(serviceName);
         fqnBuilder.append(".").append(request.getNodeTemplateName());
         if (StringUtils.isNoneBlank(request.getInstanceId())) {
@@ -875,8 +897,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         }
         fqnBuilder.append(".").append(request.getInterfaceName()).append(".").append(request.getOperationName());
         fqnBuilder.append("(");
-        if (MapUtils.isNotEmpty(request.getParameters())) {
-            fqnBuilder.append(request.getParameters().values());
+        if (CollectionUtils.isNotEmpty(invokeRequest.getParameters())) {
+            fqnBuilder.append(invokeRequest.getParameters().toString());
         }
         fqnBuilder.append(")");
         return fqnBuilder.toString();

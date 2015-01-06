@@ -1,17 +1,11 @@
 package alien4cloud.paas.cloudify2;
 
-import static org.junit.Assert.assertTrue;
-
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Resource;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.collections4.map.HashedMap;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -24,7 +18,7 @@ import alien4cloud.paas.model.NodeOperationExecRequest;
 import alien4cloud.paas.model.PaaSDeploymentContext;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("classpath:application-context-testit.xml")
@@ -48,15 +42,18 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "comp_custom_cmd", 1000L * 120);
-            assertHttpCodeEquals(cloudifyAppId, "comp_custom_cmd", "8080", "", HTTP_CODE_OK, null);
 
-            String resultSnipet = "hello <alien>, from <comp_custom_cmd";
-            String resultSnipetInst = "hello <alien>, from <comp_custom_cmd.1>";
-
-            testCustomCommandSuccess(cloudifyAppId, "tomcat", null, "helloCmd", Lists.newArrayList("alien"), resultSnipet);
+            String resultSnipet = "hello <alien>, os_version is <ubuntu>, from <comp_custom_cmd";
+            String resultSnipetInst = "hello <alien>, os_version is <ubuntu>, from <comp_custom_cmd.1>";
+            Map<String, String> params = Maps.newHashMap();
+            params.put("yourName", "alien");
+            testCustomCommandSuccess(cloudifyAppId, "tomcat", null, "helloCmd", params, resultSnipet);
+            params.put("yourName", null);
             testCustomCommandFail(cloudifyAppId, "tomcat", null, "helloCmd", null);
-            testCustomCommandSuccess(cloudifyAppId, "tomcat", 1, "helloCmd", Lists.newArrayList("alien"), resultSnipetInst);
-            testCustomCommandFail(cloudifyAppId, "tomcat", 1, "helloCmd", Lists.newArrayList("failThis"));
+            params.put("yourName", "alien");
+            testCustomCommandSuccess(cloudifyAppId, "tomcat", 1, "helloCmd", params, resultSnipetInst);
+            params.put("yourName", "failThis");
+            testCustomCommandFail(cloudifyAppId, "tomcat", 1, "helloCmd", params);
 
         } catch (Exception e) {
             log.error("Test Failed", e);
@@ -103,34 +100,49 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
         }
     }
 
-    private void testCustomCommandFail(String applicationId, String nodeName, Integer instanceId, String command, List<String> params) {
-        boolean fail = false;
+    private void testCustomCommandFail(String applicationId, String nodeName, Integer instanceId, String command, Map<String, String> params) {
         try {
-            executeCustomCommand(applicationId, nodeName, instanceId, command, params);
+            executeCustomCommand(applicationId, nodeName, instanceId, command, params, new IPaaSCallback<Map<String, String>>() {
+                @Override
+                public void onSuccess(Map<String, String> data) {
+                    Assert.fail();
+                }
+
+                @Override
+                public void onFailure(Throwable throwable) {
+
+                }
+            });
         } catch (OperationExecutionException e) {
-            fail = true;
-        } finally {
-            assertTrue(fail);
         }
     }
 
-    private void testCustomCommandSuccess(String cloudifyAppId, String nodeName, Integer instanceId, String command, List<String> params,
-            String expectedResultSnippet) {
-        Map<String, String> result = executeCustomCommand(cloudifyAppId, nodeName, instanceId, command, params);
+    private void testCustomCommandSuccess(String cloudifyAppId, String nodeName, Integer instanceId, String command, Map<String, String> params,
+            final String expectedResultSnippet) {
+        executeCustomCommand(cloudifyAppId, nodeName, instanceId, command, params, new IPaaSCallback<Map<String, String>>() {
+            @Override
+            public void onSuccess(Map<String, String> result) {
 
-        if (expectedResultSnippet != null) {
-            for (String opReslt : result.values()) {
-                Assert.assertTrue("Command result should have contain <" + expectedResultSnippet + ">",
-                        opReslt.toLowerCase().contains(expectedResultSnippet.toLowerCase()));
+                if (expectedResultSnippet != null) {
+                    for (String opReslt : result.values()) {
+                        Assert.assertTrue("Command result is <" + opReslt.toLowerCase() + ">. It should have contain <" + expectedResultSnippet + ">", opReslt
+                                .toLowerCase().contains(expectedResultSnippet.toLowerCase()));
+                    }
+                }
             }
-        }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+
+            }
+        });
     }
 
-    private Map<String, String> executeCustomCommand(String cloudifyAppId, String nodeName, Integer instanceId, String command, List<String> params) {
+    private void executeCustomCommand(String cloudifyAppId, String nodeName, Integer instanceId, String command, Map<String, String> params,
+            IPaaSCallback<Map<String, String>> callback) {
         if (!deployedCloudifyAppIds.contains(cloudifyAppId)) {
             Assert.fail("Topology not found in deployments");
         }
-
         NodeOperationExecRequest request = new NodeOperationExecRequest();
         request.setInterfaceName("custom");
         request.setOperationName(command);
@@ -139,37 +151,9 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
         if (instanceId != null) {
             request.setInstanceId(instanceId.toString());
         }
-
-        // request.setCloudId(topo.getCloudId());
-        Map<String, String> paramss = new HashedMap<>();
-        if (CollectionUtils.isNotEmpty(params)) {
-            for (String param : params) {
-                paramss.put("key-" + paramss.size(), param);
-            }
-            request.setParameters(paramss);
-        }
-        PaaSDeploymentContext context = new PaaSDeploymentContext();
-        context.setDeploymentId(cloudifyAppId);
-        final Map<String, String> result = new HashMap<>();
-        cloudifyPaaSPovider.executeOperation(context, request, new IPaaSCallback<Map<String, String>>() {
-
-            @Override
-            public void onSuccess(Map<String, String> data) {
-                if (data != null) {
-                    result.putAll(data);
-                }
-            }
-
-            @Override
-            public void onFailure(Throwable throwable) {
-                log.error("Error execution", throwable);
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-            }
-        });
-        log.info("Test result is: \n\t" + result);
-        return result;
+        request.setParameters(params);
+        PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
+        deploymentContext.setDeploymentId(cloudifyAppId);
+        cloudifyPaaSPovider.executeOperation(deploymentContext, request, callback);
     }
-
 }

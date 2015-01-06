@@ -3,13 +3,7 @@ package alien4cloud.paas.cloudify2;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import javax.annotation.Resource;
 
@@ -84,9 +78,6 @@ public class DeploymentTestIT extends GenericTestCase {
 
             testUndeployment(cloudifyAppId);
 
-            // testEvents(applicationId, new String[] { "ComputeTomcat", "Tomcat" }, PlanGeneratorConstants.STATE_STOPPING,
-            // PlanGeneratorConstants.STATE_STOPPED);
-
             Iterator<String> idsIter = deployedCloudifyAppIds.iterator();
             while (idsIter.hasNext()) {
                 if (idsIter.next().equals(cloudifyAppId)) {
@@ -105,8 +96,8 @@ public class DeploymentTestIT extends GenericTestCase {
     public void applicationAlreadyDeployedTest() throws Exception {
         log.info("\n\n >> Executing Test applicationAlreadyDeployedTest \n");
 
-        this.initElasticSearch(new String[] { "tosca-normative-types" }, new String[] { "1.0.0.wd03-SNAPSHOT" });
-        String[] computesId = new String[] { "compute" };
+        this.initElasticSearch(new String[] { "test-types" }, new String[] { "1.0-SNAPSHOT" });
+        String[] computesId = new String[] { "compute", "compute_2" };
         String cloudifyAppId = deployTopology("compute_only", computesId);
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
         PaaSTopologyDeploymentContext deploymentContext = new PaaSTopologyDeploymentContext();
