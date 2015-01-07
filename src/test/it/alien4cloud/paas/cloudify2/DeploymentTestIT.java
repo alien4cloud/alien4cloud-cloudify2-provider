@@ -3,7 +3,13 @@ package alien4cloud.paas.cloudify2;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.Resource;
 
@@ -19,10 +25,11 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
+import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.IPaaSCallback;
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
-import alien4cloud.paas.exception.ResourceMatchingFailedException;
+import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.model.AbstractMonitorEvent;
 import alien4cloud.paas.model.DeploymentStatus;
 import alien4cloud.paas.model.PaaSDeploymentContext;
@@ -30,7 +37,6 @@ import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
-import alien4cloud.model.topology.Topology;
 import alien4cloud.tosca.parser.ParsingException;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -50,7 +56,7 @@ public class DeploymentTestIT extends GenericTestCase {
     public DeploymentTestIT() {
     }
 
-    @Test(expected = ResourceMatchingFailedException.class)
+    @Test(expected = PaaSDeploymentException.class)
     public void deployATopologyWhenNoComputeAreDefinedShouldFail() throws JsonParseException, JsonMappingException, ParsingException,
             CSARVersionAlreadyExistsException, IOException {
         log.info("\n\n >> Executing Test deployATopologyWhenNoComputeAreDefinedShouldFail \n");
@@ -111,7 +117,7 @@ public class DeploymentTestIT extends GenericTestCase {
     }
 
     @Test
-    public void testConfiguringTwoPaaSProvider() throws Throwable {
+    public void testConfiguringTfwoPaaSProvider() throws Throwable {
         log.info("\n\n >> Executing Test testConfiguringTwoPaaSProvider \n");
 
         String cloudifyURL2 = "http://129.185.67.36:8100/";

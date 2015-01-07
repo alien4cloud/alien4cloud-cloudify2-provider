@@ -28,9 +28,14 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import alien4cloud.model.components.IndexedToscaElement;
 import alien4cloud.model.cloud.ComputeTemplate;
 import alien4cloud.model.cloud.Network;
+import alien4cloud.model.components.IOperationParameter;
+import alien4cloud.model.components.ImplementationArtifact;
+import alien4cloud.model.components.IndexedToscaElement;
+import alien4cloud.model.components.Interface;
+import alien4cloud.model.components.Operation;
+import alien4cloud.model.topology.ScalingPolicy;
 import alien4cloud.paas.IPaaSTemplate;
 import alien4cloud.paas.cloudify2.CloudifyPaaSUtils;
 import alien4cloud.paas.cloudify2.VelocityUtil;
@@ -41,15 +46,19 @@ import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
-import alien4cloud.paas.plan.*;
+import alien4cloud.paas.plan.BuildPlanGenerator;
+import alien4cloud.paas.plan.OperationCallActivity;
+import alien4cloud.paas.plan.ParallelGateway;
+import alien4cloud.paas.plan.ParallelJoinStateGateway;
+import alien4cloud.paas.plan.StartEvent;
+import alien4cloud.paas.plan.StateUpdateEvent;
+import alien4cloud.paas.plan.StopEvent;
+import alien4cloud.paas.plan.StopPlanGenerator;
+import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
+import alien4cloud.paas.plan.WorkflowStep;
 import alien4cloud.tosca.ToscaUtils;
 import alien4cloud.tosca.normative.AlienCustomTypes;
 import alien4cloud.tosca.normative.NormativeBlockStorageConstants;
-import alien4cloud.model.topology.ScalingPolicy;
-import alien4cloud.model.components.IOperationParameter;
-import alien4cloud.model.components.ImplementationArtifact;
-import alien4cloud.model.components.Interface;
-import alien4cloud.model.components.Operation;
 import alien4cloud.utils.CollectionUtils;
 import alien4cloud.utils.FileUtil;
 import alien4cloud.utils.MapUtil;
@@ -154,7 +163,9 @@ public class RecipeGenerator {
         // cleanup/create the topology recipe directory
         Path recipePath = cleanupDirectory(topologyId);
         List<String> serviceIds = Lists.newArrayList();
-
+        if (roots == null || roots.isEmpty()) {
+            throw new PaaSDeploymentException("No compute found in topology for deployment " + deploymentName);
+        }
         for (PaaSNodeTemplate root : roots) {
             String nodeName = root.getId();
             ComputeTemplate template = getComputeTemplateOrDie(cloudResourcesMapping, root);
