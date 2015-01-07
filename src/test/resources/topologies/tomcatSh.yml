@@ -6,7 +6,7 @@ node_templates:
       os_distribution: ubuntu
       os_version: ubuntu
   tomcat:
-    type: fastconnect.nodes.TomcatSh
+    type: alien.test.nodes.TomcatSh
     relationships:
       hostedOnServeurWeb:
         target: comp_tomcatsh
@@ -17,5 +17,5 @@ node_templates:
 dependencies:
   - name: tosca-normative-types
     version: 1.0.0.wd03-SNAPSHOT
-  - name: tomcat-test-types
+  - name: test-types
     version: 1.0-SNAPSHOT

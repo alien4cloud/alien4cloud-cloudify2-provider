@@ -2,9 +2,9 @@ package alien4cloud.paas.cloudify2.generator;
 
 import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SCRIPTS;
 import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SCRIPT_LIFECYCLE;
-import static alien4cloud.tosca.container.ToscaFunctionConstants.HOST;
-import static alien4cloud.tosca.container.ToscaFunctionConstants.PARENT;
-import static alien4cloud.tosca.container.ToscaFunctionConstants.SELF;
+import static alien4cloud.tosca.normative.ToscaFunctionConstants.HOST;
+import static alien4cloud.tosca.normative.ToscaFunctionConstants.PARENT;
+import static alien4cloud.tosca.normative.ToscaFunctionConstants.SELF;
 
 import java.io.IOException;
 import java.net.URI;
@@ -23,16 +23,16 @@ import javax.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.ApplicationContext;
 
-import alien4cloud.component.model.IndexedToscaElement;
+import alien4cloud.model.components.IOperationParameter;
+import alien4cloud.model.components.ImplementationArtifact;
+import alien4cloud.model.components.IndexedToscaElement;
+import alien4cloud.model.components.Interface;
+import alien4cloud.model.components.Operation;
 import alien4cloud.paas.IPaaSTemplate;
 import alien4cloud.paas.cloudify2.CloudifyPaaSUtils;
 import alien4cloud.paas.cloudify2.VelocityUtil;
 import alien4cloud.paas.cloudify2.funtion.FunctionProcessor;
 import alien4cloud.paas.model.PaaSNodeTemplate;
-import alien4cloud.tosca.model.IOperationParameter;
-import alien4cloud.tosca.model.ImplementationArtifact;
-import alien4cloud.tosca.model.Interface;
-import alien4cloud.tosca.model.Operation;
 import alien4cloud.utils.CollectionUtils;
 
 import com.google.common.collect.Maps;

@@ -1,0 +1,37 @@
+tosca_definitions_version: tosca_simple_yaml_1_0_0_wd03
+
+template_name: tomcat-test-types
+template_author: Alien4cloud
+template_version: 1.0-SNAPSHOT
+
+#dependencies
+imports:
+  - tosca-normative-types:1.0.0.wd03-SNAPSHOT
+  - alien-base-types:1.0-SNAPSHOT
+  - tomcat-war-types:1.0-SNAPSHOT
+
+description: Tomcat recipe for tests. Updated with custom commands on Tomcat node.
+
+node_types:
+  alien.test.nodes.TomcatSh:
+    derived_from: alien.nodes.cloudify.Tomcat
+    description: >
+      Installation of Tomcat from a ZIP archive downloaded from the Web using sh scripts.
+    interfaces:
+      Standard:
+        create: tomcatSh-scripts/tomcat_install.sh
+        start: tomcatSh-scripts/tomcat_start.sh
+        stop: tomcatSh-scripts/tomcat_stop.sh
+
+relationship_types:
+  alien.test.relationships.cloudify.WarHostedOnTomcat:
+    derived_from: alien.relationships.cloudify.WarHostedOnTomcat
+    interfaces:
+      configure:
+        post_configure_source: 
+          inputs:
+            contextPath: { get_property: [SOURCE, contextPath] } 
+            tomcatVersion: { get_property: [TARGET, version] }
+            tomcatIp: { get_attribute: [TARGET, ip_address] }
+            warNodeContext: { get_attribute: [SOURCE, warNodeContext] }
+          implementation: relationshipScripts/warHostedOnTomcat_post_configure_source.groovy

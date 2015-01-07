@@ -28,10 +28,15 @@ import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.cloudifysource.restclient.exceptions.RestClientResponseException;
 
-import alien4cloud.component.model.IndexedNodeType;
 import alien4cloud.dao.IGenericSearchDAO;
 import alien4cloud.exception.TechnicalException;
 import alien4cloud.model.application.DeploymentSetup;
+import alien4cloud.model.components.IOperationParameter;
+import alien4cloud.model.components.IndexedNodeType;
+import alien4cloud.model.components.PropertyDefinition;
+import alien4cloud.model.topology.NodeTemplate;
+import alien4cloud.model.topology.ScalingPolicy;
+import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.AbstractPaaSProvider;
 import alien4cloud.paas.IConfigurablePaaSProvider;
 import alien4cloud.paas.cloudify2.events.AlienEvent;
@@ -47,11 +52,6 @@ import alien4cloud.paas.exception.PaaSTechnicalException;
 import alien4cloud.paas.function.FunctionEvaluator;
 import alien4cloud.paas.model.*;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
-import alien4cloud.tosca.container.model.topology.NodeTemplate;
-import alien4cloud.tosca.container.model.topology.ScalingPolicy;
-import alien4cloud.tosca.container.model.topology.Topology;
-import alien4cloud.tosca.model.IOperationParameter;
-import alien4cloud.tosca.model.PropertyDefinition;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;

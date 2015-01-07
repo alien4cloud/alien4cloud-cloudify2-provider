@@ -27,11 +27,12 @@ public class CustomStorageTestIT extends GenericStorageTestCase {
     public void customBlockStorageSizeProvidedSucessTest() throws Throwable {
         log.info("\n\n >> Executing Test customBlockStorageSizeProvidedSucessTest \n");
         String cloudifyAppId = null;
-        this.initElasticSearch(new String[] { "custom-storage-types" }, new String[] { "1.0-SNAPSHOT" });
+        this.uploadGitArchive(EXTENDED_TYPES_REPO, EXTENDED_STORAGE_TYPES);
+        this.uploadTestArchives("custom-storage-types-1.0-SNAPSHOT");
         try {
 
             String[] computesId = new String[] { "custom_storage_size" };
-            cloudifyAppId = deployTopology("customDeletableBlockStorageWithSize", computesId);
+            cloudifyAppId = deployTopology("customDeletableBlockStorageWithSize", computesId, null);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "custom_storage_size", 1000L * 120);
@@ -48,11 +49,12 @@ public class CustomStorageTestIT extends GenericStorageTestCase {
     public void configurableBlockStorageWithPropsProvidedSucessTest() throws Throwable {
         log.info("\n\n >> Executing Test configurableBlockStorageWithPropsProvidedSucessTest \n");
         String cloudifyAppId = null;
-        this.initElasticSearch(new String[] { "custom-storage-types" }, new String[] { "1.0-SNAPSHOT" });
+        this.uploadGitArchive(EXTENDED_TYPES_REPO, EXTENDED_STORAGE_TYPES);
+        this.uploadTestArchives("custom-storage-types-1.0-SNAPSHOT");
         try {
 
             String[] computesId = new String[] { "config_storage_props" };
-            cloudifyAppId = deployTopology("configurableBlockStorageWithPropsProvided", computesId);
+            cloudifyAppId = deployTopology("configurableBlockStorageWithPropsProvided", computesId, null);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "config_storage_props", 1000L * 120);

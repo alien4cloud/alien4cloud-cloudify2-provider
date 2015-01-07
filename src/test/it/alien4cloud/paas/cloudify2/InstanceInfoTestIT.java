@@ -11,9 +11,9 @@ import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
+import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.model.InstanceInformation;
 import alien4cloud.paas.model.InstanceStatus;
-import alien4cloud.tosca.container.model.topology.Topology;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("classpath:application-context-testit.xml")
@@ -27,10 +27,11 @@ public class InstanceInfoTestIT extends GenericTestCase {
     public void testScaleAndGetInstancesInformations() throws Exception {
         log.info("\n\n >> Executing Test testScaleAndGetInstancesInformations \n");
         String cloudifyAppId = null;
-        this.initElasticSearch(new String[] { "tomcat-test-types" }, new String[] { "1.0-SNAPSHOT" });
+        this.uploadGitArchive("samples", "tomcat-war");
+        this.uploadTestArchives("test-types-1.0-SNAPSHOT");
 
         String[] computes = new String[] { "serveur_web" };
-        cloudifyAppId = deployTopology("compTomcatScaling", computes);
+        cloudifyAppId = deployTopology("compTomcatScaling", computes, null);
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
         Map<String, Map<Integer, InstanceInformation>> instancesInformations = cloudifyPaaSPovider.getInstancesInformation(cloudifyAppId, topo);
         printStatuses(instancesInformations);

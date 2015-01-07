@@ -13,15 +13,19 @@ import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import alien4cloud.component.model.IndexedToscaElement;
 import alien4cloud.model.application.Application;
 import alien4cloud.model.application.ApplicationEnvironment;
 import alien4cloud.model.application.ApplicationVersion;
 import alien4cloud.model.application.DeploymentSetup;
+import alien4cloud.model.components.AbstractPropertyValue;
+import alien4cloud.model.components.Csar;
+import alien4cloud.model.components.IOperationParameter;
+import alien4cloud.model.components.IndexedToscaElement;
+import alien4cloud.model.components.Operation;
 import alien4cloud.model.deployment.Deployment;
+import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.IPaaSTemplate;
 import alien4cloud.paas.cloudify2.funtion.FunctionProcessor.IParamEvalResult;
-import alien4cloud.paas.cloudify2.generator.CommandGenerator;
 import alien4cloud.paas.cloudify2.testutils.TestsUtils;
 import alien4cloud.paas.function.BadUsageKeywordException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
@@ -30,11 +34,6 @@ import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.paas.plan.ToscaRelationshipLifecycleConstants;
 import alien4cloud.plugin.PluginConfiguration;
-import alien4cloud.tosca.container.model.topology.Topology;
-import alien4cloud.tosca.model.AbstractPropertyValue;
-import alien4cloud.tosca.model.Csar;
-import alien4cloud.tosca.model.IOperationParameter;
-import alien4cloud.tosca.model.Operation;
 
 import com.google.common.collect.Lists;
 
@@ -50,8 +49,6 @@ public class FunctionProcessorTest {
 
     @Resource
     private TopologyTreeBuilderService treeBuilder;
-    @Resource
-    CommandGenerator commandGen;
 
     @Resource
     private TestsUtils testsUtils;
@@ -77,11 +74,10 @@ public class FunctionProcessorTest {
     @Before
     public void before() throws Throwable {
         testsUtils.cleanESFiles(indiceClassesToClean);
-        testsUtils.uploadCsar("tosca-normative-types", "1.0.0.wd03-SNAPSHOT");
-        testsUtils.uploadCsar("alien-base-types", "1.0-SNAPSHOT");
-        testsUtils.uploadCsar("test-types", "1.0-SNAPSHOT");
-        testsUtils.uploadCsar("tomcat-test-types", "1.0-SNAPSHOT");
-
+        testsUtils.uploadGitArchive("tosca-normative-types-1.0.0.wd03", "");
+        testsUtils.uploadGitArchive("alien-extended-types", "alien-base-types-1.0-SNAPSHOT");
+        testsUtils.uploadGitArchive("samples", "tomcat-war");
+        testsUtils.uploadArchive("test-types-1.0-SNAPSHOT");
     }
 
     @Test
@@ -117,8 +113,8 @@ public class FunctionProcessorTest {
         String tomcatName = "tomcat";
         PaaSNodeTemplate tomcatPaaS = builtPaaSNodeTemplates.get(tomcatName);
         Operation customHelloOp = tomcatPaaS.getIndexedNodeType().getInterfaces().get("custom").getOperations().get("helloCmd");
-        param = customHelloOp.getInputParameters().get("os_version");
-        Assert.assertEquals(computePaaS.getNodeTemplate().getProperties().get("os_version"),
+        param = customHelloOp.getInputParameters().get("customHostName");
+        Assert.assertEquals(computePaaS.getNodeTemplate().getProperties().get("customHostName"),
                 evaluateParam((AbstractPropertyValue) param, tomcatPaaS, builtPaaSNodeTemplates));
     }
 

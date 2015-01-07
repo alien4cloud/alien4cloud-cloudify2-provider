@@ -24,12 +24,12 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
+import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.DeploymentStatus;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
-import alien4cloud.tosca.container.model.topology.Topology;
 import alien4cloud.tosca.parser.ParsingException;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -50,9 +50,7 @@ public class DeploymentTestIT extends GenericTestCase {
     public void deployATopologyWhenNoComputeAreDefinedShouldFail() throws JsonParseException, JsonMappingException, ParsingException,
             CSARVersionAlreadyExistsException, IOException {
         log.info("\n\n >> Executing Test deployATopologyWhenNoComputeAreDefinedShouldFail \n");
-        this.initElasticSearch(new String[] { "tosca-normative-types" }, new String[] { "1.0.0.wd03-SNAPSHOT" });
-
-        deployTopology("noCompute", null);
+        deployTopology("noCompute", null, null);
     }
 
     @Test
@@ -60,10 +58,11 @@ public class DeploymentTestIT extends GenericTestCase {
         log.info("\n\n >> Executing Test topologyWithShScriptsTests \n");
 
         String cloudifyAppId = null;
-        this.initElasticSearch(new String[] { "tomcat-test-types" }, new String[] { "1.0-SNAPSHOT" });
+        this.uploadGitArchive("samples", "tomcat-war");
+        this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         try {
             String[] computesId = new String[] { "comp_tomcatsh" };
-            cloudifyAppId = deployTopology("tomcatSh", computesId);
+            cloudifyAppId = deployTopology("tomcatSh", computesId, null);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "comp_tomcatsh", 1000L * 120);
@@ -92,9 +91,10 @@ public class DeploymentTestIT extends GenericTestCase {
     public void applicationAlreadyDeployedTest() throws Exception {
         log.info("\n\n >> Executing Test applicationAlreadyDeployedTest \n");
 
-        this.initElasticSearch(new String[] { "test-types" }, new String[] { "1.0-SNAPSHOT" });
+        this.uploadGitArchive("samples", "tomcat-war");
+        this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         String[] computesId = new String[] { "compute", "compute_2" };
-        String cloudifyAppId = deployTopology("compute_only", computesId);
+        String cloudifyAppId = deployTopology("compute_only", computesId, null);
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
         cloudifyPaaSPovider.deploy("lol", cloudifyAppId, topo, null);
     }

@@ -25,8 +25,8 @@ import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.tosca.ToscaUtils;
-import alien4cloud.tosca.container.model.AlienCustomTypes;
-import alien4cloud.tosca.container.model.NormativeBlockStorageConstants;
+import alien4cloud.tosca.normative.AlienCustomTypes;
+import alien4cloud.tosca.normative.NormativeBlockStorageConstants;
 import alien4cloud.utils.MapUtil;
 
 import com.fasterxml.jackson.databind.ObjectMapper;

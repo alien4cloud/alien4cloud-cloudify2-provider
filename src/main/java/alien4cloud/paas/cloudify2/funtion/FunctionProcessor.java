@@ -9,7 +9,11 @@ import javax.annotation.Resource;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Component;
 
-import alien4cloud.component.model.IndexedToscaElement;
+import alien4cloud.model.components.AbstractPropertyValue;
+import alien4cloud.model.components.FunctionPropertyValue;
+import alien4cloud.model.components.IOperationParameter;
+import alien4cloud.model.components.IndexedToscaElement;
+import alien4cloud.model.components.ScalarPropertyValue;
 import alien4cloud.paas.IPaaSTemplate;
 import alien4cloud.paas.cloudify2.CloudifyPaaSUtils;
 import alien4cloud.paas.cloudify2.generator.CommandGenerator;
@@ -18,11 +22,7 @@ import alien4cloud.paas.function.FunctionEvaluator;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
 import alien4cloud.tosca.ToscaUtils;
-import alien4cloud.tosca.container.ToscaFunctionConstants;
-import alien4cloud.tosca.model.AbstractPropertyValue;
-import alien4cloud.tosca.model.FunctionPropertyValue;
-import alien4cloud.tosca.model.IOperationParameter;
-import alien4cloud.tosca.model.ScalarPropertyValue;
+import alien4cloud.tosca.normative.ToscaFunctionConstants;
 
 /**
  * Utility class to process functions
@@ -128,13 +128,13 @@ public class FunctionProcessor {
         }
     }
 
-    interface IParamEvalResult {
+    public interface IParamEvalResult {
         /* retrieve the result of the evaluation */
         abstract String get();
     }
 
     /* the result of the evaluation is a usable String value */
-    private class StringEvalResult implements IParamEvalResult {
+    public class StringEvalResult implements IParamEvalResult {
         private String value;
 
         public StringEvalResult(String result) {
@@ -148,7 +148,7 @@ public class FunctionProcessor {
     }
 
     /* The result of the evaluation is an expression to evaluate at runtime, recipe side */
-    private class RuntimeEvalResult implements IParamEvalResult {
+    public class RuntimeEvalResult implements IParamEvalResult {
         private String value;
 
         public RuntimeEvalResult(String result) {

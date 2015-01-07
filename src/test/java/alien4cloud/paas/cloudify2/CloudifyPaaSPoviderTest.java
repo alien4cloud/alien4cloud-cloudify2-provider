@@ -16,14 +16,14 @@ import org.mockito.Mockito;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import alien4cloud.component.model.IndexedNodeType;
+import alien4cloud.model.components.IndexedNodeType;
+import alien4cloud.model.topology.NodeTemplate;
 import alien4cloud.paas.cloudify2.generator.CommandGenerator;
 import alien4cloud.paas.cloudify2.matcher.StorageTemplateMatcher;
 import alien4cloud.paas.cloudify2.testutils.TestsUtils;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
-import alien4cloud.tosca.container.model.NormativeBlockStorageConstants;
-import alien4cloud.tosca.container.model.topology.NodeTemplate;
+import alien4cloud.tosca.normative.NormativeBlockStorageConstants;
 import alien4cloud.utils.MapUtil;
 
 import com.google.common.collect.Lists;
@@ -52,9 +52,9 @@ public class CloudifyPaaSPoviderTest {
 
     @Test
     public void loopedGroovyCommand() throws IOException {
-        String first = "while(!CloudifyExecutorUtils.executeGroovy(\"totototot/titit\", null)){\n\t  \n}";
-        String second = "while(true){\n\t CloudifyExecutorUtils.executeGroovy(\"totototot/titit\", [\"ha\":\"ho\"]) \n}";
-        String third = "while(true){\n\t CloudifyExecutorUtils.executeGroovy(\"totototot/titit\", [\"hi\":\"hu\", \"ha\":ho]) \n}";
+        String first = "while(!CloudifyExecutorUtils.executeGroovy(context, \"totototot/titit\", null)){\n\t  \n}";
+        String second = "while(true){\n\t CloudifyExecutorUtils.executeGroovy(context, \"totototot/titit\", [\"ha\":\"ho\"]) \n}";
+        String third = "while(true){\n\t CloudifyExecutorUtils.executeGroovy(context, \"totototot/titit\", [\"hi\":\"hu\", \"ha\":ho]) \n}";
         assertEquals(first, generator.getLoopedGroovyCommand(generator.getGroovyCommand("totototot/titit", null, null), null));
         assertEquals(
                 second,
@@ -92,7 +92,8 @@ public class CloudifyPaaSPoviderTest {
         StorageTemplateMatcher storageTemplateMatcher = new StorageTemplateMatcher();
         List<StorageTemplate> tempList = Lists.newArrayList(new StorageTemplate("SMALL_BLOCK", 1, "ext4"), new StorageTemplate("MEDIUM_BLOCK", 2, "ext4"));
         storageTemplateMatcher.configure(tempList);
-
+        String storageTemp = storageTemplateMatcher.getDefaultTemplate();
+        assertEquals("SMALL_BLOCK", storageTemp);
         PaaSNodeTemplate paasNodeTemp = Mockito.mock(PaaSNodeTemplate.class);
         Mockito.when(paasNodeTemp.getId()).thenReturn("mock1");
         IndexedNodeType nodeType = Mockito.mock(IndexedNodeType.class);
@@ -101,8 +102,7 @@ public class CloudifyPaaSPoviderTest {
         Mockito.when(nodeType.getElementId()).thenReturn(NormativeBlockStorageConstants.BLOCKSTORAGE_TYPE);
         Mockito.when(paasNodeTemp.getIndexedNodeType()).thenReturn(nodeType);
         Mockito.when(paasNodeTemp.getNodeTemplate()).thenReturn(nodeTemplate);
-        String storageTemp = storageTemplateMatcher.getTemplate(paasNodeTemp);
-
+        storageTemp = storageTemplateMatcher.getTemplate(paasNodeTemp);
         assertEquals("SMALL_BLOCK", storageTemp);
     }
 

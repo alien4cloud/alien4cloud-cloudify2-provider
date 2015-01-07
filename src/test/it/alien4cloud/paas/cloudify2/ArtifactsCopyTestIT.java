@@ -14,9 +14,9 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import alien4cloud.component.repository.ArtifactLocalRepository;
 import alien4cloud.component.repository.ArtifactRepositoryConstants;
-import alien4cloud.tosca.container.model.template.DeploymentArtifact;
-import alien4cloud.tosca.container.model.topology.NodeTemplate;
-import alien4cloud.tosca.container.model.topology.Topology;
+import alien4cloud.model.components.DeploymentArtifact;
+import alien4cloud.model.topology.NodeTemplate;
+import alien4cloud.model.topology.Topology;
 
 import com.google.common.collect.Maps;
 
@@ -38,7 +38,7 @@ public class ArtifactsCopyTestIT extends GenericTestCase {
 
         String cloudifyAppId = null;
 
-        this.initElasticSearch(new String[] { "tomcat-test-types" }, new String[] { "1.0-SNAPSHOT" });
+        this.uploadGitArchive("samples", "tomcat-war");
         String topologyFileName = "tomcatWar";
         String artifacName = "helloWorld2.war";
         String artifactId = artifactRepository.storeFile(Files.newInputStream(Paths.get("src/test/resources/data/helloWorld2.war")));
@@ -51,7 +51,7 @@ public class ArtifactsCopyTestIT extends GenericTestCase {
         topology.getNodeTemplates().get("war_2").getArtifacts().put("war_file", artifact);
         alienDAO.save(topology);
         String[] computes = new String[] { "comp_tomcat_war" };
-        cloudifyAppId = deployTopology(computes, topology, topologyFileName);
+        cloudifyAppId = deployTopology(computes, topology, topologyFileName, null);
         assertApplicationIsInstalled(cloudifyAppId);
 
         String serviceName = "comp_tomcat_war";

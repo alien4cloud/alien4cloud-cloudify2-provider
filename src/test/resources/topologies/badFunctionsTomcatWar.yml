@@ -8,7 +8,7 @@ node_templates:
       os_version: ubuntu
       customHostName: testHostname
   tomcat:
-    type: fastconnect.nodes.Tomcat
+    type: alien.test.nodes.TomcatSh
     properties:
       version: 7.0.23
     relationships:
@@ -19,7 +19,7 @@ node_templates:
         requirement_type: tosca.capabilities.Container
         targeted_capability_name: host
   war_1:
-    type: fastconnect.nodes.War
+    type: alien.nodes.cloudify.War
     properties:
       contextPath: war1
     relationships:
@@ -29,9 +29,8 @@ node_templates:
         requirement_name: host
         requirement_type: alien4cloud.capabilities.WarHosting
         targeted_capability_name: war_host
-
   war_2:
-    type: fastconnect.nodes.War
+    type: alien.nodes.cloudify.War
     properties:
       contextPath: war2
     relationships:
@@ -47,5 +46,5 @@ dependencies:
     version: 1.0.0.wd03-SNAPSHOT
   - name: test-types
     version: 1.0-SNAPSHOT
-  - name: tomcat-test-types
+  - name: tomcat-war-types
     version: 1.0-SNAPSHOT

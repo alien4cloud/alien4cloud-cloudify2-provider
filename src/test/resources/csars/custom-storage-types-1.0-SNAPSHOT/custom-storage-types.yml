@@ -1,0 +1,44 @@
+tosca_definitions_version: tosca_simple_yaml_1_0_0_wd03
+
+template_name: custom-storage-types
+template_author: alien4cloud
+template_version: 1.0-SNAPSHOT
+
+imports:
+  - tosca-normative-types:1.0.0.wd03-SNAPSHOT
+  - alien-extended-storage-types:1.0-SNAPSHOT
+
+description: This archive contains custom types for tests.
+
+node_types:
+  alien.test.nodes.DeletableUbuntuBlockStorage:
+    derived_from: tosca.nodes.BlockStorage
+    description: A custom storage for Ubuntu OS, to be destroyed at the end of the deployment.
+    interfaces:
+      Standard:
+        create: scripts/deletable-createAttach.groovy
+        configure: scripts/deletable-formatMount.groovy
+        delete: scripts/deletable-unmountDelete.groovy
+    artifacts:
+      - scripts: scripts
+        type: tosca.artifacts.File
+        
+  alien.test.nodes.ConfigurableBlockStorage:
+    derived_from: alien.nodes.ConfigurableBlockStorage
+    description: A custom storage for Ubuntu OS, to be destroyed at the end of the deployment.
+    interfaces:
+      Standard:
+        create: 
+          inputs:
+            device: { get_property: [SELF, device]}
+          implementation: scripts/attach.groovy
+        configure: 
+          inputs:
+            location: { get_property: [SELF, location]}
+          implementation: scripts/mount.groovy
+    artifacts:
+      - scripts: scripts
+        type: tosca.artifacts.File
+
+
+

@@ -1,0 +1,47 @@
+tosca_definitions_version: tosca_simple_yaml_1_0_0_wd03
+
+template_name: test-types
+template_author: Alien4Cloud
+template_version: 1.0-SNAPSHOT
+
+imports:
+  - tosca-normative-types:1.0.0.wd03-SNAPSHOT
+
+node_types:
+  alien.test.TestCompute:
+    derived_from: tosca.nodes.Compute
+    properties:
+      customHostName:
+        type: string
+    interfaces:
+      Standard:
+        configure:
+          inputs:
+            customHostName: { get_property: [SELF, customHostName]}
+          implementation: scripts/setHostname.sh
+      custom:
+         helloCmd:
+          input:
+            yourName:
+              type: string
+              required: true
+            customHostName: { get_property: [HOST, customHostName] }
+          implementation: scripts/helloCmd.groovy
+
+
+  alien.test.BadTestCompute:
+    derived_from: tosca.nodes.Compute
+    properties:
+      customHostName:
+        type: string
+    interfaces:
+      Standard:
+        configure:
+          inputs:
+            testScalar: test
+            customHostName: { get_property: [SELF, customHostName]}
+            insufficientParams: { get_property: [SELF] } 
+            keywordSourceBadUsage: { get_property: [SOURCE, customHostName]} 
+            KeywordTargetBadUsage: { get_property: [TARGET, customHostName]} 
+          implementation: scripts/setHostname.sh
+            

@@ -39,13 +39,15 @@ import alien4cloud.model.application.DeploymentSetup;
 import alien4cloud.model.cloud.CloudResourceMatcherConfig;
 import alien4cloud.model.cloud.ComputeTemplate;
 import alien4cloud.model.cloud.MatchedComputeTemplate;
+import alien4cloud.model.components.Csar;
 import alien4cloud.model.deployment.Deployment;
+import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.cloudify2.exception.A4CCloudifyDriverITException;
 import alien4cloud.paas.cloudify2.testutils.TestsUtils;
+import alien4cloud.paas.exception.OperationExecutionException;
+import alien4cloud.paas.model.NodeOperationExecRequest;
 import alien4cloud.plugin.PluginConfiguration;
 import alien4cloud.tosca.ArchiveUploadService;
-import alien4cloud.tosca.container.model.topology.Topology;
-import alien4cloud.tosca.model.Csar;
 import alien4cloud.tosca.parser.ParsingException;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -59,7 +61,8 @@ public class GenericTestCase {
     protected static final int HTTP_CODE_OK = 200;
     protected static final String DEFAULT_TOMCAT_PORT = "8080";
 
-    private static final String DEFAULT_COMPUTE_TEMPLATE_ID = "MEDIUM_LINUX";
+    protected static final String DEFAULT_LINUX_COMPUTE_TEMPLATE_ID = "MEDIUM_LINUX";
+    protected static final String DEFAULT_WINDOWS_COMPUTE_TEMPLATE_ID = "WINDOWS";
 
     @Resource
     protected ArchiveUploadService archiveUploadService;
@@ -76,7 +79,13 @@ public class GenericTestCase {
     @Resource
     private ElasticSearchClient esClient;
     @Resource
-    private TestsUtils testUtils;
+    private TestsUtils testsUtils;
+
+    public static final String EXTENDED_TYPES_REPO = "alien-extended-types";
+    public static final String EXTENDED_STORAGE_TYPES = "alien-extended-storage-types-1.0-SNAPSHOT";
+
+    public static final String SAMPLE_REPO = "samples";
+    public static final String TOMCAT_WAR_TYPES = "tomcat-war";
 
     protected List<String> deployedCloudifyAppIds = new ArrayList<>();
     private List<Class<?>> IndiceClassesToClean;
@@ -101,14 +110,13 @@ public class GenericTestCase {
     @Before
     public void before() throws Throwable {
         log.info("In beforeTest");
-        testUtils.cleanESFiles(IndiceClassesToClean);
-
-        testUtils.uploadCsar("tosca-normative-types", "1.0.0.wd03-SNAPSHOT");
-        testUtils.uploadCsar("alien-base-types", "1.0-SNAPSHOT");
+        testsUtils.cleanESFiles(IndiceClassesToClean);
+        testsUtils.uploadGitArchive("tosca-normative-types-1.0.0.wd03", "");
+        testsUtils.uploadGitArchive("alien-extended-types", "alien-base-types-1.0-SNAPSHOT");
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
         // String cloudifyURL = null;
-        cloudifyURL = cloudifyURL == null ? "http://129.185.67.74:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "http://129.185.67.84:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL);
         pluginConfigurationBean.setSynchronousDeployment(true);
@@ -116,8 +124,9 @@ public class GenericTestCase {
         cloudifyPaaSPovider.setConfiguration(pluginConfigurationBean);
         cloudifyRestClientManager = cloudifyPaaSPovider.getCloudifyRestClientManager();
         CloudResourceMatcherConfig matcherConf = new CloudResourceMatcherConfig();
-        matcherConf.setMatchedComputeTemplates(Lists.newArrayList(new MatchedComputeTemplate(new ComputeTemplate(null, DEFAULT_COMPUTE_TEMPLATE_ID),
-                DEFAULT_COMPUTE_TEMPLATE_ID)));
+        matcherConf.setMatchedComputeTemplates(Lists.newArrayList(new MatchedComputeTemplate(new ComputeTemplate(null, DEFAULT_LINUX_COMPUTE_TEMPLATE_ID),
+                DEFAULT_LINUX_COMPUTE_TEMPLATE_ID), new MatchedComputeTemplate(new ComputeTemplate(null, DEFAULT_WINDOWS_COMPUTE_TEMPLATE_ID),
+                DEFAULT_WINDOWS_COMPUTE_TEMPLATE_ID)));
         cloudifyPaaSPovider.updateMatcherConfig(matcherConf);
     }
 
@@ -170,13 +179,16 @@ public class GenericTestCase {
         }
     }
 
-    protected void initElasticSearch(String[] csarNames, String[] versions) throws IOException, CSARVersionAlreadyExistsException, ParsingException {
+    protected void uploadTestArchives(String... csarNames) throws IOException, CSARVersionAlreadyExistsException, ParsingException {
         log.info("Initializing ALIEN repository.");
-
-        for (int i = 0; i < csarNames.length; i++) {
-            testUtils.uploadCsar(csarNames[i], versions[i]);
+        for (String name : csarNames) {
+            testsUtils.uploadArchive(name);
         }
         log.info("Types have been added to the repository.");
+    }
+
+    protected void uploadGitArchive(String repository, String archiveDirectoryName) throws Exception {
+        testsUtils.uploadGitArchive(repository, archiveDirectoryName);
     }
 
     protected void waitForServiceToStarts(final String applicationId, final String serviceName, final long timeoutInMillis) throws RestClientException {
@@ -231,19 +243,22 @@ public class GenericTestCase {
         return huc.getResponseCode();
     }
 
-    protected String deployTopology(String topologyFileName, String[] computesId) throws IOException, JsonParseException, JsonMappingException,
-            CSARVersionAlreadyExistsException, ParsingException {
+    protected String deployTopology(String topologyFileName, String[] computesId, Map<String, ComputeTemplate> computesMatching) throws IOException,
+            JsonParseException, JsonMappingException, CSARVersionAlreadyExistsException, ParsingException {
         Topology topology = this.createAlienApplication(topologyFileName, topologyFileName);
-        return deployTopology(computesId, topology, topologyFileName);
+        return deployTopology(computesId, topology, topologyFileName, computesMatching);
     }
 
-    protected String deployTopology(String[] computesId, Topology topology, String topologyFileName) {
+    protected String deployTopology(String[] computesId, Topology topology, String topologyFileName, Map<String, ComputeTemplate> computesMatching) {
         DeploymentSetup setup = new DeploymentSetup();
         setup.setCloudResourcesMapping(Maps.<String, ComputeTemplate> newHashMap());
         if (computesId != null) {
             for (String string : computesId) {
-                setup.getCloudResourcesMapping().put(string, new ComputeTemplate(null, DEFAULT_COMPUTE_TEMPLATE_ID));
+                setup.getCloudResourcesMapping().put(string, new ComputeTemplate(null, DEFAULT_LINUX_COMPUTE_TEMPLATE_ID));
             }
+        }
+        if (computesMatching != null) {
+            setup.getCloudResourcesMapping().putAll(computesMatching);
         }
         log.info("\n\n TESTS: Deploying topology <{}>. Deployment id is <{}>. \n", topologyFileName, topology.getId());
         deployedCloudifyAppIds.add(topology.getId());
@@ -254,7 +269,7 @@ public class GenericTestCase {
     protected Topology createAlienApplication(String applicationName, String topologyFileName) throws IOException, JsonParseException, JsonMappingException,
             ParsingException, CSARVersionAlreadyExistsException {
 
-        Topology topology = testUtils.parseYamlTopology(topologyFileName);
+        Topology topology = testsUtils.parseYamlTopology(topologyFileName);
 
         String applicationId = applicationService.create("alien", applicationName, null, null);
         topology.setDelegateId(applicationId);
@@ -285,5 +300,46 @@ public class GenericTestCase {
             }
         }
         return missing;
+    }
+
+    protected void testCustomCommandFail(String applicationId, String nodeName, Integer instanceId, String command, Map<String, String> params) {
+        boolean fail = false;
+        try {
+            executeCustomCommand(applicationId, nodeName, instanceId, command, params);
+        } catch (OperationExecutionException e) {
+            fail = true;
+        } finally {
+            Assert.assertTrue(fail);
+        }
+    }
+
+    protected void testCustomCommandSuccess(String cloudifyAppId, String nodeName, Integer instanceId, String command, Map<String, String> params,
+            String expectedResultSnippet) {
+        Map<String, String> result = executeCustomCommand(cloudifyAppId, nodeName, instanceId, command, params);
+
+        if (expectedResultSnippet != null) {
+            for (String opReslt : result.values()) {
+                Assert.assertTrue("Command result is <" + opReslt.toLowerCase() + ">. It should have contain <" + expectedResultSnippet + ">", opReslt
+                        .toLowerCase().contains(expectedResultSnippet.toLowerCase()));
+            }
+        }
+    }
+
+    protected Map<String, String> executeCustomCommand(String cloudifyAppId, String nodeName, Integer instanceId, String command, Map<String, String> params) {
+        if (!deployedCloudifyAppIds.contains(cloudifyAppId)) {
+            Assert.fail("Topology not found in deployments");
+        }
+        NodeOperationExecRequest request = new NodeOperationExecRequest();
+        request.setInterfaceName("custom");
+        request.setOperationName(command);
+        request.setNodeTemplateName(nodeName);
+
+        if (instanceId != null) {
+            request.setInstanceId(instanceId.toString());
+        }
+        request.setParameters(params);
+        Map<String, String> result = cloudifyPaaSPovider.executeOperation(cloudifyAppId, request);
+        log.info("Test result is: \n\t" + result);
+        return result;
     }
 }

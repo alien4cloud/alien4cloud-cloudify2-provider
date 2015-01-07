@@ -1,22 +1,13 @@
 
 node_templates:
   comp_custom_cmd:
-    type: tosca.nodes.Compute
+    type: alien.test.TestCompute
     properties:
       os_type: linux
       os_distribution: ubuntu
       os_version: ubuntu
-  tomcat:
-    type: fastconnect.nodes.Tomcat
-    relationships:
-      hostedOnServeurWeb:
-        target: comp_custom_cmd
-        type: tosca.relationships.HostedOn
-        requirement_name: host
-        requirement_type: tosca.capabilities.Container
+      customHostName: testCompute
 
 dependencies:
-  - name: tosca-normative-types
-    version: 1.0.0.wd03-SNAPSHOT
-  - name: tomcat-test-types
+  - name: test-types
     version: 1.0-SNAPSHOT
