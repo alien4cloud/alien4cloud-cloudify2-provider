@@ -8,6 +8,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.Resource;
@@ -25,10 +26,16 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
 import alien4cloud.model.topology.Topology;
+import alien4cloud.paas.IPaaSCallback;
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
-import alien4cloud.paas.exception.ResourceMatchingFailedException;
+import alien4cloud.paas.exception.PaaSDeploymentException;
+import alien4cloud.paas.model.AbstractMonitorEvent;
 import alien4cloud.paas.model.DeploymentStatus;
+import alien4cloud.paas.model.PaaSDeploymentContext;
+import alien4cloud.paas.model.PaaSNodeTemplate;
+import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
+import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.tosca.parser.ParsingException;
 
@@ -43,10 +50,13 @@ public class DeploymentTestIT extends GenericTestCase {
     @Resource(name = "cloudify-paas-provider-bean")
     protected CloudifyPaaSProvider anotherCloudifyPaaSPovider;
 
+    @Resource
+    private TopologyTreeBuilderService topologyTreeBuilderService;
+
     public DeploymentTestIT() {
     }
 
-    @Test(expected = ResourceMatchingFailedException.class)
+    @Test(expected = PaaSDeploymentException.class)
     public void deployATopologyWhenNoComputeAreDefinedShouldFail() throws JsonParseException, JsonMappingException, ParsingException,
             CSARVersionAlreadyExistsException, IOException {
         log.info("\n\n >> Executing Test deployATopologyWhenNoComputeAreDefinedShouldFail \n");
@@ -96,11 +106,18 @@ public class DeploymentTestIT extends GenericTestCase {
         String[] computesId = new String[] { "compute", "compute_2" };
         String cloudifyAppId = deployTopology("compute_only", computesId, null);
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
-        cloudifyPaaSPovider.deploy("lol", cloudifyAppId, topo, null);
+        PaaSTopologyDeploymentContext deploymentContext = new PaaSTopologyDeploymentContext();
+        deploymentContext.setDeploymentSetup(null);
+        deploymentContext.setTopology(topo);
+        deploymentContext.setRecipeId("lol");
+        deploymentContext.setDeploymentId(cloudifyAppId);
+        Map<String, PaaSNodeTemplate> nodes = topologyTreeBuilderService.buildPaaSNodeTemplate(topo);
+        deploymentContext.setPaaSTopology(topologyTreeBuilderService.buildPaaSTopology(nodes));
+        cloudifyPaaSPovider.deploy(deploymentContext, null);
     }
 
     @Test
-    public void testConfiguringTwoPaaSProvider() throws Throwable {
+    public void testConfiguringTfwoPaaSProvider() throws Throwable {
         log.info("\n\n >> Executing Test testConfiguringTwoPaaSProvider \n");
 
         String cloudifyURL2 = "http://129.185.67.36:8100/";
@@ -131,7 +148,9 @@ public class DeploymentTestIT extends GenericTestCase {
     }
 
     private void testUndeployment(String applicationId) throws RestClientException {
-        cloudifyPaaSPovider.undeploy(applicationId);
+        PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
+        deploymentContext.setDeploymentId(applicationId);
+        cloudifyPaaSPovider.undeploy(deploymentContext, null);
         assertApplicationIsUninstalled(applicationId);
     }
 
@@ -149,7 +168,15 @@ public class DeploymentTestIT extends GenericTestCase {
         // Assert.assertNull("Application " + applicationId + " is not undeloyed!", appliDesc);
 
         // FIXME this is a hack, for the provider to set the status of the application to UNDEPLOYED
-        cloudifyPaaSPovider.getEventsSince(new Date(), 1);
+        cloudifyPaaSPovider.getEventsSince(new Date(), 1, new IPaaSCallback<AbstractMonitorEvent[]>() {
+            @Override
+            public void onSuccess(AbstractMonitorEvent[] abstractMonitorEvents) {
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+            }
+        });
         DeploymentStatus status = cloudifyPaaSPovider.getStatus(applicationId);
         Assert.assertEquals("Application " + applicationId + " is not in UNDEPLOYED state", DeploymentStatus.UNDEPLOYED, status);
     }

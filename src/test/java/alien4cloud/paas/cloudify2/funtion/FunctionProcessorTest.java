@@ -34,6 +34,11 @@ import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.paas.plan.ToscaRelationshipLifecycleConstants;
 import alien4cloud.plugin.PluginConfiguration;
+import alien4cloud.model.topology.Topology;
+import alien4cloud.model.components.AbstractPropertyValue;
+import alien4cloud.model.components.Csar;
+import alien4cloud.model.components.IOperationParameter;
+import alien4cloud.model.components.Operation;
 
 import com.google.common.collect.Lists;
 
@@ -84,8 +89,7 @@ public class FunctionProcessorTest {
     public void scalarParamSucessTest() throws Throwable {
         String computeName = "comp_tomcat_war";
         Topology topology = testsUtils.parseYamlTopology("badFunctionsTomcatWar");
-        Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSNodeTemplate(topology);
-        treeBuilder.getHostedOnTree(builtPaaSNodeTemplates);
+        Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSTopology(topology).getAllNodes();
         PaaSNodeTemplate computePaaS = builtPaaSNodeTemplates.get(computeName);
         Operation configOp = computePaaS.getIndexedNodeType().getInterfaces().get(ToscaNodeLifecycleConstants.STANDARD).getOperations()
                 .get(ToscaNodeLifecycleConstants.CONFIGURE);
@@ -99,8 +103,7 @@ public class FunctionProcessorTest {
 
         String computeName = "comp_tomcat_war";
         Topology topology = testsUtils.parseYamlTopology("badFunctionsTomcatWar");
-        Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSNodeTemplate(topology);
-        treeBuilder.getHostedOnTree(builtPaaSNodeTemplates);
+        Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSTopology(topology).getAllNodes();
         PaaSNodeTemplate computePaaS = builtPaaSNodeTemplates.get(computeName);
         Operation configOp = computePaaS.getIndexedNodeType().getInterfaces().get(ToscaNodeLifecycleConstants.STANDARD).getOperations()
                 .get(ToscaNodeLifecycleConstants.CONFIGURE);
@@ -124,8 +127,7 @@ public class FunctionProcessorTest {
         String warName = "war_1";
         String tomcatName = "tomcat";
         Topology topology = testsUtils.parseYamlTopology("badFunctionsTomcatWar");
-        Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSNodeTemplate(topology);
-        treeBuilder.getHostedOnTree(builtPaaSNodeTemplates);
+        Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSTopology(topology).getAllNodes();
         PaaSNodeTemplate warPaaS = builtPaaSNodeTemplates.get(warName);
         PaaSNodeTemplate tomcatPaaS = builtPaaSNodeTemplates.get(tomcatName);
         PaaSRelationshipTemplate hostedOnRelTemp = warPaaS.getRelationshipTemplate("hostedOnTomcat");
@@ -150,8 +152,7 @@ public class FunctionProcessorTest {
 
         String computeName = "comp_tomcat_war";
         Topology topology = testsUtils.parseYamlTopology("badFunctionsTomcatWar");
-        Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSNodeTemplate(topology);
-        treeBuilder.getHostedOnTree(builtPaaSNodeTemplates);
+        Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSTopology(topology).getAllNodes();
         PaaSNodeTemplate computePaaS = builtPaaSNodeTemplates.get(computeName);
         Operation configOp = computePaaS.getIndexedNodeType().getInterfaces().get(ToscaNodeLifecycleConstants.STANDARD).getOperations()
                 .get(ToscaNodeLifecycleConstants.CONFIGURE);
@@ -178,8 +179,7 @@ public class FunctionProcessorTest {
         String warName = "war_1";
         String computeName = "comp_tomcat_war";
         Topology topology = testsUtils.parseYamlTopology("badFunctionsTomcatWar");
-        Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSNodeTemplate(topology);
-        treeBuilder.getHostedOnTree(builtPaaSNodeTemplates);
+        Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSTopology(topology).getAllNodes();
         PaaSNodeTemplate warPaaS = builtPaaSNodeTemplates.get(warName);
         PaaSRelationshipTemplate hostedOnRelTemp = warPaaS.getRelationshipTemplate("hostedOnTomcat");
 

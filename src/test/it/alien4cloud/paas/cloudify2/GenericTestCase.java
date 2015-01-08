@@ -42,10 +42,15 @@ import alien4cloud.model.cloud.MatchedComputeTemplate;
 import alien4cloud.model.components.Csar;
 import alien4cloud.model.deployment.Deployment;
 import alien4cloud.model.topology.Topology;
+import alien4cloud.paas.IPaaSCallback;
 import alien4cloud.paas.cloudify2.exception.A4CCloudifyDriverITException;
 import alien4cloud.paas.cloudify2.testutils.TestsUtils;
 import alien4cloud.paas.exception.OperationExecutionException;
 import alien4cloud.paas.model.NodeOperationExecRequest;
+import alien4cloud.paas.model.PaaSDeploymentContext;
+import alien4cloud.paas.model.PaaSNodeTemplate;
+import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
+import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.plugin.PluginConfiguration;
 import alien4cloud.tosca.ArchiveUploadService;
 import alien4cloud.tosca.parser.ParsingException;
@@ -80,6 +85,8 @@ public class GenericTestCase {
     private ElasticSearchClient esClient;
     @Resource
     private TestsUtils testsUtils;
+    @Resource
+    private TopologyTreeBuilderService topologyTreeBuilderService;
 
     public static final String EXTENDED_TYPES_REPO = "alien-extended-types";
     public static final String EXTENDED_STORAGE_TYPES = "alien-extended-storage-types-1.0-SNAPSHOT";
@@ -262,7 +269,14 @@ public class GenericTestCase {
         }
         log.info("\n\n TESTS: Deploying topology <{}>. Deployment id is <{}>. \n", topologyFileName, topology.getId());
         deployedCloudifyAppIds.add(topology.getId());
-        cloudifyPaaSPovider.deploy(topologyFileName, topology.getId(), topology, setup);
+        PaaSTopologyDeploymentContext deploymentContext = new PaaSTopologyDeploymentContext();
+        deploymentContext.setDeploymentSetup(setup);
+        deploymentContext.setTopology(topology);
+        deploymentContext.setRecipeId(topologyFileName);
+        deploymentContext.setDeploymentId(topology.getId());
+        Map<String, PaaSNodeTemplate> nodes = topologyTreeBuilderService.buildPaaSNodeTemplate(topology);
+        deploymentContext.setPaaSTopology(topologyTreeBuilderService.buildPaaSTopology(nodes));
+        cloudifyPaaSPovider.deploy(deploymentContext, null);
         return topology.getId();
     }
 
@@ -303,29 +317,45 @@ public class GenericTestCase {
     }
 
     protected void testCustomCommandFail(String applicationId, String nodeName, Integer instanceId, String command, Map<String, String> params) {
-        boolean fail = false;
         try {
-            executeCustomCommand(applicationId, nodeName, instanceId, command, params);
+            executeCustomCommand(applicationId, nodeName, instanceId, command, params, new IPaaSCallback<Map<String, String>>() {
+                @Override
+                public void onSuccess(Map<String, String> data) {
+                    Assert.fail();
+                }
+
+                @Override
+                public void onFailure(Throwable throwable) {
+
+                }
+            });
         } catch (OperationExecutionException e) {
-            fail = true;
-        } finally {
-            Assert.assertTrue(fail);
         }
     }
 
     protected void testCustomCommandSuccess(String cloudifyAppId, String nodeName, Integer instanceId, String command, Map<String, String> params,
-            String expectedResultSnippet) {
-        Map<String, String> result = executeCustomCommand(cloudifyAppId, nodeName, instanceId, command, params);
+            final String expectedResultSnippet) {
+        executeCustomCommand(cloudifyAppId, nodeName, instanceId, command, params, new IPaaSCallback<Map<String, String>>() {
+            @Override
+            public void onSuccess(Map<String, String> result) {
 
-        if (expectedResultSnippet != null) {
-            for (String opReslt : result.values()) {
-                Assert.assertTrue("Command result is <" + opReslt.toLowerCase() + ">. It should have contain <" + expectedResultSnippet + ">", opReslt
-                        .toLowerCase().contains(expectedResultSnippet.toLowerCase()));
+                if (expectedResultSnippet != null) {
+                    for (String opReslt : result.values()) {
+                        Assert.assertTrue("Command result is <" + opReslt.toLowerCase() + ">. It should have contain <" + expectedResultSnippet + ">", opReslt
+                                .toLowerCase().contains(expectedResultSnippet.toLowerCase()));
+                    }
+                }
             }
-        }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+
+            }
+        });
     }
 
-    protected Map<String, String> executeCustomCommand(String cloudifyAppId, String nodeName, Integer instanceId, String command, Map<String, String> params) {
+    protected void executeCustomCommand(String cloudifyAppId, String nodeName, Integer instanceId, String command, Map<String, String> params,
+            IPaaSCallback<Map<String, String>> callback) {
         if (!deployedCloudifyAppIds.contains(cloudifyAppId)) {
             Assert.fail("Topology not found in deployments");
         }
@@ -338,8 +368,8 @@ public class GenericTestCase {
             request.setInstanceId(instanceId.toString());
         }
         request.setParameters(params);
-        Map<String, String> result = cloudifyPaaSPovider.executeOperation(cloudifyAppId, request);
-        log.info("Test result is: \n\t" + result);
-        return result;
+        PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
+        deploymentContext.setDeploymentId(cloudifyAppId);
+        cloudifyPaaSPovider.executeOperation(deploymentContext, request, callback);
     }
 }

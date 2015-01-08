@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import alien4cloud.model.cloud.CloudResourceMatcherConfig;
+import alien4cloud.model.cloud.CloudResourceType;
 import alien4cloud.paas.IManualResourceMatcherPaaSProvider;
 import alien4cloud.paas.exception.PluginConfigurationException;
 
@@ -34,5 +35,10 @@ public class CloudifyPaaSProvider extends AbstractCloudifyPaaSProvider<PluginCon
     @Override
     public void updateMatcherConfig(CloudResourceMatcherConfig cloudResourceMatcherConfig) {
         this.recipeGenerator.getPaaSResourceMatcher().configure(cloudResourceMatcherConfig);
+    }
+
+    @Override
+    public String[] getAvailableResourceIds(CloudResourceType resourceType) {
+        return null;
     }
 }

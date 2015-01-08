@@ -101,7 +101,9 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         // cleanup/create the topology recipe directory
         Path recipePath = cleanupDirectory(topologyId);
         List<String> serviceIds = Lists.newArrayList();
-
+        if (roots == null || roots.isEmpty()) {
+            throw new PaaSDeploymentException("No compute found in topology for deployment " + deploymentName);
+        }
         for (PaaSNodeTemplate root : roots) {
             String nodeName = root.getId();
             ComputeTemplate template = getComputeTemplateOrDie(cloudResourcesMapping, root);
