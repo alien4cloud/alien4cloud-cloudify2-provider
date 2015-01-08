@@ -11,10 +11,6 @@ import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import alien4cloud.paas.IPaaSCallback;
-import alien4cloud.paas.exception.OperationExecutionException;
-import alien4cloud.paas.model.NodeOperationExecRequest;
-import alien4cloud.paas.model.PaaSDeploymentContext;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 
 import com.google.common.collect.Maps;
@@ -34,7 +30,8 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
     public void customCommandTest() throws Exception {
         log.info("\n\n >> Executing Test customCommandTest \n");
         String cloudifyAppId = null;
-        this.uploadTestArchives("test-types1.0-SNAPSHOT");
+        this.uploadGitArchive("samples", "tomcat-war");
+        this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         try {
             String[] computesId = new String[] { "comp_custom_cmd" };
             cloudifyAppId = deployTopology("customCmd", computesId, null);

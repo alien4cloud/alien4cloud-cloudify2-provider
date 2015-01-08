@@ -6,6 +6,7 @@ import javax.annotation.Resource;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
@@ -33,6 +34,7 @@ public class BatchScriptsTestIT extends GenericTestCase {
     }
 
     @Test
+    @Ignore
     public void computeWithBatchScriptsTest() throws Exception {
         log.info("\n\n >> Executing Test computeWithBatchScriptsTest \n");
 

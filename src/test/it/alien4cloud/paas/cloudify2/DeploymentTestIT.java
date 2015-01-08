@@ -3,13 +3,7 @@ package alien4cloud.paas.cloudify2;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import javax.annotation.Resource;
 
@@ -117,7 +111,7 @@ public class DeploymentTestIT extends GenericTestCase {
     }
 
     @Test
-    public void testConfiguringTfwoPaaSProvider() throws Throwable {
+    public void testConfiguringTwoPaaSProvider() throws Throwable {
         log.info("\n\n >> Executing Test testConfiguringTwoPaaSProvider \n");
 
         String cloudifyURL2 = "http://129.185.67.36:8100/";
