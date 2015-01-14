@@ -307,28 +307,32 @@ public class GenericTestCase {
         }
     }
 
-    protected void testEvents(String applicationId, String[] nodeTemplateNames, String... expectedEvents) throws Exception {
+    protected void testEvents(String applicationId, String[] nodeTemplateNames, long timeoutInMillis, String... expectedEvents) throws Exception {
         ApplicationDescription applicationDescription = cloudifyRestClientManager.getRestClient().getApplicationDescription(applicationId);
         for (String nodeName : nodeTemplateNames) {
-            this.assertFiredEvents(nodeName, new HashSet<String>(Arrays.asList(expectedEvents)), applicationDescription);
+            this.assertFiredEvents(nodeName, new HashSet<String>(Arrays.asList(expectedEvents)), applicationDescription, timeoutInMillis);
         }
     }
 
-    protected void assertFiredEvents(String nodeName, Set<String> expectedEvents, ApplicationDescription applicationDescription) throws Exception {
-
+    protected void assertFiredEvents(String nodeName, Set<String> expectedEvents, ApplicationDescription applicationDescription, long timeoutInMillis)
+            throws Exception {
+        Set<String> currentEvents = new HashSet<>();
+        String serviceName = nodeName;
         for (ServiceDescription service : applicationDescription.getServicesDescription()) {
+            long timeout = System.currentTimeMillis() + timeoutInMillis;
+            boolean passed = false;
             String applicationName = service.getApplicationName();
-            String serviceName = nodeName;
             CloudifyEventsListener listener = new CloudifyEventsListener(cloudifyRestClientManager.getRestEventEndpoint(), applicationName, serviceName);
-            List<AlienEvent> allServiceEvents = listener.getEvents();
-
-            Set<String> currentEvents = new HashSet<>();
-            for (AlienEvent alienEvent : allServiceEvents) {
-                currentEvents.add(alienEvent.getEvent());
-            }
+            do {
+                currentEvents.clear();
+                List<AlienEvent> allServiceEvents = listener.getEvents();
+                for (AlienEvent alienEvent : allServiceEvents) {
+                    currentEvents.add(alienEvent.getEvent());
+                }
+                passed = currentEvents.containsAll(expectedEvents);
+            } while (System.currentTimeMillis() < timeout && !passed);
             log.info("Application: " + applicationName + "." + serviceName + " got events : " + currentEvents);
-            Assert.assertTrue("Missing events for node <" + serviceName + ">: " + getMissingEvents(expectedEvents, currentEvents),
-                    currentEvents.containsAll(expectedEvents));
+            Assert.assertTrue("Missing events for node <" + serviceName + ">: " + getMissingEvents(expectedEvents, currentEvents), passed);
         }
     }
 

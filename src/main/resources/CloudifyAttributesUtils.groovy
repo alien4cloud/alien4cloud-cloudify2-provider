@@ -18,10 +18,8 @@ public class CloudifyAttributesUtils {
         if(attributeName != null && cloudifyService != null) {
             def serviceAttributes = context.attributes[cloudifyService];
             if( serviceAttributes != null) {
-                if(instanceId != null) {
-                    def instanceAttributes = serviceAttributes.instances[instanceId];
-                    attr = !instanceAttributes ?: instanceAttributes[attributeName];
-                }
+                 def instanceAttributes = serviceAttributes.instances[instanceId?:context.instanceId];
+                 attr = !instanceAttributes ?: instanceAttributes[attributeName];
             }
         }
         println "CloudifyGetAttributesUtils.getAttribute: Got [${attr}]"

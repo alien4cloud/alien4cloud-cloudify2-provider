@@ -71,8 +71,8 @@ public class DeploymentTestIT extends GenericTestCase {
             waitForServiceToStarts(cloudifyAppId, "comp_tomcatsh", 1000L * 120);
             assertHttpCodeEquals(cloudifyAppId, "comp_tomcatsh", "8080", "", HTTP_CODE_OK, null);
 
-            testEvents(cloudifyAppId, new String[] { "comp_tomcatsh", "tomcat" }, ToscaNodeLifecycleConstants.CREATED, ToscaNodeLifecycleConstants.CONFIGURED,
-                    ToscaNodeLifecycleConstants.STARTED);
+            testEvents(cloudifyAppId, new String[] { "comp_tomcatsh", "tomcat" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
+                    ToscaNodeLifecycleConstants.CONFIGURED, ToscaNodeLifecycleConstants.STARTED);
 
             testUndeployment(cloudifyAppId);
 
@@ -147,7 +147,7 @@ public class DeploymentTestIT extends GenericTestCase {
         String[] computesId = new String[] { "comp_envartest" };
         String cloudifyAppId = deployTopology("envVarTest", computesId, null);
         this.assertApplicationIsInstalled(cloudifyAppId);
-        testEvents(cloudifyAppId, new String[] { "comp_envartest", "test_component" }, ToscaNodeLifecycleConstants.CREATED,
+        testEvents(cloudifyAppId, new String[] { "comp_envartest", "test_component" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
                 ToscaNodeLifecycleConstants.CONFIGURED, ToscaNodeLifecycleConstants.STARTED, ToscaNodeLifecycleConstants.AVAILABLE);
     }
 
