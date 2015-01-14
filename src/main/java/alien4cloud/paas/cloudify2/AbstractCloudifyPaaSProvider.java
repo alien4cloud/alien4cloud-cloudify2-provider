@@ -26,7 +26,6 @@ import org.cloudifysource.dsl.rest.request.SetServiceInstancesRequest;
 import org.cloudifysource.dsl.rest.response.*;
 import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
-import org.cloudifysource.restclient.exceptions.RestClientResponseException;
 
 import alien4cloud.dao.IGenericSearchDAO;
 import alien4cloud.exception.TechnicalException;
@@ -45,6 +44,7 @@ import alien4cloud.paas.cloudify2.events.BlockStorageEvent;
 import alien4cloud.paas.cloudify2.events.NodeInstanceState;
 import alien4cloud.paas.cloudify2.funtion.FunctionProcessor;
 import alien4cloud.paas.cloudify2.generator.RecipeGenerator;
+import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.exception.OperationExecutionException;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.PaaSDeploymentException;
@@ -185,10 +185,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             if (getPluginConfigurationBean().isSynchronousDeployment()) {
                 this.waitForApplicationInstallation(restClient, deploymentId);
             }
-        } catch (RestClientResponseException e) {
-            throw new PaaSDeploymentException("Unable to deploy application '" + deploymentId + "'. Cause: " + e.getMessageFormattedText(), e);
         } catch (RestClientException e) {
-            throw new PaaSDeploymentException("Unable to deploy application '" + deploymentId + "'", e);
+            throw new PaaSDeploymentException("Unable to deploy application '" + deploymentId + "'.\n\t Cause: " + e.getMessageFormattedText(), e);
         }
     }
 
@@ -218,7 +216,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
                 }
             }
         } catch (RestClientException e) {
-            throw new PaaSDeploymentException("Failed checking application deployment", e);
+            throw new PaaSDeploymentException("Failed checking application deployment.\n\t Cause: " + e.getMessageFormattedText(), e);
         }
 
         throw new PaaSDeploymentException("Application '" + applicationName + "' fails to reach started state in time.");
@@ -247,10 +245,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
                 String cdfyDeploymentId = uninstallApplication.getDeploymentID();
                 this.waitUndeployApplication(cdfyDeploymentId);
             }
-        } catch (RestClientResponseException e) {
-            throw new PaaSDeploymentException("Couldn't uninstall topology '" + deploymentId + "'. Cause: " + e.getMessageFormattedText(), e);
         } catch (RestClientException e) {
-            throw new PaaSDeploymentException("Couldn't uninstall topology '" + deploymentId + "'", e);
+            throw new PaaSDeploymentException("Couldn't uninstall topology '" + deploymentId + "'. Cause: " + e.getMessageFormattedText(), e);
         }
     }
 
@@ -481,7 +477,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             fillRuntimeInformations(deploymentId, instanceInformations);
             parseAttributes(instanceInformations, topology);
             return instanceInformations;
-        } catch (RestClientResponseException e) {
+        } catch (RestClientException e) {
+            log.warn("Error getting " + deploymentId + " deployment informations. \n\t Cause: " + e.getMessageFormattedText());
             return Maps.newHashMap();
         } catch (Exception e) {
             throw new PaaSTechnicalException("Error getting " + deploymentId + " deployment informations", e);
@@ -801,7 +798,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             }
 
         } catch (RestClientException e) {
-            callback.onFailure(new PaaSTechnicalException("Unable to execute the operation <" + operationFQN + ">", e));
+            callback.onFailure(new PaaSTechnicalException("Unable to execute the operation <" + operationFQN + ">.\n\t Cause: " + e.getMessageFormattedText(),
+                    e));
         }
 
         log.debug("Result is: \n" + operationResponse);

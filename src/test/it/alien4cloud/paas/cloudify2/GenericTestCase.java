@@ -144,7 +144,11 @@ public class GenericTestCase {
         try {
             undeployAllApplications();
         } catch (RestClientException | IOException e) {
-            log.warn("error in after:", e);
+            String msge = "";
+            if (e instanceof RestClientException) {
+                msge = ((RestClientException) e).getMessageFormattedText();
+            }
+            log.warn("error in after: " + msge, e);
         }
     }
 

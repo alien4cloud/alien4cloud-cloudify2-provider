@@ -1,4 +1,4 @@
-package alien4cloud.paas.cloudify2;
+package alien4cloud.paas.cloudify2.utils;
 
 import java.io.File;
 import java.io.IOException;

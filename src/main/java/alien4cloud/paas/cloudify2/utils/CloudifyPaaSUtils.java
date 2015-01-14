@@ -1,10 +1,8 @@
-package alien4cloud.paas.cloudify2;
+package alien4cloud.paas.cloudify2.utils;
 
 import alien4cloud.model.components.IndexedToscaElement;
-import alien4cloud.paas.exception.PaaSTechnicalException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.tosca.ToscaUtils;
-import alien4cloud.tosca.normative.NormativeComputeConstants;
 
 public class CloudifyPaaSUtils {
 

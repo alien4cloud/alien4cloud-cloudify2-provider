@@ -20,7 +20,7 @@ import alien4cloud.component.repository.ArtifactRepositoryConstants;
 import alien4cloud.model.components.DeploymentArtifact;
 import alien4cloud.model.components.ImplementationArtifact;
 import alien4cloud.model.components.IndexedArtifactToscaElement;
-import alien4cloud.paas.cloudify2.CloudifyPaaSUtils;
+import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
 
