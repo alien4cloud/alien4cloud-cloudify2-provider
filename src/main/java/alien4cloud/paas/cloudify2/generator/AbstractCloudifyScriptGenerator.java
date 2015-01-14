@@ -1,9 +1,9 @@
 package alien4cloud.paas.cloudify2.generator;
 
+import static alien4cloud.paas.cloudify2.generator.AlienEnvironmentVariables.*;
 import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SCRIPTS;
 import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SCRIPT_LIFECYCLE;
 import static alien4cloud.tosca.normative.ToscaFunctionConstants.HOST;
-import static alien4cloud.tosca.normative.ToscaFunctionConstants.PARENT;
 import static alien4cloud.tosca.normative.ToscaFunctionConstants.SELF;
 
 import java.io.IOException;
@@ -17,12 +17,14 @@ import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import javax.annotation.Resource;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.ApplicationContext;
 
+import alien4cloud.model.components.FunctionPropertyValue;
 import alien4cloud.model.components.IOperationParameter;
 import alien4cloud.model.components.ImplementationArtifact;
 import alien4cloud.model.components.IndexedToscaElement;
@@ -32,7 +34,10 @@ import alien4cloud.paas.IPaaSTemplate;
 import alien4cloud.paas.cloudify2.CloudifyPaaSUtils;
 import alien4cloud.paas.cloudify2.VelocityUtil;
 import alien4cloud.paas.cloudify2.funtion.FunctionProcessor;
+import alien4cloud.paas.function.FunctionEvaluator;
 import alien4cloud.paas.model.PaaSNodeTemplate;
+import alien4cloud.paas.model.PaaSRelationshipTemplate;
+import alien4cloud.tosca.normative.ToscaFunctionConstants;
 import alien4cloud.utils.CollectionUtils;
 
 import com.google.common.collect.Maps;
@@ -49,6 +54,8 @@ abstract class AbstractCloudifyScriptGenerator {
     private RecipePropertiesGenerator recipePropertiesGenerator;
     @Resource
     private ApplicationContext applicationContext;
+
+    private static final String MAP_TO_ADD_KEYWORD = "MAP_TO_ADD_";
 
     protected String getOperationCommandFromInterface(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate nodeTemplate,
             final String interfaceName, final String operationName, final Map<String, String> paramsAsVar, Map<String, String> stringParams) throws IOException {
@@ -69,7 +76,7 @@ abstract class AbstractCloudifyScriptGenerator {
         String command;
         String relativePath = CloudifyPaaSUtils.getNodeTypeRelativePath(nodeTemplate.getIndexedNodeType());
         stringParams = stringParams == null ? Maps.<String, String> newHashMap() : stringParams;
-        addNodeBaseEnvVars(nodeTemplate, stringParams, SELF, PARENT, HOST);
+        addNodeBaseEnvVars(nodeTemplate, stringParams, SELF, HOST, SERVICE_NAME);
         command = getCommandFromOperation(context, nodeTemplate, interfaceName, operationName, relativePath, operation.getImplementationArtifact(),
                 paramsAsVar, stringParams, operation.getInputParameters());
         if (StringUtils.isNotBlank(command)) {
@@ -90,10 +97,54 @@ abstract class AbstractCloudifyScriptGenerator {
         funtionProcessor.processParameters(inputParameters, stringEvalResults, runtimeEvalResults, basePaaSTemplate, context.getTopologyNodeTemplates());
         stringEvalResults = alien4cloud.utils.CollectionUtils.merge(stringEnvVars, stringEvalResults, false);
         runtimeEvalResults = alien4cloud.utils.CollectionUtils.merge(varEnvVars, runtimeEvalResults, false);
-
+        // if relationship, add relationship env vars
+        if (basePaaSTemplate instanceof PaaSRelationshipTemplate) {
+            addRelationshipEnvVars(inputParameters, stringEvalResults, runtimeEvalResults, (PaaSRelationshipTemplate) basePaaSTemplate,
+                    context.getTopologyNodeTemplates());
+        } else {
+            addNodeBaseEnvVars((PaaSNodeTemplate) basePaaSTemplate, stringEvalResults, SELF, HOST, SERVICE_NAME);
+        }
         String scriptPath = relativePath + "/" + artifact.getArtifactRef();
         String operationFQN = basePaaSTemplate.getId() + "." + interfaceName + "." + operationName;
         return commandGenerator.getCommandBasedOnArtifactType(operationFQN, artifact, runtimeEvalResults, stringEvalResults, scriptPath);
+    }
+
+    private void addRelationshipEnvVars(Map<String, IOperationParameter> inputParameters, Map<String, String> stringEvalResults,
+            Map<String, String> runtimeEvalResults, PaaSRelationshipTemplate basePaaSTemplate, Map<String, PaaSNodeTemplate> builtPaaSTemplates)
+            throws IOException {
+
+        Map<String, String> targetAttributes = Maps.newHashMap();
+        Map<String, String> sourceAttributes = Maps.newHashMap();
+        String sourceId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(basePaaSTemplate.getSource());
+        String targetId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(basePaaSTemplate.getRelationshipTemplate().getTarget());
+        String sourceServiceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(builtPaaSTemplates.get(basePaaSTemplate.getSource()));
+        String targetServiceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(builtPaaSTemplates.get(basePaaSTemplate.getRelationshipTemplate()
+                .getTarget()));
+
+        // custom alien env vars
+        stringEvalResults.put(SOURCE_NAME, basePaaSTemplate.getSource());
+        stringEvalResults.put(TARGET_NAME, basePaaSTemplate.getRelationshipTemplate().getTarget());
+        stringEvalResults.put(SOURCE_SERVICE_NAME, CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(builtPaaSTemplates.get(basePaaSTemplate.getSource())));
+        stringEvalResults.put(TARGET_SERVICE_NAME,
+                CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(builtPaaSTemplates.get(basePaaSTemplate.getRelationshipTemplate().getTarget())));
+
+        // separate target and source attributes
+        for (Entry<String, IOperationParameter> paramEntry : inputParameters.entrySet()) {
+            if (!paramEntry.getValue().isDefinition() && FunctionEvaluator.isGetAttribute((FunctionPropertyValue) paramEntry.getValue())) {
+                FunctionPropertyValue param = (FunctionPropertyValue) paramEntry.getValue();
+                if (ToscaFunctionConstants.TARGET.equals(FunctionEvaluator.getEntityName(param))) {
+                    targetAttributes.put(paramEntry.getKey(), FunctionEvaluator.getElementName(param));
+                } else if (ToscaFunctionConstants.SOURCE.equals(FunctionEvaluator.getEntityName(param))) {
+                    sourceAttributes.put(paramEntry.getKey(), FunctionEvaluator.getElementName(param));
+                }
+            }
+        }
+
+        // TOSCA SOURCE/SOURCES and TARGET/TARGETS
+        runtimeEvalResults.put(MAP_TO_ADD_KEYWORD + ToscaFunctionConstants.SOURCE,
+                commandGenerator.getTOSCARelationshipEnvsCommand(ToscaFunctionConstants.SOURCE, sourceId, sourceServiceName, sourceAttributes));
+        runtimeEvalResults.put(MAP_TO_ADD_KEYWORD + ToscaFunctionConstants.TARGET,
+                commandGenerator.getTOSCARelationshipEnvsCommand(ToscaFunctionConstants.TARGET, targetId, targetServiceName, targetAttributes));
     }
 
     protected void generateScriptWorkflow(final Path servicePath, final Path velocityDescriptorPath, final String lifecycle, final List<String> executions,
@@ -107,7 +158,7 @@ abstract class AbstractCloudifyScriptGenerator {
         VelocityUtil.writeToOutputFile(velocityDescriptorPath, outputPath, properties);
     }
 
-    protected void addNodeBaseEnvVars(final PaaSNodeTemplate nodeTemplate, final Map<String, String> envMap, final String... envKeys) {
+    private void addNodeBaseEnvVars(final PaaSNodeTemplate nodeTemplate, final Map<String, String> envMap, final String... envKeys) {
         if (envKeys == null) {
             return;
         }
@@ -117,10 +168,10 @@ abstract class AbstractCloudifyScriptGenerator {
                     envMap.put(envKey, nodeTemplate.getId());
                     break;
                 case HOST:
-                    envMap.put(envKey, CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(nodeTemplate));
-                    break;
-                case PARENT:
                     envMap.put(envKey, nodeTemplate.getParent() == null ? null : nodeTemplate.getParent().getId());
+                    break;
+                case SERVICE_NAME:
+                    envMap.put(envKey, CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(nodeTemplate));
                     break;
                 default:
                     break;

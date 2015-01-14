@@ -83,9 +83,15 @@ node_types:
               required: true
             customHostName: { get_property: [HOST, customHostName] }
           implementation: scripts/helloCmd.groovy
-          
+
+  alien.test.nodes.envVarTestComponent:
+    derived_from: tosca.nodes.SoftwareComponent
+    properties:
+      name:
+        type: string
+   
 relationship_types:
-  alien.test.relationships.cloudify.WarHostedOnTomcat:
+  alien.test.bad.relationships.cloudify.WarHostedOnTomcat:
     derived_from: alien.relationships.cloudify.WarHostedOnTomcat
     interfaces:
       configure:
@@ -96,4 +102,14 @@ relationship_types:
             tomcatIp: { get_attribute: [TARGET, ip_address] }
             warNodeContext: { get_attribute: [SOURCE, warNodeContext] }
           implementation: relationshipScripts/warHostedOnTomcat_post_configure_source.groovy
-            
+          
+  alien.test.relationships.HostedOn:
+    derived_from: tosca.relationships.HostedOn
+    interfaces:
+      configure:
+        post_configure_source: 
+          inputs:
+            CUSTOM_HOSTNAME: { get_property: [TARGET, customHostName] }
+            NAME: { get_property: [SOURCE, name] }
+            COMPUTE_IP: { get_attribute: [TARGET, ip_address] }
+          implementation: relationshipScripts/test_hostedOn_post_configure_source.groovy

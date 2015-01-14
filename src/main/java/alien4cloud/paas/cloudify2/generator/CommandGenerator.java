@@ -31,7 +31,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Component
 public class CommandGenerator {
     private final static String[] SERVICE_RECIPE_RESOURCES = new String[] { "chmod-init.groovy", "CloudifyUtils.groovy", "GigaSpacesEventsManager.groovy",
-            "CloudifyExecutorUtils.groovy", "CloudifyAttributesUtils.groovy" };
+            "CloudifyExecutorUtils.groovy", "CloudifyAttributesUtils.groovy", "EnvironmentBuilder.groovy" };
 
     private static final String FIRE_EVENT_FORMAT = "CloudifyExecutorUtils.fireEvent(\"%s\", \"%s\")";
     private static final String FIRE_BLOCKSTORAGE_EVENT_FORMAT = "CloudifyExecutorUtils.fireBlockStorageEvent(\"%s\", \"%s\", %s)";
@@ -49,6 +49,8 @@ public class CommandGenerator {
 
     private static final String GET_INSTANCE_ATTRIBUTE_FORMAT = "CloudifyAttributesUtils.getAttribute(context, %s, %s, %s)";
     private static final String GET_IP_FORMAT = "CloudifyAttributesUtils.getIp(context, %s, %s)";
+
+    private static final String GET_TOSCA_RELATIONSHIP_ENVS_FORMAT = "EnvironmentBuilder.getTOSCARelationshipEnvs(context, %s, %s, %s, %s)";
 
     @Resource
     private ApplicationContext applicationContext;
@@ -295,10 +297,10 @@ public class CommandGenerator {
      * @return
      */
     public String getAttributeCommand(String attributeName, String cloudifyServiceName, String instanceId) {
-        String finalCloudifyService = cloudifyServiceName == null ? null : "\"" + cloudifyServiceName + "\"";
-        String finalAttributeName = attributeName == null ? null : "\"" + attributeName + "\"";
-        String finalInstanceId = instanceId == null ? null : "\"" + instanceId + "\"";
-        return String.format(GET_INSTANCE_ATTRIBUTE_FORMAT, finalCloudifyService, finalInstanceId, finalAttributeName);
+        cloudifyServiceName = formatString(cloudifyServiceName);
+        attributeName = formatString(attributeName);
+        instanceId = formatString(instanceId);
+        return String.format(GET_INSTANCE_ATTRIBUTE_FORMAT, cloudifyServiceName, instanceId, attributeName);
     }
 
     /**
@@ -309,9 +311,21 @@ public class CommandGenerator {
      * @return
      */
     public String getIpCommand(String cloudifyServiceName, String instanceId) {
-        String finalCloudifyService = cloudifyServiceName == null ? null : "\"" + cloudifyServiceName + "\"";
-        String finalInstanceId = instanceId == null ? null : "\"" + instanceId + "\"";
-        return String.format(GET_IP_FORMAT, finalCloudifyService, finalInstanceId);
+        cloudifyServiceName = formatString(cloudifyServiceName);
+        instanceId = formatString(instanceId);
+        return String.format(GET_IP_FORMAT, cloudifyServiceName, instanceId);
+    }
+
+    public String getTOSCARelationshipEnvsCommand(String name, String baseValue, String serviceName, Map<String, String> attributes) throws IOException {
+        name = formatString(name);
+        baseValue = formatString(baseValue);
+        serviceName = formatString(serviceName);
+        String formatedParams = formatParams(attributes, null);
+        return String.format(GET_TOSCA_RELATIONSHIP_ENVS_FORMAT, name, baseValue, serviceName, formatedParams);
+    }
+
+    private String formatString(String serviceName) {
+        return serviceName == null ? null : "\"" + serviceName + "\"";
     }
 
     private static void buildParamsAsString(Map<String, String> stringParamsMap, StringBuilder parametersSb) throws IOException {

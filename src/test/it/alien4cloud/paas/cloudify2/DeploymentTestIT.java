@@ -3,14 +3,14 @@ package alien4cloud.paas.cloudify2;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.Map;
 
 import javax.annotation.Resource;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.cloudifysource.dsl.rest.response.ApplicationDescription;
-import org.cloudifysource.dsl.rest.response.ServiceDescription;
 import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.junit.Assert;
 import org.junit.Test;
@@ -21,7 +21,6 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
 import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.IPaaSCallback;
-import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.model.AbstractMonitorEvent;
@@ -141,18 +140,22 @@ public class DeploymentTestIT extends GenericTestCase {
 
     }
 
+    @Test
+    public void testRelationshipToscaEnvVars() throws Throwable {
+        this.uploadGitArchive("samples", "tomcat-war");
+        this.uploadTestArchives("test-types-1.0-SNAPSHOT");
+        String[] computesId = new String[] { "comp_envartest" };
+        String cloudifyAppId = deployTopology("envVarTest", computesId, null);
+        this.assertApplicationIsInstalled(cloudifyAppId);
+        testEvents(cloudifyAppId, new String[] { "comp_envartest", "test_component" }, ToscaNodeLifecycleConstants.CREATED,
+                ToscaNodeLifecycleConstants.CONFIGURED, ToscaNodeLifecycleConstants.STARTED, ToscaNodeLifecycleConstants.AVAILABLE);
+    }
+
     private void testUndeployment(String applicationId) throws RestClientException {
         PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
         deploymentContext.setDeploymentId(applicationId);
         cloudifyPaaSPovider.undeploy(deploymentContext, null);
         assertApplicationIsUninstalled(applicationId);
-    }
-
-    private void testEvents(String applicationId, String[] nodeTemplateNames, String... expectedEvents) throws Exception {
-        ApplicationDescription applicationDescription = cloudifyRestClientManager.getRestClient().getApplicationDescription(applicationId);
-        for (String nodeName : nodeTemplateNames) {
-            this.assertFiredEvents(nodeName, new HashSet<String>(Arrays.asList(expectedEvents)), applicationDescription);
-        }
     }
 
     private void assertApplicationIsUninstalled(String applicationId) throws RestClientException {
@@ -173,23 +176,6 @@ public class DeploymentTestIT extends GenericTestCase {
         });
         DeploymentStatus status = cloudifyPaaSPovider.getStatus(applicationId);
         Assert.assertEquals("Application " + applicationId + " is not in UNDEPLOYED state", DeploymentStatus.UNDEPLOYED, status);
-    }
-
-    private void assertFiredEvents(String nodeName, Set<String> expectedEvents, ApplicationDescription applicationDescription) throws Exception {
-
-        for (ServiceDescription service : applicationDescription.getServicesDescription()) {
-            String applicationName = service.getApplicationName();
-            String serviceName = nodeName;
-            CloudifyEventsListener listener = new CloudifyEventsListener(cloudifyRestClientManager.getRestEventEndpoint(), applicationName, serviceName);
-            List<AlienEvent> allServiceEvents = listener.getEvents();
-
-            Set<String> currentEvents = new HashSet<>();
-            for (AlienEvent alienEvent : allServiceEvents) {
-                currentEvents.add(alienEvent.getEvent());
-            }
-            log.info("Application: " + applicationName + "." + serviceName + " got events : " + currentEvents);
-            Assert.assertTrue("Missing events: " + getMissingEvents(expectedEvents, currentEvents), currentEvents.containsAll(expectedEvents));
-        }
     }
 
 }

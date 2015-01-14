@@ -25,7 +25,7 @@ node_templates:
     relationships:
       hostedOnTomcat:
         target: tomcat
-        type: alien.test.relationships.cloudify.WarHostedOnTomcat
+        type: alien.test.bad.relationships.cloudify.WarHostedOnTomcat
         requirement_name: host
         requirement_type: alien4cloud.capabilities.WarHosting
         targeted_capability_name: war_host
@@ -36,7 +36,7 @@ node_templates:
     relationships:
       hostedOnTomcat:
         target: tomcat
-        type: alien.test.relationships.cloudify.WarHostedOnTomcat
+        type: alien.test.bad.relationships.cloudify.WarHostedOnTomcat
         requirement_name: host
         requirement_type: alien4cloud.capabilities.WarHosting
         targeted_capability_name: war_host

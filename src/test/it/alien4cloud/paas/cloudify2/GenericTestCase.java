@@ -43,6 +43,7 @@ import alien4cloud.model.components.Csar;
 import alien4cloud.model.deployment.Deployment;
 import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.IPaaSCallback;
+import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.exception.A4CCloudifyDriverITException;
 import alien4cloud.paas.cloudify2.testutils.TestsUtils;
 import alien4cloud.paas.exception.OperationExecutionException;
@@ -84,7 +85,7 @@ public class GenericTestCase {
     @Resource
     private ElasticSearchClient esClient;
     @Resource
-    private TestsUtils testsUtils;
+    protected TestsUtils testsUtils;
     @Resource
     private TopologyTreeBuilderService topologyTreeBuilderService;
 
@@ -303,6 +304,31 @@ public class GenericTestCase {
         List<ServiceDescription> servicesDescription = appliDesc.getServicesDescription();
         for (ServiceDescription service : servicesDescription) {
             Assert.assertEquals("Service " + service.getServiceName() + " is not in STARTED state", DeploymentState.STARTED, service.getServiceState());
+        }
+    }
+
+    protected void testEvents(String applicationId, String[] nodeTemplateNames, String... expectedEvents) throws Exception {
+        ApplicationDescription applicationDescription = cloudifyRestClientManager.getRestClient().getApplicationDescription(applicationId);
+        for (String nodeName : nodeTemplateNames) {
+            this.assertFiredEvents(nodeName, new HashSet<String>(Arrays.asList(expectedEvents)), applicationDescription);
+        }
+    }
+
+    protected void assertFiredEvents(String nodeName, Set<String> expectedEvents, ApplicationDescription applicationDescription) throws Exception {
+
+        for (ServiceDescription service : applicationDescription.getServicesDescription()) {
+            String applicationName = service.getApplicationName();
+            String serviceName = nodeName;
+            CloudifyEventsListener listener = new CloudifyEventsListener(cloudifyRestClientManager.getRestEventEndpoint(), applicationName, serviceName);
+            List<AlienEvent> allServiceEvents = listener.getEvents();
+
+            Set<String> currentEvents = new HashSet<>();
+            for (AlienEvent alienEvent : allServiceEvents) {
+                currentEvents.add(alienEvent.getEvent());
+            }
+            log.info("Application: " + applicationName + "." + serviceName + " got events : " + currentEvents);
+            Assert.assertTrue("Missing events for node <" + serviceName + ">: " + getMissingEvents(expectedEvents, currentEvents),
+                    currentEvents.containsAll(expectedEvents));
         }
     }
 

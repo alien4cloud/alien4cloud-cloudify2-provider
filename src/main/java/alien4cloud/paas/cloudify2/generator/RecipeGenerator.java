@@ -2,7 +2,6 @@ package alien4cloud.paas.cloudify2.generator;
 
 import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.*;
 import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.*;
-import static alien4cloud.tosca.normative.ToscaFunctionConstants.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -65,7 +64,8 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
 
     private static final String START_DETECTION_SCRIPT_FILE_NAME = "startDetection";
     private static final String STOP_DETECTION_SCRIPT_FILE_NAME = "stopDetection";
-    private static final String RESEVED_ENV_KEYWORD = "NAME_VALUE_TO_PARSE";
+    private static final String NAME_VALUE_TO_PARSE_KEWORD = "NAME_VALUE_TO_PARSE";
+    private static final String MAP_TO_ADD_KEYWORD = "MAP_TO_ADD_";
 
     private Path recipeDirectoryPath;
     @Resource
@@ -339,7 +339,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
 
                 // add the reserved env params
                 Map<String, String> runtimeEvalResults = Maps.newHashMap();
-                runtimeEvalResults.put(RESEVED_ENV_KEYWORD, "args");
+                runtimeEvalResults.put(NAME_VALUE_TO_PARSE_KEWORD, "args");
 
                 // prepare and get the command
                 String command = prepareAndGetCommand(context, nodeTemplate, CUSTOM_INTERFACE_NAME, entry.getKey(), runtimeEvalResults,
@@ -461,10 +461,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             final List<String> executions, final PaaSNodeTemplate paaSNodeTemplate, final boolean isAsynchronous) throws IOException {
         String relativePath = CloudifyPaaSUtils.getNodeTypeRelativePath(paaSNodeTemplate.getIndexedNodeType());
         this.artifactCopier.copyImplementationArtifact(context, operationCall.getCsarPath(), relativePath, operationCall.getImplementationArtifact());
-        // we set as env var the node (self), and it host
-        Map<String, String> nodesEnvVars = Maps.newHashMap();
-        addNodeBaseEnvVars(paaSNodeTemplate, nodesEnvVars, SELF, PARENT, HOST);
-        generateOperationCallCommand(context, relativePath, operationCall, null, nodesEnvVars, executions, isAsynchronous);
+        generateOperationCallCommand(context, relativePath, operationCall, executions, isAsynchronous);
     }
 
     private Map<String, String> escapeForLinuxPath(Map<String, String> paths) {
@@ -483,21 +480,14 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         PaaSRelationshipTemplate paaSRelationshipTemplate = paaSNodeTemplate.getRelationshipTemplate(operationCall.getRelationshipId());
         String relativePath = CloudifyPaaSUtils.getNodeTypeRelativePath(paaSRelationshipTemplate.getIndexedRelationshipType());
         this.artifactCopier.copyImplementationArtifact(context, operationCall.getCsarPath(), relativePath, operationCall.getImplementationArtifact());
-
-        // we set as env var the source, target, source_host and target_host of the relationship
-        Map<String, String> nodesEnvVars = Maps.newHashMap();
-        nodesEnvVars.put(SOURCE, paaSRelationshipTemplate.getSource());
-        nodesEnvVars.put(TARGET, paaSRelationshipTemplate.getRelationshipTemplate().getTarget());
-        nodesEnvVars.put(SOURCE_HOST, CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(context.getNodeTemplateById(paaSRelationshipTemplate.getSource())));
-        nodesEnvVars.put(TARGET_HOST,
-                CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(context.getNodeTemplateById(paaSRelationshipTemplate.getRelationshipTemplate().getTarget())));
-
-        generateOperationCallCommand(context, relativePath, operationCall, null, nodesEnvVars, executions, false);
+        generateOperationCallCommand(context, relativePath, operationCall, executions, false);
     }
 
     private void generateOperationCallCommand(final RecipeGeneratorServiceContext context, final String relativePath,
-            final OperationCallActivity operationCall, final Map<String, String> varParamNames, Map<String, String> stringParameters,
-            final List<String> executions, final boolean isAsynchronous) throws IOException {
+            final OperationCallActivity operationCall, final List<String> executions, final boolean isAsynchronous) throws IOException {
+
+        Map<String, String> varParamNames = Maps.newHashMap();
+        Map<String, String> stringParameters = Maps.newHashMap();
 
         IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate = context.getNodeTemplateById(operationCall.getNodeTemplateId());
         if (operationCall.getRelationshipId() != null) {
