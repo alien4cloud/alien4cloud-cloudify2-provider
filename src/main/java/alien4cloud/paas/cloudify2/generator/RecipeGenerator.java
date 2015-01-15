@@ -108,9 +108,9 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             String nodeName = root.getId();
             ComputeTemplate template = getComputeTemplateOrDie(cloudResourcesMapping, root);
             Network network = null;
-            PaaSNodeTemplate networkNode = root.getNetworkNode();
-            if (networkNode != null) {
-                network = getNetworkTemplateOrDie(networkMapping, networkNode);
+            List<PaaSNodeTemplate> networkNodes = root.getNetworkNodes();
+            if (networkNodes != null && !networkNodes.isEmpty()) {
+                network = getNetworkTemplateOrDie(networkMapping, networkNodes.iterator().next());
             }
             String serviceId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(nodeName);
             generateService(nodeTemplates, recipePath, serviceId, root, template, network);
