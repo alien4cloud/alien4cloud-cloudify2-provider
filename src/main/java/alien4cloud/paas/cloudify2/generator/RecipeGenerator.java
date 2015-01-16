@@ -45,7 +45,6 @@ import alien4cloud.paas.model.PaaSRelationshipTemplate;
 import alien4cloud.paas.plan.*;
 import alien4cloud.tosca.normative.NormativeComputeConstants;
 import alien4cloud.tosca.normative.NormativeNetworkConstants;
-import alien4cloud.utils.CollectionUtils;
 import alien4cloud.utils.FileUtil;
 import alien4cloud.utils.MapUtil;
 
@@ -65,7 +64,6 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
     private static final String START_DETECTION_SCRIPT_FILE_NAME = "startDetection";
     private static final String STOP_DETECTION_SCRIPT_FILE_NAME = "stopDetection";
     private static final String NAME_VALUE_TO_PARSE_KEWORD = "NAME_VALUE_TO_PARSE";
-    private static final String MAP_TO_ADD_KEYWORD = "MAP_TO_ADD_";
 
     private Path recipeDirectoryPath;
     @Resource
@@ -460,7 +458,8 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
     private void generateNodeOperationCall(final RecipeGeneratorServiceContext context, final OperationCallActivity operationCall,
             final List<String> executions, final PaaSNodeTemplate paaSNodeTemplate, final boolean isAsynchronous) throws IOException {
         String relativePath = CloudifyPaaSUtils.getNodeTypeRelativePath(paaSNodeTemplate.getIndexedNodeType());
-        this.artifactCopier.copyImplementationArtifact(context, operationCall.getCsarPath(), relativePath, operationCall.getImplementationArtifact());
+        this.artifactCopier.copyImplementationArtifact(context, operationCall.getCsarPath(), relativePath, operationCall.getImplementationArtifact(),
+                paaSNodeTemplate.getIndexedNodeType());
         generateOperationCallCommand(context, relativePath, operationCall, executions, isAsynchronous);
     }
 
@@ -479,7 +478,8 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             final List<String> executions, final PaaSNodeTemplate paaSNodeTemplate) throws IOException {
         PaaSRelationshipTemplate paaSRelationshipTemplate = paaSNodeTemplate.getRelationshipTemplate(operationCall.getRelationshipId());
         String relativePath = CloudifyPaaSUtils.getNodeTypeRelativePath(paaSRelationshipTemplate.getIndexedRelationshipType());
-        this.artifactCopier.copyImplementationArtifact(context, operationCall.getCsarPath(), relativePath, operationCall.getImplementationArtifact());
+        this.artifactCopier.copyImplementationArtifact(context, operationCall.getCsarPath(), relativePath, operationCall.getImplementationArtifact(),
+                paaSRelationshipTemplate.getIndexedRelationshipType());
         generateOperationCallCommand(context, relativePath, operationCall, executions, false);
     }
 
@@ -496,7 +496,9 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
 
         // add artifacts paths of the node (source node in case of a relationship )
         Map<String, String> copiedArtifactPath = escapeForLinuxPath(context.getNodeArtifactsPaths().get(operationCall.getNodeTemplateId()));
-        stringParameters = CollectionUtils.merge(copiedArtifactPath, stringParameters, false);
+        if (copiedArtifactPath != null) {
+            stringParameters.putAll(copiedArtifactPath);
+        }
 
         // now call the operation script
         String command = getCommandFromOperation(context, basePaaSTemplate, operationCall.getInterfaceName(), operationCall.getOperationName(), relativePath,

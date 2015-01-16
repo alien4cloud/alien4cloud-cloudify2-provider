@@ -76,11 +76,11 @@ abstract class AbstractCloudifyScriptGenerator {
         String command;
         String relativePath = CloudifyPaaSUtils.getNodeTypeRelativePath(nodeTemplate.getIndexedNodeType());
         stringParams = stringParams == null ? Maps.<String, String> newHashMap() : stringParams;
-        addNodeBaseEnvVars(nodeTemplate, stringParams, SELF, HOST, SERVICE_NAME);
         command = getCommandFromOperation(context, nodeTemplate, interfaceName, operationName, relativePath, operation.getImplementationArtifact(),
                 paramsAsVar, stringParams, operation.getInputParameters());
         if (StringUtils.isNotBlank(command)) {
-            this.artifactCopier.copyImplementationArtifact(context, nodeTemplate.getCsarPath(), relativePath, operation.getImplementationArtifact());
+            this.artifactCopier.copyImplementationArtifact(context, nodeTemplate.getCsarPath(), relativePath, operation.getImplementationArtifact(),
+                    nodeTemplate.getIndexedNodeType());
         }
         return command;
     }
@@ -95,8 +95,12 @@ abstract class AbstractCloudifyScriptGenerator {
         Map<String, String> runtimeEvalResults = Maps.newHashMap();
         Map<String, String> stringEvalResults = Maps.newHashMap();
         funtionProcessor.processParameters(inputParameters, stringEvalResults, runtimeEvalResults, basePaaSTemplate, context.getTopologyNodeTemplates());
-        stringEvalResults = alien4cloud.utils.CollectionUtils.merge(stringEnvVars, stringEvalResults, false);
-        runtimeEvalResults = alien4cloud.utils.CollectionUtils.merge(varEnvVars, runtimeEvalResults, false);
+        if (stringEnvVars != null) {
+            stringEvalResults.putAll(stringEnvVars);
+        }
+        if (varEnvVars != null) {
+            runtimeEvalResults.putAll(varEnvVars);
+        }
         // if relationship, add relationship env vars
         if (basePaaSTemplate instanceof PaaSRelationshipTemplate) {
             addRelationshipEnvVars(inputParameters, stringEvalResults, runtimeEvalResults, (PaaSRelationshipTemplate) basePaaSTemplate,
@@ -129,13 +133,15 @@ abstract class AbstractCloudifyScriptGenerator {
                 CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(builtPaaSTemplates.get(basePaaSTemplate.getRelationshipTemplate().getTarget())));
 
         // separate target and source attributes
-        for (Entry<String, IOperationParameter> paramEntry : inputParameters.entrySet()) {
-            if (!paramEntry.getValue().isDefinition() && FunctionEvaluator.isGetAttribute((FunctionPropertyValue) paramEntry.getValue())) {
-                FunctionPropertyValue param = (FunctionPropertyValue) paramEntry.getValue();
-                if (ToscaFunctionConstants.TARGET.equals(FunctionEvaluator.getEntityName(param))) {
-                    targetAttributes.put(paramEntry.getKey(), FunctionEvaluator.getElementName(param));
-                } else if (ToscaFunctionConstants.SOURCE.equals(FunctionEvaluator.getEntityName(param))) {
-                    sourceAttributes.put(paramEntry.getKey(), FunctionEvaluator.getElementName(param));
+        if (inputParameters != null) {
+            for (Entry<String, IOperationParameter> paramEntry : inputParameters.entrySet()) {
+                if (!paramEntry.getValue().isDefinition() && FunctionEvaluator.isGetAttribute((FunctionPropertyValue) paramEntry.getValue())) {
+                    FunctionPropertyValue param = (FunctionPropertyValue) paramEntry.getValue();
+                    if (ToscaFunctionConstants.TARGET.equals(FunctionEvaluator.getEntityName(param))) {
+                        targetAttributes.put(paramEntry.getKey(), FunctionEvaluator.getElementName(param));
+                    } else if (ToscaFunctionConstants.SOURCE.equals(FunctionEvaluator.getEntityName(param))) {
+                        sourceAttributes.put(paramEntry.getKey(), FunctionEvaluator.getElementName(param));
+                    }
                 }
             }
         }
