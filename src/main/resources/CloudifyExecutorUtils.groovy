@@ -35,9 +35,7 @@ public class CloudifyExecutorUtils {
         
         println "Executing file ${serviceDirectory}/${script}.\n environment is: ${script}"
         def scriptProcess = "${serviceDirectory}/${script}".execute(environment, null)
-        def scriptErr = new StringBuffer()
-        def scriptOut = new StringBuffer()
-        scriptProcess.consumeProcessOutput(scriptOut, scriptErr)
+        scriptProcess.consumeProcessOutput(System.out, System.out)
 
         scriptProcess.waitFor()
         def scriptExitValue = scriptProcess.exitValue()
@@ -47,24 +45,6 @@ public class CloudifyExecutorUtils {
       Return Code : $scriptExitValue
       ---------------------------------\n
       """
-
-        if(scriptErr) {
-            print """
-      ---------- ${script} : bash :stderr ----------
-      Return Code : $scriptExitValue
-      $scriptErr
-      ---------------------------------
-      """
-        }
-        if(scriptOut) {
-            print """
-      ---------- ${script} : bash : stdout ----------
-      Return Code : $scriptExitValue
-      $scriptOut
-      ---------------------------------
-      """
-        }
-
         if(scriptExitValue) {
             throw new RuntimeException("Error executing the script ${script} (return code: $scriptExitValue)")
         }
