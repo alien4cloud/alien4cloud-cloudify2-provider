@@ -48,8 +48,6 @@ public class CloudifyExecutorUtils {
         if(scriptExitValue) {
             throw new RuntimeException("Error executing the script ${script} (return code: $scriptExitValue)")
         }
-        
-        return scriptOut;
     }
     
     
