@@ -7,7 +7,7 @@ node_templates:
       os_distribution: ubuntu
       os_version: ubuntu
   tomcat:
-    type: fastconnect.nodes.Tomcat
+    type: alien.nodes.cloudify.Tomcat
     relationships:
       hostedOnServeurWeb:
         target: serveur_web
@@ -24,5 +24,5 @@ scaling_policies:
 dependencies:
   - name: tosca-normative-types
     version: 1.0.0.wd03-SNAPSHOT
-  - name: tomcat-test-types
+  - name: tomcat-war-types
     version: 1.0-SNAPSHOT

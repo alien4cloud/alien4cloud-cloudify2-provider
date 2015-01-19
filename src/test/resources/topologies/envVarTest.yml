@@ -1,0 +1,32 @@
+
+node_templates:
+  comp_envartest:
+    type: alien.test.TestCompute
+    properties:
+      os_type: linux
+      os_distribution: ubuntu
+      os_version: ubuntu
+      customHostName: testHostname
+  test_component:
+    type: alien.test.nodes.envVarTestComponent
+    properties:
+      name: testComponent
+    relationships:
+      hostedOnServeurWeb:
+        target: comp_envartest
+        type: alien.test.relationships.HostedOn
+        requirement_name: host
+        requirement_type: tosca.capabilities.Container
+        targeted_capability_name: host
+        
+scaling_policies:
+  comp_envartest:
+    min_instances: 1
+    max_instances: 4
+    initial_instances: 2
+
+dependencies:
+  - name: tosca-normative-types
+    version: 1.0.0.wd03-SNAPSHOT
+  - name: test-types
+    version: 1.0-SNAPSHOT

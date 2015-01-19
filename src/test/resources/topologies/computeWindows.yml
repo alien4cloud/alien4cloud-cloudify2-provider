@@ -1,0 +1,11 @@
+node_templates:
+  computeWindows:
+    type: alien.test.nodes.ComputeWindows
+    properties:
+      os_type: windows
+      os_arch: x86_64
+
+dependencies:
+  - name: test-types
+    version: 1.0-SNAPSHOT
+

@@ -1,31 +1,26 @@
 package alien4cloud.paas.cloudify2.generator;
 
 import java.io.IOException;
-import java.net.URI;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map.Entry;
 import java.util.Properties;
 
-import javax.annotation.Resource;
-
-import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
-import alien4cloud.paas.cloudify2.CloudifyPaaSUtils;
-import alien4cloud.paas.cloudify2.VelocityUtil;
+import alien4cloud.model.components.AbstractPropertyValue;
+import alien4cloud.model.components.ScalarPropertyValue;
+import alien4cloud.model.topology.Capability;
+import alien4cloud.model.topology.Requirement;
+import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
+import alien4cloud.paas.cloudify2.utils.VelocityUtil;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
-import alien4cloud.tosca.container.model.template.Capability;
-import alien4cloud.tosca.container.model.template.Requirement;
-import alien4cloud.tosca.model.AbstractPropertyValue;
-import alien4cloud.tosca.model.ScalarPropertyValue;
+import alien4cloud.model.topology.Capability;
+import alien4cloud.model.topology.Requirement;
+import alien4cloud.model.components.AbstractPropertyValue;
+import alien4cloud.model.components.ScalarPropertyValue;
 
 import com.google.common.collect.Maps;
 
@@ -38,18 +33,15 @@ import com.google.common.collect.Maps;
 public class RecipePropertiesGenerator {
     public static final String PROPERTIES_FILE_NAME = "service.properties";
 
-    @Resource
-    private ApplicationContext applicationContext;
-
     /**
      * Generates a properties file for the service based on a given PaaSNodeTemplate and fill-in the context with the property file path.
      *
-     * @param servicePath The path of the service
-     * @param serviceRootTemplate The root node of the service.
+     * @param context
+     * @param serviceRootTemplate
+     * @param descriptorPath
      * @throws IOException
      */
-    public void generatePropertiesFile(RecipeGeneratorServiceContext context, PaaSNodeTemplate serviceRootTemplate) throws IOException {
-        Path descriptorPath = loadResourceFromClasspath("classpath:velocity/ServiceProperties.vm");
+    public void generatePropertiesFile(RecipeGeneratorServiceContext context, PaaSNodeTemplate serviceRootTemplate, Path descriptorPath) throws IOException {
 
         Path propertiesFile = context.getServicePath().resolve(PROPERTIES_FILE_NAME);
 
@@ -67,34 +59,6 @@ public class RecipePropertiesGenerator {
         VelocityUtil.writeToOutputFile(descriptorPath, propertiesFile, params);
 
         context.setPropertiesFilePath(propertiesFile);
-    }
-
-    protected Path loadResourceFromClasspath(String resource) throws IOException {
-        URI uri = applicationContext.getResource(resource).getURI();
-        String uriStr = uri.toString();
-        Path path = null;
-        if (uriStr.contains("!")) {
-            FileSystem fs = null;
-            try {
-                String[] array = uriStr.split("!");
-                fs = FileSystems.newFileSystem(URI.create(array[0]), new HashMap<String, Object>());
-                path = fs.getPath(array[1]);
-
-                // Hack to avoid classloader issues
-                Path createTempFile = Files.createTempFile("velocity", ".vm");
-                createTempFile.toFile().deleteOnExit();
-                Files.copy(path, createTempFile, StandardCopyOption.REPLACE_EXISTING);
-
-                path = createTempFile;
-            } finally {
-                if (fs != null) {
-                    fs.close();
-                }
-            }
-        } else {
-            path = Paths.get(uri);
-        }
-        return path;
     }
 
     private void addProperties(RecipeGeneratorServiceContext context, PaaSNodeTemplate nodeTemplate, Properties properties, HashSet<String> processedNodes) {

@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import javax.annotation.Resource;
@@ -19,9 +21,14 @@ import org.springframework.stereotype.Component;
 
 import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
 import alien4cloud.dao.ElasticSearchDAO;
+import alien4cloud.git.RepositoryManager;
+import alien4cloud.model.components.Csar;
+import alien4cloud.model.topology.Topology;
 import alien4cloud.tosca.ArchiveUploadService;
-import alien4cloud.tosca.container.model.topology.Topology;
+import alien4cloud.tosca.parser.ParsingError;
+import alien4cloud.tosca.parser.ParsingErrorLevel;
 import alien4cloud.tosca.parser.ParsingException;
+import alien4cloud.tosca.parser.ParsingResult;
 import alien4cloud.utils.FileUtil;
 import alien4cloud.utils.YamlParserUtil;
 
@@ -30,6 +37,8 @@ import alien4cloud.utils.YamlParserUtil;
 public class TestsUtils {
     protected static final String CSAR_SOURCE_PATH = "src/test/resources/csars/";
     private static final String TOPOLOGIES_PATH = "src/test/resources/topologies/";
+    private static Path gitArtifactsDirectory = Paths.get("target/git-artifacts");
+    private static Map<String, String[]> remoteGitArtifacts;
 
     @Resource
     private ArchiveUploadService archiveUploadService;
@@ -37,15 +46,41 @@ public class TestsUtils {
     @Resource
     private ElasticSearchClient esClient;
 
-    public void uploadCsar(String path) throws IOException, ParsingException, CSARVersionAlreadyExistsException {
+    static {
+        remoteGitArtifacts = new HashMap<String, String[]>();
+        remoteGitArtifacts.put("tosca-normative-types-1.0.0.wd03", new String[] { "https://github.com/alien4cloud/tosca-normative-types.git", "1.0.0.wd03" });
+        remoteGitArtifacts.put("samples", new String[] { "https://github.com/alien4cloud/samples.git", "master" });
+        remoteGitArtifacts.put("alien-extended-types", new String[] { "https://github.com/alien4cloud/alien4cloud-extended-types.git", "master" });
+    }
+
+    public void uploadGitArchive(String repository, String archiveDirectoryName) throws Exception {
+        String path = gitArtifactsDirectory + "/" + repository;
+        String[] urlAndBrach = remoteGitArtifacts.get(repository);
+        if (!Files.exists(Paths.get(path)) && urlAndBrach != null) {
+            (new RepositoryManager()).cloneOrCheckout(gitArtifactsDirectory, urlAndBrach[0], urlAndBrach[1], repository);
+        }
+        uploadCsarFile(path + "/" + archiveDirectoryName);
+    }
+
+    public void uploadCsarFile(String path) throws IOException, ParsingException, CSARVersionAlreadyExistsException {
+        log.info("uploading archive " + path);
         Path inputPath = Paths.get(path);
         Path zipPath = Files.createTempFile("csar", ".zip");
         FileUtil.zip(inputPath, zipPath);
-        archiveUploadService.upload(zipPath);
+        ParsingResult<Csar> result = archiveUploadService.upload(zipPath);
+        if (!result.getContext().getParsingErrors().isEmpty()) {
+            log.info("Errors during upload of " + path);
+            log.warn(result.getContext().getParsingErrors().toString());
+            for (ParsingError error : result.getContext().getParsingErrors()) {
+                if (error.getErrorLevel() == ParsingErrorLevel.ERROR) {
+                    throw new ParsingException(result.getContext().getFileName(), result.getContext().getParsingErrors());
+                }
+            }
+        }
     }
 
-    public void uploadCsar(String name, String version) throws IOException, CSARVersionAlreadyExistsException, ParsingException {
-        uploadCsar(CSAR_SOURCE_PATH + name + "/" + version);
+    public void uploadArchive(String name) throws IOException, CSARVersionAlreadyExistsException, ParsingException {
+        uploadCsarFile(CSAR_SOURCE_PATH + name);
     }
 
     public Topology parseYamlTopology(String topologyFileName) throws IOException {
@@ -77,5 +112,6 @@ public class TestsUtils {
 
     public static void cleanAlienTargetDir() {
         FileUtils.deleteQuietly(new File("target/alien"));
+        FileUtils.deleteQuietly(gitArtifactsDirectory.toFile());
     }
 }

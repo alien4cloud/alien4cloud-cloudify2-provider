@@ -64,6 +64,9 @@ public class CloudifyRestClientManager {
             // check connection
             cloudifyEventsListener.test();
         } catch (RestClientException | URISyntaxException | IOException e) {
+            if (e instanceof RestClientException) {
+                log.error("Failed to configure cloudify plugin.\n\t Cause: " + ((RestClientException) e).getMessageFormattedText(), e);
+            }
             log.error("Failed to configure cloudify plugin.", e);
             throw new PluginConfigurationException("Failed to configure cloudify plugin.", e);
         }

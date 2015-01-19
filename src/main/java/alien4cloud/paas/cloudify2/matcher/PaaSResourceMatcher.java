@@ -9,15 +9,16 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import alien4cloud.component.model.IndexedNodeType;
+import alien4cloud.model.components.IndexedNodeType;
 import alien4cloud.model.cloud.CloudResourceMatcherConfig;
 import alien4cloud.model.cloud.ComputeTemplate;
 import alien4cloud.model.cloud.Network;
+import alien4cloud.model.components.IndexedNodeType;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.tosca.ToscaUtils;
-import alien4cloud.tosca.container.model.NormativeComputeConstants;
-import alien4cloud.tosca.container.model.NormativeNetworkConstants;
+import alien4cloud.tosca.normative.NormativeComputeConstants;
+import alien4cloud.tosca.normative.NormativeNetworkConstants;
 
 import com.google.common.collect.Maps;
 
@@ -58,23 +59,14 @@ public class PaaSResourceMatcher {
     }
 
     /**
-     * Validate if a NodeTemplate is a Compute type
+     * Validate if a NodeTemplate is from a specific type
      *
      * @param node
      */
-    public void verifyNode(PaaSNodeTemplate node) {
+    public void verifyNode(PaaSNodeTemplate node, String type) {
         IndexedNodeType indexedNodeType = node.getIndexedNodeType();
-        if (!ToscaUtils.isFromType(NormativeComputeConstants.COMPUTE_TYPE, indexedNodeType)) {
-            throw new ResourceMatchingFailedException("Failed to match type <" + indexedNodeType.getElementId() + "> only <"
-                    + NormativeComputeConstants.COMPUTE_TYPE + "> type is supported");
-        }
-    }
-
-    public void verifyNetworkNode(PaaSNodeTemplate node) {
-        IndexedNodeType indexedNodeType = node.getIndexedNodeType();
-        if (!ToscaUtils.isFromType(NormativeNetworkConstants.NETWORK_TYPE, indexedNodeType)) {
-            throw new ResourceMatchingFailedException("Failed to match type <" + indexedNodeType.getElementId() + "> only <"
-                    + NormativeNetworkConstants.NETWORK_TYPE + "> type is supported");
+        if (!ToscaUtils.isFromType(type, indexedNodeType)) {
+            throw new ResourceMatchingFailedException("Failed to match type <" + indexedNodeType.getElementId() + "> only <" + type + "> type is supported");
         }
     }
 }
