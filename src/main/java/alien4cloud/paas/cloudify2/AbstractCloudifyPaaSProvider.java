@@ -4,8 +4,13 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import javax.annotation.PostConstruct;
@@ -23,7 +28,15 @@ import org.cloudifysource.dsl.internal.CloudifyConstants.USMState;
 import org.cloudifysource.dsl.rest.request.InstallApplicationRequest;
 import org.cloudifysource.dsl.rest.request.InvokeCustomCommandRequest;
 import org.cloudifysource.dsl.rest.request.SetServiceInstancesRequest;
-import org.cloudifysource.dsl.rest.response.*;
+import org.cloudifysource.dsl.rest.response.ApplicationDescription;
+import org.cloudifysource.dsl.rest.response.DeploymentEvent;
+import org.cloudifysource.dsl.rest.response.InstanceDescription;
+import org.cloudifysource.dsl.rest.response.InvokeInstanceCommandResponse;
+import org.cloudifysource.dsl.rest.response.InvokeServiceCommandResponse;
+import org.cloudifysource.dsl.rest.response.ServiceDescription;
+import org.cloudifysource.dsl.rest.response.ServiceInstanceDetails;
+import org.cloudifysource.dsl.rest.response.UninstallApplicationResponse;
+import org.cloudifysource.dsl.rest.response.UploadResponse;
 import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
 
@@ -51,7 +64,18 @@ import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.exception.PaaSNotYetDeployedException;
 import alien4cloud.paas.exception.PaaSTechnicalException;
 import alien4cloud.paas.function.FunctionEvaluator;
-import alien4cloud.paas.model.*;
+import alien4cloud.paas.model.AbstractMonitorEvent;
+import alien4cloud.paas.model.DeploymentStatus;
+import alien4cloud.paas.model.InstanceInformation;
+import alien4cloud.paas.model.InstanceStatus;
+import alien4cloud.paas.model.NodeOperationExecRequest;
+import alien4cloud.paas.model.PaaSDeploymentContext;
+import alien4cloud.paas.model.PaaSDeploymentStatusMonitorEvent;
+import alien4cloud.paas.model.PaaSInstanceStateMonitorEvent;
+import alien4cloud.paas.model.PaaSInstanceStorageMonitorEvent;
+import alien4cloud.paas.model.PaaSMessageMonitorEvent;
+import alien4cloud.paas.model.PaaSNodeTemplate;
+import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 
@@ -201,18 +225,18 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
                 currentDeploymentState = applicationDescription.getApplicationState();
 
                 switch (currentDeploymentState) {
-                    case STARTED:
-                        log.info(String.format("Deployment of application '%s' is finished with success", applicationName));
-                        return;
-                    case FAILED:
-                        throw new PaaSDeploymentException(String.format("Failed deploying application '%s'", applicationName));
-                    default:
-                        try {
-                            Thread.sleep(DEFAULT_SLEEP_TIME);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            log.warn("Waiting to retrieve application '" + applicationName + "' state interrupted... ", e);
-                        }
+                case STARTED:
+                    log.info(String.format("Deployment of application '%s' is finished with success", applicationName));
+                    return;
+                case FAILED:
+                    throw new PaaSDeploymentException(String.format("Failed deploying application '%s'", applicationName));
+                default:
+                    try {
+                        Thread.sleep(DEFAULT_SLEEP_TIME);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        log.warn("Waiting to retrieve application '" + applicationName + "' state interrupted... ", e);
+                    }
                 }
             }
         } catch (RestClientException e) {
@@ -348,7 +372,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
                 nodeTemplateInstanceInformations = Maps.newHashMap();
                 instanceInformations.put(instanceState.getNodeTemplateId(), nodeTemplateInstanceInformations);
             }
-            Integer instanceId = Integer.valueOf(instanceState.getInstanceId());
+            String instanceId = instanceState.getInstanceId();
 
             InstanceStatus instanceStatus = InstanceStatus.PROCESSING;
             if (ToscaNodeLifecycleConstants.STARTED.equals(instanceState.getInstanceState())
@@ -406,7 +430,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             }
             // if this is a compute node we can fill-in the attributes.
             for (InstanceDescription instanceDescription : serviceDescription.getInstancesDescription()) {
-                InstanceInformation instanceInformation = nodeTemplateInstanceInformations.get(instanceDescription.getInstanceId());
+                InstanceInformation instanceInformation = nodeTemplateInstanceInformations.get(String.valueOf(instanceDescription.getInstanceId()));
                 if (instanceInformation == null) {
                     continue;
                 }
@@ -535,7 +559,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         return events;
     }
 
-    private void generateInstanceStateEvent(PaaSInstanceStateMonitorEvent isMonitorEvent, InstanceDeploymentInfo current, String nodeId, Integer instanceId) {
+    private void generateInstanceStateEvent(PaaSInstanceStateMonitorEvent isMonitorEvent, InstanceDeploymentInfo current, String nodeId, String instanceId) {
         // Generate instance state change events
         if (current == null || current.instanceInformations == null) {
             return;
@@ -655,7 +679,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             monitorEvent.setDate(alienEvent.getDateTimestamp().getTime());
             monitorEvent.setInstanceState(alienEvent.getEvent());
 
-            generateInstanceStateEvent(monitorEvent, currentInstanceDeploymentInfo, alienEvent.getServiceName(), Integer.parseInt(alienEvent.getInstanceId()));
+            generateInstanceStateEvent(monitorEvent, currentInstanceDeploymentInfo, alienEvent.getServiceName(), alienEvent.getInstanceId());
 
             events.add(monitorEvent);
         }
@@ -709,12 +733,12 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
 
     private DeploymentStatus statusFromState(DeploymentState deploymentState) {
         switch (deploymentState) {
-            case FAILED:
-                return DeploymentStatus.FAILURE;
-            case IN_PROGRESS:
-                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-            case STARTED:
-                return null;
+        case FAILED:
+            return DeploymentStatus.FAILURE;
+        case IN_PROGRESS:
+            return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+        case STARTED:
+            return null;
         }
         return null;
     }
@@ -738,16 +762,16 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         try {
             USMState state = USMState.valueOf(instanceStatus);
             switch (state) {
-                case INITIALIZING:
-                    return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-                case LAUNCHING:
-                    return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-                case RUNNING:
-                    return DeploymentStatus.DEPLOYED;
-                case SHUTTING_DOWN:
-                    return DeploymentStatus.UNDEPLOYMENT_IN_PROGRESS;
-                case ERROR:
-                    return DeploymentStatus.FAILURE;
+            case INITIALIZING:
+                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+            case LAUNCHING:
+                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+            case RUNNING:
+                return DeploymentStatus.DEPLOYED;
+            case SHUTTING_DOWN:
+                return DeploymentStatus.UNDEPLOYMENT_IN_PROGRESS;
+            case ERROR:
+                return DeploymentStatus.FAILURE;
             }
             return DeploymentStatus.WARNING;
         } catch (IllegalArgumentException e) {
@@ -787,8 +811,9 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             log.info("Trigerring operation <" + operationFQN + ">.");
             // case execute on an instance
             if (StringUtils.isNotBlank(request.getInstanceId())) {
-                int instanceId = Integer.parseInt(request.getInstanceId());
-                InvokeInstanceCommandResponse response = restClient.invokeInstanceCommand(deploymentId, serviceName, instanceId, invokeRequest);
+                String instanceId = request.getInstanceId();
+                InvokeInstanceCommandResponse response = restClient.invokeInstanceCommand(deploymentId, serviceName, Integer.parseInt(instanceId),
+                        invokeRequest);
                 log.debug("RAW result is: \n" + response.getInvocationResult());
                 parseInstanceInvokeResponse(operationResponse, response.getInvocationResult());
             } else { // case execute on all instances (on the service level)
