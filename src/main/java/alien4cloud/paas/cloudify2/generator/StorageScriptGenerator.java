@@ -220,7 +220,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
 
             Map<String, String> additionalProps = Maps.newHashMap();
             additionalProps.put("deletable",
-                    String.valueOf(ToscaUtils.isFromType(AlienCustomTypes.DELETABLE_BLOCKSTORAGE_TYPE, blockStorageNode.getIndexedNodeType())));
+                    String.valueOf(ToscaUtils.isFromType(AlienCustomTypes.DELETABLE_BLOCKSTORAGE_TYPE, blockStorageNode.getIndexedToscaElement())));
 
             generateScriptWorkflow(context.getServicePath(), unmountDeleteBlockStorageSCriptDescriptorPath, DEFAULT_STORAGE_UNMOUNT_FILE_NAME, null,
                     additionalProps);
@@ -231,7 +231,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
     }
 
     private void verifyNoVolumeIdForDeletableStorage(PaaSNodeTemplate blockStorageNode, String volumeIds) {
-        if (ToscaUtils.isFromType(AlienCustomTypes.DELETABLE_BLOCKSTORAGE_TYPE, blockStorageNode.getIndexedNodeType()) && StringUtils.isNotBlank(volumeIds)) {
+        if (ToscaUtils.isFromType(AlienCustomTypes.DELETABLE_BLOCKSTORAGE_TYPE, blockStorageNode.getIndexedToscaElement()) && StringUtils.isNotBlank(volumeIds)) {
             throw new PaaSDeploymentException("Failed to generate scripts for BlockStorage <" + blockStorageNode.getId() + " >. A storage of type <"
                     + AlienCustomTypes.DELETABLE_BLOCKSTORAGE_TYPE + "> should not be provided with volumeIds.");
         }

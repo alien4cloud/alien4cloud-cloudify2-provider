@@ -55,7 +55,7 @@ public class CloudifyPaaSPoviderTest {
         String first = "while(!CloudifyExecutorUtils.executeGroovy(context, \"totototot/titit\", null)){\n\t  \n}";
         String second = "while(true){\n\t CloudifyExecutorUtils.executeGroovy(context, \"totototot/titit\", [\"ha\":\"ho\"]) \n}";
         String third = "while(true){\n\t CloudifyExecutorUtils.executeGroovy(context, \"totototot/titit\", [\"hi\":\"hu\", \"ha\":ho]) \n}";
-        assertEquals(first, generator.getLoopedGroovyCommand(generator.getGroovyCommand("totototot/titit", null, null), null));
+        assertEquals(first, generator.getLoopedGroovyCommand(null, "!" + generator.getGroovyCommand("totototot/titit", null, null)));
         assertEquals(
                 second,
                 generator.getLoopedGroovyCommand(
@@ -81,7 +81,7 @@ public class CloudifyPaaSPoviderTest {
             try {
                 storageTemplateMatcher.getTemplate(nodeTemp);
             } catch (ResourceMatchingFailedException e1) {
-                Mockito.when(nodeTemp.getIndexedNodeType()).thenReturn(Mockito.mock(IndexedNodeType.class));
+                Mockito.when(nodeTemp.getIndexedToscaElement()).thenReturn(Mockito.mock(IndexedNodeType.class));
                 storageTemplateMatcher.getTemplate(nodeTemp);
             }
         }
@@ -100,7 +100,7 @@ public class CloudifyPaaSPoviderTest {
         NodeTemplate nodeTemplate = Mockito.mock(NodeTemplate.class);
         Mockito.when(nodeTemplate.getProperties()).thenReturn(MapUtil.newHashMap(new String[] { NormativeBlockStorageConstants.SIZE }, new String[] { "1" }));
         Mockito.when(nodeType.getElementId()).thenReturn(NormativeBlockStorageConstants.BLOCKSTORAGE_TYPE);
-        Mockito.when(paasNodeTemp.getIndexedNodeType()).thenReturn(nodeType);
+        Mockito.when(paasNodeTemp.getIndexedToscaElement()).thenReturn(nodeType);
         Mockito.when(paasNodeTemp.getNodeTemplate()).thenReturn(nodeTemplate);
         storageTemp = storageTemplateMatcher.getTemplate(paasNodeTemp);
         assertEquals("SMALL_BLOCK", storageTemp);

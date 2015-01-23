@@ -1,11 +1,15 @@
 package alien4cloud.paas.cloudify2.generator;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Set;
 
 import lombok.Getter;
 import lombok.Setter;
+import alien4cloud.model.components.IndexedToscaElement;
+import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 
 import com.google.common.collect.Maps;
@@ -35,15 +39,12 @@ public class RecipeGeneratorServiceContext {
     private final Map<String, String> stopDetectionCommands = Maps.newHashMap();
     /** Maps nodeId -> script of the process locators commands that we have to aggregate to generate a good process locator for cloudify. */
     private final Map<String, String> processLocatorsCommands = Maps.newHashMap();
-    /**
-     * Maps name -> value of some additional properties needed in the service level, such as the reference of the startDetection / stopDetection file path
-     */
+    /** Maps name -> value of some additional properties needed in the service level, such as the reference of the startDetection / stopDetection file path */
     private final Map<String, String> additionalProperties = Maps.newHashMap();
-
-    /**
-     * Maps <nodeName -> Map <artifactName, artifactPath> > of path of different artifacts of nodes
-     */
+    /** Maps <nodeName -> Map <artifactName, artifactPath> > of path of different artifacts of nodes */
     private final Map<String, Map<String, String>> nodeArtifactsPaths = Maps.newHashMap();
+    /** Maps <elementId -> Path > of paths of directories of different tosca element */
+    private final Map<String, Path> elementsRecipeDirectoryPaths = Maps.newHashMap();
 
     /**
      * Initialize a new context for service recipe generation.
@@ -63,4 +64,23 @@ public class RecipeGeneratorServiceContext {
     public PaaSNodeTemplate getNodeTemplateById(String nodeTemplateId) {
         return topologyNodeTemplates.get(nodeTemplateId);
     }
+
+    /**
+     * Get the recipe directory of a tosca element. Creates it if not already created
+     *
+     * @param indexedToscaElement
+     * @return The tosca element directory path
+     * @throws IOException
+     */
+    public Path getRecipeDirectoryPath(IndexedToscaElement indexedToscaElement) throws IOException {
+        Path nodeTypePath = elementsRecipeDirectoryPaths.get(indexedToscaElement.getId());
+        if (nodeTypePath == null && servicePath != null) {
+            String nodeTypeRelativePath = CloudifyPaaSUtils.getNodeTypeRelativePath(indexedToscaElement);
+            nodeTypePath = servicePath.resolve(nodeTypeRelativePath);
+            Files.createDirectories(nodeTypePath);
+            elementsRecipeDirectoryPaths.put(indexedToscaElement.getId(), nodeTypePath);
+        }
+        return nodeTypePath;
+    }
+
 }

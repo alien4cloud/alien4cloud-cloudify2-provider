@@ -12,10 +12,8 @@ import com.j_spaces.core.client.SQLQuery;
 
 public class GigaSpacesEventsManager {
 
-  def DEFAULT_LEASE = 1000 * 60 * 60;
+  def DEFAULT_LEASE = 1000 * 60 * 60
   def DEFAULT_LOCATOR = "localhost:4176"
-  def BLOCKSTORAGE_TYPE = "BLOCKSTORAGE"
-  def INSTANCE_STATE_TYPE = "INSTANCE_STATE"
   GigaSpace gigaSpace
   UrlSpaceConfigurer spaceConfigurer
 
@@ -124,4 +122,18 @@ public class GigaSpacesEventsManager {
     }
     printDebug("... ${applicationName}.${serviceName}(${instanceId}) reaches event=${event}")
   }
+  
+    def getLastEvent(def applicationName, def serviceName, def instanceId) {
+        String query = String.format("applicationName='%s' and serviceName='%s' and instanceId='%s' ORDER BY dateTimestamp DESC"
+                , applicationName, serviceName, instanceId)
+
+        SQLQuery<SpaceDocument> sqlQuery = new SQLQuery<SpaceDocument>("alien4cloud.paas.cloudify2.events.AlienEvent", query, QueryResultType.DOCUMENT)
+        SpaceDocument[] readMultiple = gigaSpace.readMultiple(sqlQuery)
+        def gotEvent = null
+        if (readMultiple != null && readMultiple.length > 0) {
+            SpaceDocument spaceDocument = readMultiple[0]
+            gotEvent = spaceDocument.getProperty("event").toString()
+        }
+        return gotEvent
+    }
 }

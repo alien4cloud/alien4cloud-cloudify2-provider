@@ -9,7 +9,6 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import alien4cloud.model.components.IndexedNodeType;
 import alien4cloud.model.cloud.CloudResourceMatcherConfig;
 import alien4cloud.model.cloud.ComputeTemplate;
 import alien4cloud.model.cloud.Network;
@@ -17,8 +16,6 @@ import alien4cloud.model.components.IndexedNodeType;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.tosca.ToscaUtils;
-import alien4cloud.tosca.normative.NormativeComputeConstants;
-import alien4cloud.tosca.normative.NormativeNetworkConstants;
 
 import com.google.common.collect.Maps;
 
@@ -64,7 +61,7 @@ public class PaaSResourceMatcher {
      * @param node
      */
     public void verifyNode(PaaSNodeTemplate node, String type) {
-        IndexedNodeType indexedNodeType = node.getIndexedNodeType();
+        IndexedNodeType indexedNodeType = node.getIndexedToscaElement();
         if (!ToscaUtils.isFromType(type, indexedNodeType)) {
             throw new ResourceMatchingFailedException("Failed to match type <" + indexedNodeType.getElementId() + "> only <" + type + "> type is supported");
         }

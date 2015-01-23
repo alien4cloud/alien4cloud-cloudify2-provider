@@ -58,9 +58,9 @@ public class RecipeGeneratorArtifactCopier {
      * @throws IOException In case we fail to copy files.
      */
     public void copyAllArtifacts(RecipeGeneratorServiceContext context, PaaSNodeTemplate rootNode) throws IOException {
-        copyDeploymentArtifacts(context, rootNode.getCsarPath(), rootNode.getId(), rootNode.getIndexedNodeType(), rootNode.getNodeTemplate().getArtifacts());
+        copyDeploymentArtifacts(context, rootNode.getCsarPath(), rootNode.getId(), rootNode.getIndexedToscaElement(), rootNode.getNodeTemplate().getArtifacts());
         for (PaaSRelationshipTemplate relationship : rootNode.getRelationshipTemplates()) {
-            copyDeploymentArtifacts(context, relationship.getCsarPath(), null, relationship.getIndexedRelationshipType(), null);
+            copyDeploymentArtifacts(context, relationship.getCsarPath(), null, relationship.getIndexedToscaElement(), null);
         }
 
         // process children
@@ -95,9 +95,7 @@ public class RecipeGeneratorArtifactCopier {
         Map<String, String> artifactsPaths = null;
         if (artifacts != null) {
             // create a folder for this node type
-            String nodeTypeRelativePath = CloudifyPaaSUtils.getNodeTypeRelativePath(indexedToscaElement);
-            Path nodeTypePath = context.getServicePath().resolve(nodeTypeRelativePath);
-            Files.createDirectories(nodeTypePath);
+            Path nodeTypePath = context.getRecipeDirectoryPath(indexedToscaElement);
 
             // copy the properties file
             copyPropertiesFile(context.getPropertiesFilePath(), nodeTypePath.resolve(RecipePropertiesGenerator.PROPERTIES_FILE_NAME));
@@ -118,7 +116,7 @@ public class RecipeGeneratorArtifactCopier {
                 }
 
                 if (artifact != null && StringUtils.isNotBlank(artifactTarget)) {
-                    Path copyPath = copyArtifact(csarPath, nodeTypePath, nodeTypeRelativePath, artifactTarget, artifact, indexedToscaElement);
+                    Path copyPath = copyArtifact(csarPath, nodeTypePath, artifactTarget, artifact, indexedToscaElement);
                     artifactsPaths.put(artifactEntry.getKey(), context.getServicePath().relativize(copyPath).toString());
                 }
             }
@@ -140,20 +138,18 @@ public class RecipeGeneratorArtifactCopier {
      * @param context The context of the recipe generation that contains the path of the service as well as the list of node types that have been already
      *            managed for this service recipe.
      * @param csarPath Path to the CSAR that contains the node or relationship for which to copy artifacts.
-     * @param nodeTypeRelativePath The relative path of the node in which is defined the implementation artifact to copy
      * @param implementationArtifact The implementation artifact to copy
      * @param indexedToscaElement The tosca element from which the artifact is coming
      * @throws IOException In case there is an IO error while performing the artifacts copy
      */
-    public void copyImplementationArtifact(RecipeGeneratorServiceContext context, Path csarPath, String nodeTypeRelativePath,
-            ImplementationArtifact implementationArtifact, IndexedArtifactToscaElement indexedToscaElement) throws IOException {
-
-        Path nodeTypePath = context.getServicePath().resolve(nodeTypeRelativePath);
-        Files.createDirectories(nodeTypePath);
+    public void copyImplementationArtifact(RecipeGeneratorServiceContext context, Path csarPath, ImplementationArtifact implementationArtifact,
+            IndexedArtifactToscaElement indexedToscaElement) throws IOException {
+        // get the folder for this tosca element
+        Path nodeTypePath = context.getRecipeDirectoryPath(indexedToscaElement);
         // copy the properties file
         copyPropertiesFile(context.getPropertiesFilePath(), nodeTypePath.resolve(RecipePropertiesGenerator.PROPERTIES_FILE_NAME));
         DeploymentArtifact artifact = getDeploymentArtifact(implementationArtifact);
-        copyArtifact(csarPath, nodeTypePath, nodeTypeRelativePath, artifact.getArtifactRef(), artifact, indexedToscaElement);
+        copyArtifact(csarPath, nodeTypePath, artifact.getArtifactRef(), artifact, indexedToscaElement);
     }
 
     private DeploymentArtifact getDeploymentArtifact(ImplementationArtifact implementationArtifact) {
@@ -171,12 +167,13 @@ public class RecipeGeneratorArtifactCopier {
         Files.copy(source, dest);
     }
 
-    private Path copyArtifact(final Path csarPath, final Path nodeTypePath, final String nodeTypeRelativePath, String target,
-            final DeploymentArtifact artifact, IndexedArtifactToscaElement indexedToscaElement) throws IOException {
+    private Path copyArtifact(final Path csarPath, final Path nodeTypePath, String target, final DeploymentArtifact artifact,
+            IndexedArtifactToscaElement indexedToscaElement) throws IOException {
         final Path targetPath = nodeTypePath.resolve(target);
 
         if (Files.notExists(targetPath)) {
             Files.createDirectories(targetPath.getParent());
+            String nodeTypeRelativePath = CloudifyPaaSUtils.getNodeTypeRelativePath(indexedToscaElement);
             // if it is an alien repo artifact (override case) copy the artifact to the target destination
             if (ArtifactRepositoryConstants.ALIEN_ARTIFACT_REPOSITORY.equals(artifact.getArtifactRepository())) {
                 Files.copy(localRepository.resolveFile(artifact.getArtifactRef()), targetPath);
@@ -264,4 +261,5 @@ public class RecipeGeneratorArtifactCopier {
             }
         }
     }
+
 }

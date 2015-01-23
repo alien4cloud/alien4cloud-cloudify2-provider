@@ -15,7 +15,7 @@ node_templates:
         requirement_name: host
         requirement_type: tosca.capabilities.Container
         targeted_capability_name: host
-  war_1:
+  War_1:
     type: alien.nodes.cloudify.War
     properties:
       contextPath: war1
