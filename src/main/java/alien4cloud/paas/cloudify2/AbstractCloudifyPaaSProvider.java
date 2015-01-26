@@ -259,10 +259,13 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     }
 
     private void waitUndeployApplication(String deploymentID) throws RestClientException {
-        String description = "";
-        while (!description.contains(CloudifyConstants.UNDEPLOYED_SUCCESSFULLY_EVENT)) {
+        long timeout = System.currentTimeMillis() + TIMEOUT_IN_MILLIS;
+        while (System.currentTimeMillis() < timeout) {
             DeploymentEvent lastEvent = cloudifyRestClientManager.getRestClient().getLastEvent(deploymentID);
-            description = lastEvent.getDescription();
+            String description = lastEvent.getDescription();
+            if (description != null && description.contains(CloudifyConstants.UNDEPLOYED_SUCCESSFULLY_EVENT)) {
+                return;
+            }
             try {
                 Thread.sleep(DEFAULT_SLEEP_TIME);
             } catch (InterruptedException e) {
@@ -270,6 +273,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
                 Thread.currentThread().interrupt();
             }
         }
+
+        log.warn("Application '" + deploymentID + "' fails to undeployed in time. You may do it manually.");
     }
 
     @Override
