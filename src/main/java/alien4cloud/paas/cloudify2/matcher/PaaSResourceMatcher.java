@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 import alien4cloud.model.cloud.CloudResourceMatcherConfig;
 import alien4cloud.model.cloud.ComputeTemplate;
-import alien4cloud.model.cloud.Network;
+import alien4cloud.model.cloud.NetworkTemplate;
 import alien4cloud.model.components.IndexedNodeType;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
@@ -28,7 +28,7 @@ import com.google.common.collect.Maps;
 public class PaaSResourceMatcher {
 
     private Map<ComputeTemplate, String> alienTemplateToCloudifyTemplateMapping = Maps.newHashMap();
-    private Map<Network, String> alienNetworkToCloudifyNetworkMapping = Maps.newHashMap();
+    private Map<NetworkTemplate, String> alienNetworkToCloudifyNetworkMapping = Maps.newHashMap();
 
     /**
      * Match a cloudify template based on the compute node.
@@ -46,7 +46,7 @@ public class PaaSResourceMatcher {
      * @param network The network.
      * @return The template that matches the given network.
      */
-    public synchronized String getNetwork(Network network) {
+    public synchronized String getNetwork(NetworkTemplate network) {
         return alienNetworkToCloudifyNetworkMapping.get(network);
     }
 

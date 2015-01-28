@@ -30,7 +30,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import alien4cloud.model.cloud.ComputeTemplate;
-import alien4cloud.model.cloud.Network;
+import alien4cloud.model.cloud.NetworkTemplate;
 import alien4cloud.model.components.IndexedToscaElement;
 import alien4cloud.model.components.Interface;
 import alien4cloud.model.components.Operation;
@@ -99,7 +99,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
     }
 
     public Path generateRecipe(final String deploymentName, final String topologyId, final Map<String, PaaSNodeTemplate> nodeTemplates,
-            final List<PaaSNodeTemplate> roots, Map<String, ComputeTemplate> cloudResourcesMapping, Map<String, Network> networkMapping) throws IOException {
+            final List<PaaSNodeTemplate> roots, Map<String, ComputeTemplate> cloudResourcesMapping, Map<String, NetworkTemplate> networkMapping) throws IOException {
         // cleanup/create the topology recipe directory
         Path recipePath = cleanupDirectory(topologyId);
         List<String> serviceIds = Lists.newArrayList();
@@ -109,7 +109,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         for (PaaSNodeTemplate root : roots) {
             String nodeName = root.getId();
             ComputeTemplate template = getComputeTemplateOrDie(cloudResourcesMapping, root);
-            Network network = null;
+            NetworkTemplate network = null;
             List<PaaSNodeTemplate> networkNodes = root.getNetworkNodes();
             if (networkNodes != null && !networkNodes.isEmpty()) {
                 network = getNetworkTemplateOrDie(networkMapping, networkNodes.iterator().next());
@@ -124,9 +124,9 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         return createZip(recipePath);
     }
 
-    private Network getNetworkTemplateOrDie(Map<String, Network> networkMapping, PaaSNodeTemplate networkNode) {
+    private NetworkTemplate getNetworkTemplateOrDie(Map<String, NetworkTemplate> networkMapping, PaaSNodeTemplate networkNode) {
         paaSResourceMatcher.verifyNode(networkNode, NormativeNetworkConstants.NETWORK_TYPE);
-        Network network = networkMapping.get(networkNode.getId());
+        NetworkTemplate network = networkMapping.get(networkNode.getId());
         if (network != null) {
             return network;
         }
@@ -194,7 +194,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
     }
 
     protected void generateService(final Map<String, PaaSNodeTemplate> nodeTemplates, final Path recipePath, final String serviceId,
-            final PaaSNodeTemplate computeNode, ComputeTemplate template, Network network) throws IOException {
+            final PaaSNodeTemplate computeNode, ComputeTemplate template, NetworkTemplate network) throws IOException {
         // find the compute template for this service
         String computeTemplate = paaSResourceMatcher.getTemplate(template);
         String networkName = null;
