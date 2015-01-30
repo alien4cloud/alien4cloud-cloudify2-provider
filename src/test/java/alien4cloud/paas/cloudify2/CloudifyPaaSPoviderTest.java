@@ -5,10 +5,12 @@ import static org.junit.Assert.assertEquals;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Resource;
 
 import org.apache.commons.io.FileUtils;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -17,6 +19,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import alien4cloud.model.components.IndexedNodeType;
+import alien4cloud.model.components.PropertyDefinition;
 import alien4cloud.model.topology.NodeTemplate;
 import alien4cloud.paas.cloudify2.generator.CommandGenerator;
 import alien4cloud.paas.cloudify2.matcher.StorageTemplateMatcher;
@@ -104,6 +107,20 @@ public class CloudifyPaaSPoviderTest {
         Mockito.when(paasNodeTemp.getNodeTemplate()).thenReturn(nodeTemplate);
         storageTemp = storageTemplateMatcher.getTemplate(paasNodeTemp);
         assertEquals("SMALL_BLOCK", storageTemp);
+    }
+
+    @Test
+    public void deploymentPropertiesMapTest() {
+        Map<String, PropertyDefinition> properties = cloudifyPaaSPovider.getDeploymentPropertyMap();
+        Assert.assertNotNull(properties);
+        assertEquals(2, properties.size());
+        PropertyDefinition prop = properties.get(DeploymentPropertiesNames.STARTDETECTION_TIMEOUT_INSECOND);
+        Assert.assertNotNull(prop);
+        assertEquals("600", prop.getDefault());
+
+        prop = properties.get(DeploymentPropertiesNames.DISABLE_SELF_HEALING);
+        Assert.assertNotNull(prop);
+        assertEquals("false", prop.getDefault());
     }
 
 }

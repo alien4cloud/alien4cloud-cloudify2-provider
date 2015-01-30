@@ -109,6 +109,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     private static final long TIMEOUT_IN_MILLIS = 1000L * 60L * 10L; // 10 minutes
     private static final long MAX_DEPLOYMENT_TIMEOUT_MILLIS = 1000L * 60L * 5L; // 5 minutes
     private static final long DEFAULT_SLEEP_TIME = 5000L;
+    private static final boolean DEFAULT_SELF_HEALING = true;
 
     private static final String INVOCATION_INSTANCE_ID_KEY = "Invocation_Instance_ID";
     private static final String INVOCATION_RESULT_KEY = "Invocation_Result";
@@ -164,7 +165,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             Path cfyZipPath = recipeGenerator.generateRecipe(deploymentName, deploymentId, nodeTemplates, roots, deploymentSetup);
             statusByDeployments.put(deploymentId, deploymentInfo);
             log.info("Deploying application from recipe at <{}>", cfyZipPath);
-            this.deployOnCloudify(deploymentId, cfyZipPath);
+            this.deployOnCloudify(deploymentId, cfyZipPath, getSelHealingProperty(deploymentSetup));
             registerDeploymentStatus(deploymentId, DeploymentStatus.DEPLOYMENT_IN_PROGRESS);
         } catch (Exception e) {
             log.error("Deployment failed. Status will move to undeployed.", e);
@@ -174,6 +175,17 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             }
             throw new PaaSDeploymentException("Deployment failure", e);
         }
+    }
+
+    private boolean getSelHealingProperty(DeploymentSetup deploymentSetup) {
+        boolean selfHealing = DEFAULT_SELF_HEALING;
+        if (MapUtils.isNotEmpty(deploymentSetup.getProviderDeploymentProperties())) {
+            String disableSelfHealing = deploymentSetup.getProviderDeploymentProperties().get(DeploymentPropertiesNames.DISABLE_SELF_HEALING);
+            if (StringUtils.isNotBlank(disableSelfHealing)) {
+                selfHealing = !Boolean.valueOf(disableSelfHealing.trim());
+            }
+        }
+        return selfHealing;
     }
 
     private boolean updateStatus(String deploymentId, DeploymentStatus status) {
@@ -198,7 +210,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         registerDeploymentStatus(deploymentId, status);
     }
 
-    protected void deployOnCloudify(String deploymentId, Path applicationZipPath) throws URISyntaxException, IOException {
+    protected void deployOnCloudify(String deploymentId, Path applicationZipPath, boolean selfHealing) throws URISyntaxException, IOException {
         try {
             final URI restEventEndpoint = this.cloudifyRestClientManager.getRestEventEndpoint();
             if (restEventEndpoint != null) {
@@ -213,6 +225,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             InstallApplicationRequest request = new InstallApplicationRequest();
             request.setApplcationFileUploadKey(uploadResponse.getUploadKey());
             request.setApplicationName(deploymentId);
+            request.setSelfHealing(selfHealing);
 
             restClient.installApplication(deploymentId, request);
             if (getPluginConfigurationBean().isSynchronousDeployment()) {
@@ -933,5 +946,12 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         startDetectionTimeout.setConstraints(Arrays.asList((PropertyConstraint) detectionConstraint));
         deploymentPropertyMap.put(DeploymentPropertiesNames.STARTDETECTION_TIMEOUT_INSECOND, startDetectionTimeout);
 
+        // Field 2 : disable_self_healing
+        PropertyDefinition disableSelfHealing = new PropertyDefinition();
+        disableSelfHealing.setType(ToscaType.BOOLEAN.toString());
+        disableSelfHealing.setRequired(false);
+        disableSelfHealing.setDescription("Whether to disable or not the cloudify's self-healing mechanism for this deployment.");
+        disableSelfHealing.setDefault("false");
+        deploymentPropertyMap.put(DeploymentPropertiesNames.DISABLE_SELF_HEALING, disableSelfHealing);
     }
 }
