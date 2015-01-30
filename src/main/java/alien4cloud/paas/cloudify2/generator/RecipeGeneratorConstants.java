@@ -85,4 +85,6 @@ public final class RecipeGeneratorConstants {
     public static final String SHUTDOWN_COMMAND = "shutdownCommand";
     public static final String SHUTDOWN_LIFECYCLE = "shutdown";
 
+    /** Name of service property that holds the startDetection timeout. */
+    public static final String START_DETECTION_TIMEOUT_SEC = "startDetectionTimeoutSec";
 }

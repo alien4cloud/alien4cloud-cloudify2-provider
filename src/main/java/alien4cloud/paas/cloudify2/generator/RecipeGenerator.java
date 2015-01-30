@@ -1,6 +1,10 @@
 package alien4cloud.paas.cloudify2.generator;
 
-import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.*;
+import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_INTERFACE_NAME;
+import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_LOCATOR_OPERATION_NAME;
+import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_START_DETECTION_OPERATION_NAME;
+import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_STOP_DETECTION_OPERATION_NAME;
+import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CUSTOM_INTERFACE_NAME;
 import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.*;
 
 import java.io.IOException;
@@ -29,6 +33,7 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import alien4cloud.model.application.DeploymentSetup;
 import alien4cloud.model.cloud.ComputeTemplate;
 import alien4cloud.model.cloud.Network;
 import alien4cloud.model.components.IndexedToscaElement;
@@ -36,6 +41,8 @@ import alien4cloud.model.components.Interface;
 import alien4cloud.model.components.Operation;
 import alien4cloud.model.topology.ScalingPolicy;
 import alien4cloud.paas.IPaaSTemplate;
+import alien4cloud.paas.cloudify2.DeploymentPropertiesNames;
+import alien4cloud.paas.cloudify2.ServiceSetup;
 import alien4cloud.paas.cloudify2.matcher.PaaSResourceMatcher;
 import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.cloudify2.utils.VelocityUtil;
@@ -43,7 +50,16 @@ import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
-import alien4cloud.paas.plan.*;
+import alien4cloud.paas.plan.BuildPlanGenerator;
+import alien4cloud.paas.plan.OperationCallActivity;
+import alien4cloud.paas.plan.ParallelGateway;
+import alien4cloud.paas.plan.ParallelJoinStateGateway;
+import alien4cloud.paas.plan.StartEvent;
+import alien4cloud.paas.plan.StateUpdateEvent;
+import alien4cloud.paas.plan.StopEvent;
+import alien4cloud.paas.plan.StopPlanGenerator;
+import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
+import alien4cloud.paas.plan.WorkflowStep;
 import alien4cloud.tosca.normative.NormativeComputeConstants;
 import alien4cloud.tosca.normative.NormativeNetworkConstants;
 import alien4cloud.utils.FileUtil;
@@ -61,6 +77,7 @@ import com.google.common.collect.Maps;
 public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
     private static final int DEFAULT_INIT_MIN_INSTANCE = 1;
     private static final int DEFAULT_MAX_INSTANCE = 1;
+    private static final int DEFAULT_START_DETECTION_TIMEOUT = 600;
 
     private static final String START_DETECTION_SCRIPT_FILE_NAME = "startDetection";
     private static final String STOP_DETECTION_SCRIPT_FILE_NAME = "stopDetection";
@@ -99,7 +116,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
     }
 
     public Path generateRecipe(final String deploymentName, final String topologyId, final Map<String, PaaSNodeTemplate> nodeTemplates,
-            final List<PaaSNodeTemplate> roots, Map<String, ComputeTemplate> cloudResourcesMapping, Map<String, Network> networkMapping) throws IOException {
+            final List<PaaSNodeTemplate> roots, DeploymentSetup setup) throws IOException {
         // cleanup/create the topology recipe directory
         Path recipePath = cleanupDirectory(topologyId);
         List<String> serviceIds = Lists.newArrayList();
@@ -107,16 +124,19 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             throw new PaaSDeploymentException("No compute found in topology for deployment " + deploymentName);
         }
         for (PaaSNodeTemplate root : roots) {
+            ServiceSetup serviceSetup = new ServiceSetup();
             String nodeName = root.getId();
-            ComputeTemplate template = getComputeTemplateOrDie(cloudResourcesMapping, root);
-            Network network = null;
+            serviceSetup.setComputeTemplate(getComputeTemplateOrDie(setup.getCloudResourcesMapping(), root));
             List<PaaSNodeTemplate> networkNodes = root.getNetworkNodes();
             if (networkNodes != null && !networkNodes.isEmpty()) {
-                network = getNetworkTemplateOrDie(networkMapping, networkNodes.iterator().next());
+                serviceSetup.setNetwork(getNetworkTemplateOrDie(setup.getNetworkMapping(), networkNodes.iterator().next()));
             }
-            String serviceId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(nodeName);
-            generateService(nodeTemplates, recipePath, serviceId, root, template, network);
-            serviceIds.add(serviceId);
+            if (MapUtils.isNotEmpty(setup.getProviderDeploymentProperties())) {
+                serviceSetup.setProviderDeploymentProperties(setup.getProviderDeploymentProperties());
+            }
+            serviceSetup.setId(CloudifyPaaSUtils.serviceIdFromNodeTemplateId(nodeName));
+            generateService(nodeTemplates, recipePath, root, serviceSetup);
+            serviceIds.add(serviceSetup.getId());
         }
 
         generateApplicationDescriptor(recipePath, topologyId, deploymentName, serviceIds);
@@ -193,21 +213,21 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         return recipeDirectoryPath.resolve(recipePath.getFileName() + "-application.zip");
     }
 
-    protected void generateService(final Map<String, PaaSNodeTemplate> nodeTemplates, final Path recipePath, final String serviceId,
-            final PaaSNodeTemplate computeNode, ComputeTemplate template, Network network) throws IOException {
+    protected void generateService(final Map<String, PaaSNodeTemplate> nodeTemplates, final Path recipePath, final PaaSNodeTemplate computeNode,
+            ServiceSetup setup) throws IOException {
         // find the compute template for this service
-        String computeTemplate = paaSResourceMatcher.getTemplate(template);
+        String computeTemplate = paaSResourceMatcher.getTemplate(setup.getComputeTemplate());
         String networkName = null;
-        if (network != null) {
-            networkName = paaSResourceMatcher.getNetwork(network);
+        if (setup.getNetwork() != null) {
+            networkName = paaSResourceMatcher.getNetwork(setup.getNetwork());
         }
         log.info("Compute template ID for node <{}> is: [{}]", computeNode.getId(), computeTemplate);
         // create service directory
-        Path servicePath = recipePath.resolve(serviceId);
+        Path servicePath = recipePath.resolve(setup.getId());
         Files.createDirectories(servicePath);
 
         RecipeGeneratorServiceContext context = new RecipeGeneratorServiceContext(nodeTemplates);
-        context.setServiceId(serviceId);
+        context.setServiceId(setup.getId());
         context.setServicePath(servicePath);
 
         // copy internal static resources for the service
@@ -246,7 +266,8 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         generateShutdownScript(context, computeNode);
 
         // generate the service descriptor
-        generateServiceDescriptor(context, serviceId, computeTemplate, networkName, computeNode.getScalingPolicy());
+        generateServiceDescriptor(context, setup.getId(), computeTemplate, networkName, computeNode.getScalingPolicy(), setup.getProviderDeploymentProperties()
+                .get(DeploymentPropertiesNames.STARTDETECTION_TIMEOUT_INSECOND));
     }
 
     private void generateInitScripts(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate computeNode) throws IOException {
@@ -580,7 +601,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
     }
 
     private void generateServiceDescriptor(final RecipeGeneratorServiceContext context, final String serviceName, final String computeTemplate,
-            final String networkName, final ScalingPolicy scalingPolicy) throws IOException {
+            final String networkName, final ScalingPolicy scalingPolicy, String startDetectionTimeoutSec) throws IOException {
         Path outputPath = context.getServicePath().resolve(context.getServiceId() + DSLUtils.SERVICE_DSL_FILE_NAME_SUFFIX);
 
         // configure and write the service descriptor thanks to velocity.
@@ -597,6 +618,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             properties.put(SERVICE_MIN_ALLOWED_INSTANCES, DEFAULT_INIT_MIN_INSTANCE);
             properties.put(SERVICE_MAX_ALLOWED_INSTANCES, DEFAULT_MAX_INSTANCE);
         }
+        properties.put(START_DETECTION_TIMEOUT_SEC, startDetectionTimeoutSec == null ? DEFAULT_START_DETECTION_TIMEOUT : startDetectionTimeoutSec);
         properties.put(SERVICE_CUSTOM_COMMANDS, context.getCustomCommands());
         for (Entry<String, String> entry : context.getAdditionalProperties().entrySet()) {
             properties.put(entry.getKey(), entry.getValue());
