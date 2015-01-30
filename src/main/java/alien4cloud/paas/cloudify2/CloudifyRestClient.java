@@ -1,7 +1,6 @@
 package alien4cloud.paas.cloudify2;
 
 import java.net.URL;
-import java.util.List;
 import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +13,7 @@ import org.codehaus.jackson.type.TypeReference;
 
 import alien4cloud.utils.MapUtil;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 @Slf4j
 public class CloudifyRestClient extends RestClient {
@@ -38,11 +37,11 @@ public class CloudifyRestClient extends RestClient {
         });
     }
 
-    public List<CloudifyComputeTemplate> getCloudifyComputeTemplates() throws RestClientException {
+    public Map<String, CloudifyComputeTemplate> getCloudifyComputeTemplates() throws RestClientException {
         String listTemplatesInternalUrl = getFormattedUrl(this.versionedTemplatesControllerUrl, "", new String[0]);
         Map<String, Object> response = this.executor.get(listTemplatesInternalUrl, new TypeReference<Response<Map<String, Object>>>() {
         });
-        List<CloudifyComputeTemplate> computeTemplates = Lists.newArrayList();
+        Map<String, CloudifyComputeTemplate> computeTemplates = Maps.newHashMap();
         Map<String, Object> templates = (Map<String, Object>) response.get("templates");
         if (templates == null) {
             return computeTemplates;
@@ -50,7 +49,7 @@ public class CloudifyRestClient extends RestClient {
         for (Map.Entry<String, Object> templateEntry : templates.entrySet()) {
             String imageId = (String) MapUtil.get((Map<String, Object>) templateEntry.getValue(), "imageId");
             String hardwareId = (String) MapUtil.get((Map<String, Object>) templateEntry.getValue(), "hardwareId");
-            computeTemplates.add(new CloudifyComputeTemplate(imageId, hardwareId));
+            computeTemplates.put(templateEntry.getKey(), new CloudifyComputeTemplate(imageId, hardwareId));
         }
         return computeTemplates;
     }

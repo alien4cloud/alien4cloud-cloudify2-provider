@@ -6,8 +6,15 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import javax.annotation.Resource;
 
@@ -36,9 +43,11 @@ import alien4cloud.model.application.Application;
 import alien4cloud.model.application.ApplicationEnvironment;
 import alien4cloud.model.application.ApplicationVersion;
 import alien4cloud.model.application.DeploymentSetup;
+import alien4cloud.model.cloud.CloudImageFlavor;
 import alien4cloud.model.cloud.CloudResourceMatcherConfig;
 import alien4cloud.model.cloud.ComputeTemplate;
-import alien4cloud.model.cloud.MatchedComputeTemplate;
+import alien4cloud.model.cloud.MatchedCloudImage;
+import alien4cloud.model.cloud.MatchedCloudImageFlavor;
 import alien4cloud.model.components.Csar;
 import alien4cloud.model.deployment.Deployment;
 import alien4cloud.model.topology.Topology;
@@ -70,6 +79,13 @@ public class GenericTestCase {
     protected static final String DEFAULT_LINUX_COMPUTE_TEMPLATE_ID = "MEDIUM_LINUX";
     protected static final String DEFAULT_WINDOWS_COMPUTE_TEMPLATE_ID = "WINDOWS";
 
+    private static final String ALIEN_WINDOWS_IMAGE = "alienWindowsImage";
+
+    private static final String ALIEN_LINUX_IMAGE = "alienLinuxImage";
+
+    private static final String ALIEN_FLAVOR = "alienFlavor";
+    public static final String IAAS_IMAGE_ID = "2b4475df-b6d6-49b7-a062-a3a20d45ab7c";
+
     @Resource
     protected ArchiveUploadService archiveUploadService;
 
@@ -91,9 +107,6 @@ public class GenericTestCase {
 
     public static final String EXTENDED_TYPES_REPO = "alien-extended-types";
     public static final String EXTENDED_STORAGE_TYPES = "alien-extended-storage-types-1.0-SNAPSHOT";
-
-    public static final String SAMPLE_REPO = "samples";
-    public static final String TOMCAT_WAR_TYPES = "tomcat-war";
 
     protected List<String> deployedCloudifyAppIds = new ArrayList<>();
     private List<Class<?>> IndiceClassesToClean;
@@ -132,9 +145,9 @@ public class GenericTestCase {
         cloudifyPaaSPovider.setConfiguration(pluginConfigurationBean);
         cloudifyRestClientManager = cloudifyPaaSPovider.getCloudifyRestClientManager();
         CloudResourceMatcherConfig matcherConf = new CloudResourceMatcherConfig();
-        matcherConf.setMatchedComputeTemplates(Lists.newArrayList(new MatchedComputeTemplate(new ComputeTemplate(null, DEFAULT_LINUX_COMPUTE_TEMPLATE_ID),
-                DEFAULT_LINUX_COMPUTE_TEMPLATE_ID), new MatchedComputeTemplate(new ComputeTemplate(null, DEFAULT_WINDOWS_COMPUTE_TEMPLATE_ID),
-                DEFAULT_WINDOWS_COMPUTE_TEMPLATE_ID)));
+        matcherConf.setMatchedImages(Lists.newArrayList(new MatchedCloudImage(new MatchedCloudImage.CloudImageId(ALIEN_LINUX_IMAGE), IAAS_IMAGE_ID),
+                new MatchedCloudImage(new MatchedCloudImage.CloudImageId(ALIEN_WINDOWS_IMAGE), IAAS_IMAGE_ID)));
+        matcherConf.setMatchedFlavors(Lists.newArrayList(new MatchedCloudImageFlavor(new CloudImageFlavor(ALIEN_FLAVOR, 1, 1L, 1L), "2")));
         cloudifyPaaSPovider.updateMatcherConfig(matcherConf);
     }
 
