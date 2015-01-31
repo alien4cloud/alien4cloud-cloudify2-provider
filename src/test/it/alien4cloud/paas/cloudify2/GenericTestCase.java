@@ -43,11 +43,10 @@ import alien4cloud.model.application.Application;
 import alien4cloud.model.application.ApplicationEnvironment;
 import alien4cloud.model.application.ApplicationVersion;
 import alien4cloud.model.application.DeploymentSetup;
+import alien4cloud.model.cloud.CloudImage;
 import alien4cloud.model.cloud.CloudImageFlavor;
 import alien4cloud.model.cloud.CloudResourceMatcherConfig;
 import alien4cloud.model.cloud.ComputeTemplate;
-import alien4cloud.model.cloud.MatchedCloudImage;
-import alien4cloud.model.cloud.MatchedCloudImageFlavor;
 import alien4cloud.model.components.Csar;
 import alien4cloud.model.deployment.Deployment;
 import alien4cloud.model.topology.Topology;
@@ -145,9 +144,20 @@ public class GenericTestCase {
         cloudifyPaaSPovider.setConfiguration(pluginConfigurationBean);
         cloudifyRestClientManager = cloudifyPaaSPovider.getCloudifyRestClientManager();
         CloudResourceMatcherConfig matcherConf = new CloudResourceMatcherConfig();
-        matcherConf.setMatchedImages(Lists.newArrayList(new MatchedCloudImage(new MatchedCloudImage.CloudImageId(ALIEN_LINUX_IMAGE), IAAS_IMAGE_ID),
-                new MatchedCloudImage(new MatchedCloudImage.CloudImageId(ALIEN_WINDOWS_IMAGE), IAAS_IMAGE_ID)));
-        matcherConf.setMatchedFlavors(Lists.newArrayList(new MatchedCloudImageFlavor(new CloudImageFlavor(ALIEN_FLAVOR, 1, 1L, 1L), "2")));
+
+        Map<CloudImage, String> imageMapping = Maps.newHashMap();
+        CloudImage cloudImage = new CloudImage();
+        cloudImage.setId(ALIEN_LINUX_IMAGE);
+        imageMapping.put(cloudImage, IAAS_IMAGE_ID);
+        cloudImage = new CloudImage();
+        cloudImage.setId(ALIEN_WINDOWS_IMAGE);
+        imageMapping.put(cloudImage, IAAS_IMAGE_ID);
+        matcherConf.setImageMapping(imageMapping);
+
+        Map<CloudImageFlavor, String> flavorMapping = Maps.newHashMap();
+        flavorMapping.put(new CloudImageFlavor(ALIEN_FLAVOR, 1, 1L, 1L), "2");
+        matcherConf.setFlavorMapping(flavorMapping);
+
         cloudifyPaaSPovider.updateMatcherConfig(matcherConf);
     }
 

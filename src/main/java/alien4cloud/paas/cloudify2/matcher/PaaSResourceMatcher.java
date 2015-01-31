@@ -1,6 +1,5 @@
 package alien4cloud.paas.cloudify2.matcher;
 
-import java.util.List;
 import java.util.Map;
 
 import lombok.AccessLevel;
@@ -10,10 +9,10 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import alien4cloud.model.cloud.CloudImage;
+import alien4cloud.model.cloud.CloudImageFlavor;
 import alien4cloud.model.cloud.CloudResourceMatcherConfig;
 import alien4cloud.model.cloud.ComputeTemplate;
-import alien4cloud.model.cloud.MatchedCloudImage;
-import alien4cloud.model.cloud.MatchedCloudImageFlavor;
 import alien4cloud.model.cloud.NetworkTemplate;
 import alien4cloud.model.components.IndexedNodeType;
 import alien4cloud.paas.cloudify2.CloudifyComputeTemplate;
@@ -55,19 +54,19 @@ public class PaaSResourceMatcher {
     }
 
     public synchronized void configure(CloudResourceMatcherConfig config, Map<String, CloudifyComputeTemplate> paaSComputeTemplateMap) {
-        List<MatchedCloudImage> images = config.getMatchedImages();
-        List<MatchedCloudImageFlavor> flavors = config.getMatchedFlavors();
+        Map<CloudImage, String> imageMapping = config.getImageMapping();
+        Map<CloudImageFlavor, String> flavorsMapping = config.getFlavorMapping();
         Map<CloudifyComputeTemplate, String> paaSComputeTemplates = Maps.newHashMap();
         for (Map.Entry<String, CloudifyComputeTemplate> cloudifyComputeTemplateEntry : paaSComputeTemplateMap.entrySet()) {
             paaSComputeTemplates.put(cloudifyComputeTemplateEntry.getValue(), cloudifyComputeTemplateEntry.getKey());
         }
-        for (MatchedCloudImage matchedCloudImage : images) {
-            for (MatchedCloudImageFlavor matchedCloudImageFlavor : flavors) {
-                String generatedPaaSResourceId = paaSComputeTemplates.get(new CloudifyComputeTemplate(matchedCloudImage.getPaaSResourceId(),
-                        matchedCloudImageFlavor.getPaaSResourceId()));
+        for (Map.Entry<CloudImage, String> cloudImageEntry : imageMapping.entrySet()) {
+            for (Map.Entry<CloudImageFlavor, String> flavorEntry : flavorsMapping.entrySet()) {
+                String generatedPaaSResourceId = paaSComputeTemplates.get(new CloudifyComputeTemplate(cloudImageEntry.getValue(),
+                        flavorEntry.getValue()));
                 if (generatedPaaSResourceId != null) {
-                    alienTemplateToCloudifyTemplateMapping.put(new ComputeTemplate(matchedCloudImage.getResource().getId(), matchedCloudImageFlavor
-                            .getResource().getId()), generatedPaaSResourceId);
+                    alienTemplateToCloudifyTemplateMapping.put(new ComputeTemplate(cloudImageEntry.getKey().getId(), flavorEntry
+                            .getKey().getId()), generatedPaaSResourceId);
                 }
             }
         }
