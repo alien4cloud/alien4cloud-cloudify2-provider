@@ -60,7 +60,7 @@ abstract class AbstractCloudifyScriptGenerator {
     protected String getOperationCommandFromInterface(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate nodeTemplate,
             final String interfaceName, final String operationName, final Map<String, String> paramsAsVar, Map<String, String> stringParams) throws IOException {
         String command = null;
-        Interface interfaz = nodeTemplate.getIndexedNodeType().getInterfaces().get(interfaceName);
+        Interface interfaz = nodeTemplate.getIndexedToscaElement().getInterfaces().get(interfaceName);
         if (interfaz != null) {
             Operation operation = interfaz.getOperations().get(operationName);
             if (operation != null) {
@@ -72,22 +72,22 @@ abstract class AbstractCloudifyScriptGenerator {
     }
 
     protected String prepareAndGetCommand(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate nodeTemplate, final String interfaceName,
-            final String operationName, final Map<String, String> paramsAsVar, Map<String, String> stringParams, Operation operation) throws IOException {
+            final String operationName, final Map<String, String> paramsAsVar, Map<String, String> stringParams, Operation operation)
+            throws IOException {
         String command;
-        String relativePath = CloudifyPaaSUtils.getNodeTypeRelativePath(nodeTemplate.getIndexedNodeType());
         stringParams = stringParams == null ? Maps.<String, String> newHashMap() : stringParams;
-        command = getCommandFromOperation(context, nodeTemplate, interfaceName, operationName, relativePath, operation.getImplementationArtifact(),
-                paramsAsVar, stringParams, operation.getInputParameters());
+        command = getCommandFromOperation(context, nodeTemplate, interfaceName, operationName, operation.getImplementationArtifact(), paramsAsVar,
+                stringParams, operation.getInputParameters());
         if (StringUtils.isNotBlank(command)) {
-            this.artifactCopier.copyImplementationArtifact(context, nodeTemplate.getCsarPath(), relativePath, operation.getImplementationArtifact(),
-                    nodeTemplate.getIndexedNodeType());
+            this.artifactCopier.copyImplementationArtifact(context, nodeTemplate.getCsarPath(), operation.getImplementationArtifact(),
+                    nodeTemplate.getIndexedToscaElement());
         }
         return command;
     }
 
     protected String getCommandFromOperation(final RecipeGeneratorServiceContext context, final IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
-            final String interfaceName, final String operationName, final String relativePath, final ImplementationArtifact artifact,
-            final Map<String, String> varEnvVars, final Map<String, String> stringEnvVars, Map<String, IOperationParameter> inputParameters) throws IOException {
+            final String interfaceName, final String operationName, final ImplementationArtifact artifact, final Map<String, String> varEnvVars,
+            final Map<String, String> stringEnvVars, Map<String, IOperationParameter> inputParameters) throws IOException {
         if (artifact == null || StringUtils.isBlank(artifact.getArtifactRef())) {
             return null;
         }
@@ -108,6 +108,8 @@ abstract class AbstractCloudifyScriptGenerator {
         } else {
             addNodeBaseEnvVars((PaaSNodeTemplate) basePaaSTemplate, stringEvalResults, SELF, HOST, SERVICE_NAME);
         }
+
+        String relativePath = CloudifyPaaSUtils.getNodeTypeRelativePath(basePaaSTemplate.getIndexedToscaElement());
         String scriptPath = relativePath + "/" + artifact.getArtifactRef();
         String operationFQN = basePaaSTemplate.getId() + "." + interfaceName + "." + operationName;
         return commandGenerator.getCommandBasedOnArtifactType(operationFQN, artifact, runtimeEvalResults, stringEvalResults, scriptPath);
@@ -160,7 +162,7 @@ abstract class AbstractCloudifyScriptGenerator {
         Map<String, Object> properties = Maps.newHashMap();
         properties.put(SCRIPT_LIFECYCLE, lifecycle);
         properties.put(SCRIPTS, executions);
-        properties = CollectionUtils.merge(additionalPropeties, properties, false);
+        properties = CollectionUtils.merge(additionalPropeties, properties, true);
         VelocityUtil.writeToOutputFile(velocityDescriptorPath, outputPath, properties);
     }
 

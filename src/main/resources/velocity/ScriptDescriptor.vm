@@ -8,4 +8,6 @@ def context = ServiceContextFactory.getServiceContext()
 $script
 #end
 
+#if(!$isReturnType)
 println "service_script : $scriptLifecycle script ended"
+#end

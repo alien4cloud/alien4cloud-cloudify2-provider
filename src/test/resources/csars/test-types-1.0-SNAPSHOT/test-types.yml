@@ -22,13 +22,18 @@ node_types:
             customHostName: { get_property: [SELF, customHostName]}
           implementation: scripts/setHostname.sh
       custom:
-         helloCmd:
+        helloCmd:
           input:
             yourName:
               type: string
               required: true
             customHostName: { get_property: [HOST, customHostName] }
-          implementation: scripts/helloCmd.groovy  
+          implementation: scripts/helloCmd.groovy
+      fastconnect.cloudify.extensions:
+        start_detection:
+          input:
+            EXPECTED_HOSTNAME: {get_property: [SELF, customHostName]}
+          implementation: scripts/compute_start_detection.groovy
   
   alien.test.nodes.ComputeWindows:
     derived_from: tosca.nodes.Compute

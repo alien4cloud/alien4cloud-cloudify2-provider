@@ -90,7 +90,7 @@ public class CloudifyExecutorUtils {
         def executionList = []
         println "$groovyScripts"
         for(script in groovyScripts) {
-            println "asynchronous launch is $script"
+            println "asynchronous launch is ${script}"
             def theScript = script
             executionList.add(call{ executeGroovy(ServiceContextFactory.getServiceContext(), theScript, null) })
         }
@@ -124,6 +124,13 @@ public class CloudifyExecutorUtils {
         CloudifyUtils.waitFor(cloudifyService, nodeId, status)
     }
 
+    
+    static def isNodeStarted(context, cloudifyService, nodeToCheck) {
+        def lastEvent = CloudifyUtils.getLastEvent(context.getApplicationName(), cloudifyService, nodeToCheck, context.getInstanceId())
+        println "Got Last event for ${nodeToCheck}: ${lastEvent}";
+        return lastEvent == "started" || lastEvent == "available";
+    }
+    
     static def shutdown() {
         println "Shutting down threadpool"
         threadPool.shutdownNow();

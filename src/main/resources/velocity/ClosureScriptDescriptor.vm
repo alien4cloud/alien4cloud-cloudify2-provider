@@ -1,0 +1,9 @@
+println "service_script : starting $scriptLifecycle script"
+
+#foreach( $script in $scripts )
+$script
+#end
+
+#if(!$isReturnType)
+println "service_script : $scriptLifecycle script ended"
+#end

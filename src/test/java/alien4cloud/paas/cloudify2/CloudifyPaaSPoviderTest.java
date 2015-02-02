@@ -5,10 +5,12 @@ import static org.junit.Assert.assertEquals;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Resource;
 
 import org.apache.commons.io.FileUtils;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -17,6 +19,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import alien4cloud.model.components.IndexedNodeType;
+import alien4cloud.model.components.PropertyDefinition;
 import alien4cloud.model.topology.NodeTemplate;
 import alien4cloud.paas.cloudify2.generator.CommandGenerator;
 import alien4cloud.paas.cloudify2.matcher.StorageTemplateMatcher;
@@ -55,7 +58,7 @@ public class CloudifyPaaSPoviderTest {
         String first = "while(!CloudifyExecutorUtils.executeGroovy(context, \"totototot/titit\", null)){\n\t  \n}";
         String second = "while(true){\n\t CloudifyExecutorUtils.executeGroovy(context, \"totototot/titit\", [\"ha\":\"ho\"]) \n}";
         String third = "while(true){\n\t CloudifyExecutorUtils.executeGroovy(context, \"totototot/titit\", [\"hi\":\"hu\", \"ha\":ho]) \n}";
-        assertEquals(first, generator.getLoopedGroovyCommand(generator.getGroovyCommand("totototot/titit", null, null), null));
+        assertEquals(first, generator.getLoopedGroovyCommand(null, "!" + generator.getGroovyCommand("totototot/titit", null, null)));
         assertEquals(
                 second,
                 generator.getLoopedGroovyCommand(
@@ -81,7 +84,7 @@ public class CloudifyPaaSPoviderTest {
             try {
                 storageTemplateMatcher.getTemplate(nodeTemp);
             } catch (ResourceMatchingFailedException e1) {
-                Mockito.when(nodeTemp.getIndexedNodeType()).thenReturn(Mockito.mock(IndexedNodeType.class));
+                Mockito.when(nodeTemp.getIndexedToscaElement()).thenReturn(Mockito.mock(IndexedNodeType.class));
                 storageTemplateMatcher.getTemplate(nodeTemp);
             }
         }
@@ -100,10 +103,24 @@ public class CloudifyPaaSPoviderTest {
         NodeTemplate nodeTemplate = Mockito.mock(NodeTemplate.class);
         Mockito.when(nodeTemplate.getProperties()).thenReturn(MapUtil.newHashMap(new String[] { NormativeBlockStorageConstants.SIZE }, new String[] { "1" }));
         Mockito.when(nodeType.getElementId()).thenReturn(NormativeBlockStorageConstants.BLOCKSTORAGE_TYPE);
-        Mockito.when(paasNodeTemp.getIndexedNodeType()).thenReturn(nodeType);
+        Mockito.when(paasNodeTemp.getIndexedToscaElement()).thenReturn(nodeType);
         Mockito.when(paasNodeTemp.getNodeTemplate()).thenReturn(nodeTemplate);
         storageTemp = storageTemplateMatcher.getTemplate(paasNodeTemp);
         assertEquals("SMALL_BLOCK", storageTemp);
+    }
+
+    @Test
+    public void deploymentPropertiesMapTest() {
+        Map<String, PropertyDefinition> properties = cloudifyPaaSPovider.getDeploymentPropertyMap();
+        Assert.assertNotNull(properties);
+        assertEquals(2, properties.size());
+        PropertyDefinition prop = properties.get(DeploymentPropertiesNames.STARTDETECTION_TIMEOUT_INSECOND);
+        Assert.assertNotNull(prop);
+        assertEquals("600", prop.getDefault());
+
+        prop = properties.get(DeploymentPropertiesNames.DISABLE_SELF_HEALING);
+        Assert.assertNotNull(prop);
+        assertEquals("false", prop.getDefault());
     }
 
 }

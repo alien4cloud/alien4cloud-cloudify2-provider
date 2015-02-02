@@ -27,6 +27,10 @@ public class CloudifyUtils {
     }
   }
   
+  static def getLastEvent(applicationName, cloudifyService, nodeToCheck, instanceId) {
+      return manager.getLastEvent(applicationName, nodeToCheck, instanceId)
+  }
+  
   static def destroy() {
       manager.destroy()
   }

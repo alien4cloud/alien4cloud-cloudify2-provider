@@ -14,7 +14,6 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.model.InstanceInformation;
 import alien4cloud.paas.model.InstanceStatus;
-import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.model.PaaSDeploymentContext;
 
 @RunWith(SpringJUnit4ClassRunner.class)
@@ -32,16 +31,16 @@ public class InstanceInfoTestIT extends GenericTestCase {
         this.uploadGitArchive("samples", "tomcat-war");
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
 
-        String[] computes = new String[] { "serveur_web" };
+        String[] computes = new String[] { "comp_tomcat_scaling" };
         cloudifyAppId = deployTopology("compTomcatScaling", computes, null);
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
         Map<String, Map<String, InstanceInformation>> instancesInformations = cloudifyPaaSPovider.getInstancesInformation(cloudifyAppId, topo);
         printStatuses(instancesInformations);
-        assertStartedInstance("serveur_web", 1, instancesInformations);
-        assertAllInstanceStatus("serveur_web", InstanceStatus.SUCCESS, instancesInformations);
+        assertStartedInstance("comp_tomcat_scaling", 1, instancesInformations);
+        assertAllInstanceStatus("comp_tomcat_scaling", InstanceStatus.SUCCESS, instancesInformations);
         assertAllInstanceStatus("tomcat", InstanceStatus.SUCCESS, instancesInformations);
 
-        scale("serveur_web", 1, cloudifyAppId, topo);
+        scale("comp_tomcat_scaling", 1, cloudifyAppId, topo);
 
         // TODO: test scaling
     }

@@ -17,6 +17,7 @@ import alien4cloud.component.repository.ArtifactRepositoryConstants;
 import alien4cloud.model.components.DeploymentArtifact;
 import alien4cloud.model.topology.NodeTemplate;
 import alien4cloud.model.topology.Topology;
+import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 
 import com.google.common.collect.Maps;
 
@@ -53,9 +54,11 @@ public class ArtifactsCopyTestIT extends GenericTestCase {
         String[] computes = new String[] { "comp_tomcat_war" };
         cloudifyAppId = deployTopology(computes, topology, topologyFileName, null);
         assertApplicationIsInstalled(cloudifyAppId);
+        testEvents(cloudifyAppId, new String[] { "comp_tomcat_war", "War_1", "war_2" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
+                ToscaNodeLifecycleConstants.CONFIGURED, ToscaNodeLifecycleConstants.STARTED);
 
         String serviceName = "comp_tomcat_war";
-        NodeTemplate war1 = topology.getNodeTemplates().get("war_1");
+        NodeTemplate war1 = topology.getNodeTemplates().get("War_1");
         NodeTemplate war2 = topology.getNodeTemplates().get("war_2");
 
         assertHttpCodeEquals(cloudifyAppId, serviceName, DEFAULT_TOMCAT_PORT, "", HTTP_CODE_OK, null);

@@ -92,7 +92,7 @@ public class StorageTemplateMatcher {
     }
 
     private void verifyNode(PaaSNodeTemplate computeNode) {
-        IndexedNodeType indexedNodeType = computeNode.getIndexedNodeType();
+        IndexedNodeType indexedNodeType = computeNode.getIndexedToscaElement();
         if (!ToscaUtils.isFromType(NormativeBlockStorageConstants.BLOCKSTORAGE_TYPE, indexedNodeType)) {
             throw new ResourceMatchingFailedException("Failed to match type <" + indexedNodeType.getElementId() + "> only <"
                     + NormativeBlockStorageConstants.BLOCKSTORAGE_TYPE + "> type is supported");

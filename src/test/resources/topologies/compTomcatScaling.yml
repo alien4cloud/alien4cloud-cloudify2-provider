@@ -1,6 +1,6 @@
 
 node_templates:
-  serveur_web:
+  comp_tomcat_scaling:
     type: tosca.nodes.Compute
     properties:
       os_type: linux
@@ -10,13 +10,13 @@ node_templates:
     type: alien.nodes.cloudify.Tomcat
     relationships:
       hostedOnServeurWeb:
-        target: serveur_web
+        target: comp_tomcat_scaling
         type: tosca.relationships.HostedOn
         requirement_name: host
         requirement_type: tosca.capabilities.Container
 
 scaling_policies:
-  serveur_web:
+  comp_tomcat_scaling:
     min_instances: 1
     max_instances: 3
     initial_instances: 1 

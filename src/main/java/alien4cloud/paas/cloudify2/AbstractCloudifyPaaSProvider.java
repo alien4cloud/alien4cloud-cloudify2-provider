@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -45,7 +46,9 @@ import alien4cloud.exception.TechnicalException;
 import alien4cloud.model.application.DeploymentSetup;
 import alien4cloud.model.components.IOperationParameter;
 import alien4cloud.model.components.IndexedNodeType;
+import alien4cloud.model.components.PropertyConstraint;
 import alien4cloud.model.components.PropertyDefinition;
+import alien4cloud.model.components.constraints.GreaterThanConstraint;
 import alien4cloud.model.topology.NodeTemplate;
 import alien4cloud.model.topology.ScalingPolicy;
 import alien4cloud.model.topology.Topology;
@@ -78,6 +81,7 @@ import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
+import alien4cloud.tosca.normative.ToscaType;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -99,10 +103,13 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
 
     @Resource
     private FunctionProcessor functionProcessor;
+    @Getter
+    private Map<String, PropertyDefinition> deploymentPropertyMap;
 
     private static final long TIMEOUT_IN_MILLIS = 1000L * 60L * 10L; // 10 minutes
     private static final long MAX_DEPLOYMENT_TIMEOUT_MILLIS = 1000L * 60L * 5L; // 5 minutes
     private static final long DEFAULT_SLEEP_TIME = 5000L;
+    private static final boolean DEFAULT_SELF_HEALING = true;
 
     private static final String INVOCATION_INSTANCE_ID_KEY = "Invocation_Instance_ID";
     private static final String INVOCATION_RESULT_KEY = "Invocation_Result";
@@ -129,10 +136,14 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
 
     /**
      * Method called by @PostConstruct at initialization step.
+     *
      */
     protected void configureDefault() {
         log.info("Setting default configuration for storage templates matchers");
         recipeGenerator.getStorageScriptGenerator().configure(getPluginConfigurationBean().getStorageTemplates());
+
+        log.info("Setting deployments properties");
+        setDeploymentProperties();
     }
 
     @Override
@@ -151,11 +162,10 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             DeploymentInfo deploymentInfo = new DeploymentInfo();
             deploymentInfo.topology = topology;
             deploymentInfo.paaSNodeTemplates = nodeTemplates;
-            Path cfyZipPath = recipeGenerator.generateRecipe(deploymentName, deploymentId, nodeTemplates, roots, deploymentSetup.getCloudResourcesMapping(),
-                    deploymentSetup.getNetworkMapping());
+            Path cfyZipPath = recipeGenerator.generateRecipe(deploymentName, deploymentId, nodeTemplates, roots, deploymentSetup);
             statusByDeployments.put(deploymentId, deploymentInfo);
             log.info("Deploying application from recipe at <{}>", cfyZipPath);
-            this.deployOnCloudify(deploymentId, cfyZipPath);
+            this.deployOnCloudify(deploymentId, cfyZipPath, getSelHealingProperty(deploymentSetup));
             registerDeploymentStatus(deploymentId, DeploymentStatus.DEPLOYMENT_IN_PROGRESS);
         } catch (Exception e) {
             log.error("Deployment failed. Status will move to undeployed.", e);
@@ -165,6 +175,17 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             }
             throw new PaaSDeploymentException("Deployment failure", e);
         }
+    }
+
+    private boolean getSelHealingProperty(DeploymentSetup deploymentSetup) {
+        boolean selfHealing = DEFAULT_SELF_HEALING;
+        if (MapUtils.isNotEmpty(deploymentSetup.getProviderDeploymentProperties())) {
+            String disableSelfHealing = deploymentSetup.getProviderDeploymentProperties().get(DeploymentPropertiesNames.DISABLE_SELF_HEALING);
+            if (StringUtils.isNotBlank(disableSelfHealing)) {
+                selfHealing = !Boolean.valueOf(disableSelfHealing.trim());
+            }
+        }
+        return selfHealing;
     }
 
     private boolean updateStatus(String deploymentId, DeploymentStatus status) {
@@ -189,7 +210,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         registerDeploymentStatus(deploymentId, status);
     }
 
-    protected void deployOnCloudify(String deploymentId, Path applicationZipPath) throws URISyntaxException, IOException {
+    protected void deployOnCloudify(String deploymentId, Path applicationZipPath, boolean selfHealing) throws URISyntaxException, IOException {
         try {
             final URI restEventEndpoint = this.cloudifyRestClientManager.getRestEventEndpoint();
             if (restEventEndpoint != null) {
@@ -204,6 +225,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             InstallApplicationRequest request = new InstallApplicationRequest();
             request.setApplcationFileUploadKey(uploadResponse.getUploadKey());
             request.setApplicationName(deploymentId);
+            request.setSelfHealing(selfHealing);
 
             restClient.installApplication(deploymentId, request);
             if (getPluginConfigurationBean().isSynchronousDeployment()) {
@@ -225,18 +247,18 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
                 currentDeploymentState = applicationDescription.getApplicationState();
 
                 switch (currentDeploymentState) {
-                case STARTED:
-                    log.info(String.format("Deployment of application '%s' is finished with success", applicationName));
-                    return;
-                case FAILED:
-                    throw new PaaSDeploymentException(String.format("Failed deploying application '%s'", applicationName));
-                default:
-                    try {
-                        Thread.sleep(DEFAULT_SLEEP_TIME);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        log.warn("Waiting to retrieve application '" + applicationName + "' state interrupted... ", e);
-                    }
+                    case STARTED:
+                        log.info(String.format("Deployment of application '%s' is finished with success", applicationName));
+                        return;
+                    case FAILED:
+                        throw new PaaSDeploymentException(String.format("Failed deploying application '%s'", applicationName));
+                    default:
+                        try {
+                            Thread.sleep(DEFAULT_SLEEP_TIME);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            log.warn("Waiting to retrieve application '" + applicationName + "' state interrupted... ", e);
+                        }
                 }
             }
         } catch (RestClientException e) {
@@ -283,10 +305,13 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     }
 
     private void waitUndeployApplication(String deploymentID) throws RestClientException {
-        String description = "";
-        while (!description.contains(CloudifyConstants.UNDEPLOYED_SUCCESSFULLY_EVENT)) {
+        long timeout = System.currentTimeMillis() + TIMEOUT_IN_MILLIS;
+        while (System.currentTimeMillis() < timeout) {
             DeploymentEvent lastEvent = cloudifyRestClientManager.getRestClient().getLastEvent(deploymentID);
-            description = lastEvent.getDescription();
+            String description = lastEvent.getDescription();
+            if (description != null && description.contains(CloudifyConstants.UNDEPLOYED_SUCCESSFULLY_EVENT)) {
+                return;
+            }
             try {
                 Thread.sleep(DEFAULT_SLEEP_TIME);
             } catch (InterruptedException e) {
@@ -294,6 +319,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
                 Thread.currentThread().interrupt();
             }
         }
+
+        log.warn("Application '" + deploymentID + "' fails to undeployed in time. You may do it manually.");
     }
 
     @Override
@@ -733,12 +760,12 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
 
     private DeploymentStatus statusFromState(DeploymentState deploymentState) {
         switch (deploymentState) {
-        case FAILED:
-            return DeploymentStatus.FAILURE;
-        case IN_PROGRESS:
-            return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-        case STARTED:
-            return null;
+            case FAILED:
+                return DeploymentStatus.FAILURE;
+            case IN_PROGRESS:
+                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+            case STARTED:
+                return null;
         }
         return null;
     }
@@ -762,16 +789,16 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         try {
             USMState state = USMState.valueOf(instanceStatus);
             switch (state) {
-            case INITIALIZING:
-                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-            case LAUNCHING:
-                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-            case RUNNING:
-                return DeploymentStatus.DEPLOYED;
-            case SHUTTING_DOWN:
-                return DeploymentStatus.UNDEPLOYMENT_IN_PROGRESS;
-            case ERROR:
-                return DeploymentStatus.FAILURE;
+                case INITIALIZING:
+                    return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+                case LAUNCHING:
+                    return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+                case RUNNING:
+                    return DeploymentStatus.DEPLOYED;
+                case SHUTTING_DOWN:
+                    return DeploymentStatus.UNDEPLOYMENT_IN_PROGRESS;
+                case ERROR:
+                    return DeploymentStatus.FAILURE;
             }
             return DeploymentStatus.WARNING;
         } catch (IllegalArgumentException e) {
@@ -840,7 +867,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         }
 
         // if some params are missing, add them with null value
-        IndexedNodeType nodeType = statusByDeployments.get(deploymentId).paaSNodeTemplates.get(request.getNodeTemplateName()).getIndexedNodeType();
+        IndexedNodeType nodeType = statusByDeployments.get(deploymentId).paaSNodeTemplates.get(request.getNodeTemplateName()).getIndexedToscaElement();
         Map<String, IOperationParameter> params = nodeType.getInterfaces().get(request.getInterfaceName()).getOperations().get(request.getOperationName())
                 .getInputParameters();
         Map<String, String> requestParams = request.getParameters() == null ? Maps.<String, String> newHashMap() : request.getParameters();
@@ -903,8 +930,28 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         return fqnBuilder.toString();
     }
 
-    @Override
-    public Map<String, PropertyDefinition> getDeploymentPropertyMap() {
-        return null;
+    private void setDeploymentProperties() throws PaaSTechnicalException {
+        if (deploymentPropertyMap != null) {
+            return;
+        }
+        deploymentPropertyMap = Maps.newHashMap();
+        // Field 1 : startDetection_timeout_inSecond as string
+        PropertyDefinition startDetectionTimeout = new PropertyDefinition();
+        startDetectionTimeout.setType(ToscaType.INTEGER.toString());
+        startDetectionTimeout.setRequired(false);
+        startDetectionTimeout.setDescription("Cloudify start detection timout in seconds for this deployment.");
+        startDetectionTimeout.setDefault("600");
+        GreaterThanConstraint detectionConstraint = new GreaterThanConstraint();
+        detectionConstraint.setGreaterThan("0");
+        startDetectionTimeout.setConstraints(Arrays.asList((PropertyConstraint) detectionConstraint));
+        deploymentPropertyMap.put(DeploymentPropertiesNames.STARTDETECTION_TIMEOUT_INSECOND, startDetectionTimeout);
+
+        // Field 2 : disable_self_healing
+        PropertyDefinition disableSelfHealing = new PropertyDefinition();
+        disableSelfHealing.setType(ToscaType.BOOLEAN.toString());
+        disableSelfHealing.setRequired(false);
+        disableSelfHealing.setDescription("Whether to disable or not the cloudify's self-healing mechanism for this deployment.");
+        disableSelfHealing.setDefault("false");
+        deploymentPropertyMap.put(DeploymentPropertiesNames.DISABLE_SELF_HEALING, disableSelfHealing);
     }
 }

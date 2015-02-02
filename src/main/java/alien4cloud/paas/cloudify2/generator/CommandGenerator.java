@@ -36,6 +36,7 @@ public class CommandGenerator {
     private static final String FIRE_EVENT_FORMAT = "CloudifyExecutorUtils.fireEvent(\"%s\", \"%s\")";
     private static final String FIRE_BLOCKSTORAGE_EVENT_FORMAT = "CloudifyExecutorUtils.fireBlockStorageEvent(\"%s\", \"%s\", %s)";
     private static final String WAIT_EVENT_FORMAT = "CloudifyExecutorUtils.waitFor(\"%s\", \"%s\", \"%s\")";
+    private static final String IS_NODE_STARTED_FORMAT = "CloudifyExecutorUtils.isNodeStarted(context, \"%s\", \"%s\")";
     private static final String EXECUTE_PARALLEL_FORMAT = "CloudifyExecutorUtils.executeParallel(%s, %s)";
     private static final String EXECUTE_ASYNC_FORMAT = "CloudifyExecutorUtils.executeAsync(%s, %s)";
     private static final String EXECUTE_GROOVY_FORMAT = "CloudifyExecutorUtils.executeGroovy(context, \"%s\", %s)";
@@ -170,11 +171,10 @@ public class CommandGenerator {
      * @return The looped execution command.
      */
     public String getLoopedGroovyCommand(String groovyCommand, String loopCondition) {
-        if (StringUtils.isBlank(loopCondition)) {
-            return String.format(EXECUTE_LOOPED_GROOVY_FORMAT, "!" + groovyCommand, "");
-        } else {
-            return String.format(EXECUTE_LOOPED_GROOVY_FORMAT, loopCondition, groovyCommand);
+        if (StringUtils.isNotBlank(loopCondition)) {
+            return String.format(EXECUTE_LOOPED_GROOVY_FORMAT, loopCondition, StringUtils.isBlank(groovyCommand) ? "" : groovyCommand);
         }
+        return null;
     }
 
     /**
@@ -286,6 +286,17 @@ public class CommandGenerator {
      */
     public String getWaitEventCommand(String cloudifyService, String nodeName, String status) {
         return String.format(WAIT_EVENT_FORMAT, cloudifyService, nodeName, status);
+    }
+
+    /**
+     * Return the execution command to check if a node is started.
+     *
+     * @param cloudifyService The name of the service from Cloudify point of view.
+     * @param nodeName The node that has a status change.
+     * @return The execution command.
+     */
+    public String getIsNodeStartedCommand(String cloudifyService, String nodeName) {
+        return String.format(IS_NODE_STARTED_FORMAT, cloudifyService, nodeName);
     }
 
     /**
