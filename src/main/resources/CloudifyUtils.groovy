@@ -31,6 +31,10 @@ public class CloudifyUtils {
       return manager.getLastEvent(applicationName, nodeToCheck, instanceId)
   }
   
+  static def toAbsolutePath(context, String relativePath) {
+      return relativePath ? context.getServiceDirectory()+"/"+relativePath : null;
+  }
+  
   static def destroy() {
       manager.destroy()
   }

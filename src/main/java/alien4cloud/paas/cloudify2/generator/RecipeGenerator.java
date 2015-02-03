@@ -511,17 +511,6 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         generateOperationCallCommand(context, operationCall, executions, isAsynchronous);
     }
 
-    private Map<String, String> escapeForLinuxPath(Map<String, String> paths) {
-        if (paths == null) {
-            return null;
-        }
-        Map<String, String> toReturnMap = Maps.newHashMap();
-        for (Entry<String, String> entry : paths.entrySet()) {
-            toReturnMap.put(entry.getKey(), entry.getValue().replaceAll("\\\\", "/"));
-        }
-        return toReturnMap;
-    }
-
     private void generateRelationshipOperationCall(final RecipeGeneratorServiceContext context, final OperationCallActivity operationCall,
             final List<String> executions, final PaaSNodeTemplate paaSNodeTemplate) throws IOException {
         PaaSRelationshipTemplate paaSRelationshipTemplate = paaSNodeTemplate.getRelationshipTemplate(operationCall.getRelationshipId());
@@ -542,9 +531,10 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         }
 
         // add artifacts paths of the node (source node in case of a relationship )
-        Map<String, String> copiedArtifactPath = escapeForLinuxPath(context.getNodeArtifactsPaths().get(operationCall.getNodeTemplateId()));
-        if (copiedArtifactPath != null) {
-            stringParameters.putAll(copiedArtifactPath);
+        // Map<String, String> copiedArtifactPath = escapeForLinuxPath(context.getNodeArtifactsPaths().get(operationCall.getNodeTemplateId()));
+        Map<String, String> copiedArtifactPathCmds = formatToAbsolutePathCmds(context.getNodeArtifactsPaths().get(operationCall.getNodeTemplateId()));
+        if (copiedArtifactPathCmds != null) {
+            varParamNames.putAll(copiedArtifactPathCmds);
         }
 
         // now call the operation script
@@ -583,6 +573,18 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         } else {
             executions.add(command);
         }
+    }
+
+    private Map<String, String> formatToAbsolutePathCmds(Map<String, String> paths) {
+        if (paths == null) {
+            return null;
+        }
+        Map<String, String> toReturnMap = Maps.newHashMap();
+        for (Entry<String, String> entry : paths.entrySet()) {
+            String linuxFormated = entry.getValue().replaceAll("\\\\", "/");
+            toReturnMap.put(entry.getKey(), commandGenerator.getToAbsolutePathCommand(linuxFormated));
+        }
+        return toReturnMap;
     }
 
     private String getRestartCondition(final RecipeGeneratorServiceContext context, final OperationCallActivity operationCall) {
