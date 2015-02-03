@@ -9,7 +9,7 @@ node_templates:
   blockstorage:
     type: tosca.nodes.BlockStorage
     properties:
-      volume_id: 758e985c-a1ac-4eb4-83ce-e1fc516ec18e
+      volume_id: 24d0fb21-cfc9-4f8f-889e-d22057e5de68
     relationships:
       attachToServeurWeb:
         target: comp_storage_volumeid
