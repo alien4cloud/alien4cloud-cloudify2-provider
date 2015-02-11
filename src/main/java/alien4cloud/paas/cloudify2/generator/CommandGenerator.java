@@ -52,6 +52,7 @@ public class CommandGenerator {
     private static final String GET_IP_FORMAT = "CloudifyAttributesUtils.getIp(context, %s, %s)";
 
     private static final String GET_TOSCA_RELATIONSHIP_ENVS_FORMAT = "EnvironmentBuilder.getTOSCARelationshipEnvs(context, %s, %s, %s, %s)";
+    private static final String TO_ABSOLUTE_PATH_FORMAT = "CloudifyUtils.toAbsolutePath(context, \"%s\")";
 
     @Resource
     private ApplicationContext applicationContext;
@@ -327,12 +328,35 @@ public class CommandGenerator {
         return String.format(GET_IP_FORMAT, cloudifyServiceName, instanceId);
     }
 
+    /**
+     * Return the execution command to get the tosca relationships env vars
+     *
+     * @param name
+     * @param baseValue
+     * @param serviceName
+     * @param attributes
+     * @return
+     * @throws IOException
+     */
     public String getTOSCARelationshipEnvsCommand(String name, String baseValue, String serviceName, Map<String, String> attributes) throws IOException {
         name = formatString(name);
         baseValue = formatString(baseValue);
         serviceName = formatString(serviceName);
         String formatedParams = formatParams(attributes, null);
         return String.format(GET_TOSCA_RELATIONSHIP_ENVS_FORMAT, name, baseValue, serviceName, formatedParams);
+    }
+
+    /**
+     * Return the execution command to get an absolute path (based on the service) of a relative one.
+     *
+     * @param relativePath
+     * @return
+     */
+    public String getToAbsolutePathCommand(String relativePath) {
+        if (StringUtils.isNotBlank(relativePath)) {
+            return String.format(TO_ABSOLUTE_PATH_FORMAT, relativePath);
+        }
+        return null;
     }
 
     private String formatString(String serviceName) {

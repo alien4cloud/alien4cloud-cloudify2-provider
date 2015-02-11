@@ -13,7 +13,7 @@ service {
     init $initCommand
     postInstall {}
     start "start.groovy"
-    startDetectionTimeoutSecs 600
+    startDetectionTimeoutSecs $startDetectionTimeoutSec
 #if($startDetectionCommand && !$startDetectionCommand.trim().isEmpty())
     startDetection {
       $startDetectionCommand
