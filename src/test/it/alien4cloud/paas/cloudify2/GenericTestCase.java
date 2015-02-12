@@ -28,7 +28,6 @@ import org.cloudifysource.dsl.rest.response.ServiceDescription;
 import org.cloudifysource.dsl.rest.response.ServiceInstanceDetails;
 import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
-import org.elasticsearch.mapping.ElasticSearchClient;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -72,42 +71,49 @@ import com.google.common.collect.Maps;
 @ContextConfiguration("classpath:application-context-testit.xml")
 @Slf4j
 public class GenericTestCase {
+
     protected static final int HTTP_CODE_OK = 200;
+
     protected static final String DEFAULT_TOMCAT_PORT = "8080";
 
-    protected static final String DEFAULT_LINUX_COMPUTE_TEMPLATE_ID = "MEDIUM_LINUX";
-    protected static final String DEFAULT_WINDOWS_COMPUTE_TEMPLATE_ID = "WINDOWS";
+    protected static final String ALIEN_WINDOWS_IMAGE = "alienWindowsImage";
 
-    private static final String ALIEN_WINDOWS_IMAGE = "alienWindowsImage";
+    protected static final String ALIEN_LINUX_IMAGE = "alienLinuxImage";
 
-    private static final String ALIEN_LINUX_IMAGE = "alienLinuxImage";
+    protected static final String ALIEN_FLAVOR = "alienFlavor";
 
-    private static final String ALIEN_FLAVOR = "alienFlavor";
-    public static final String IAAS_IMAGE_ID = "2b4475df-b6d6-49b7-a062-a3a20d45ab7c";
+    public static final String IAAS_IMAGE_ID = "RegionOne/2b4475df-b6d6-49b7-a062-a3a20d45ab7c";
+
+    public static final String EXTENDED_TYPES_REPO = "alien-extended-types";
+
+    public static final String EXTENDED_STORAGE_TYPES = "alien-extended-storage-types-1.0-SNAPSHOT";
+    public static final String IAAS_FLAVOR_ID = "RegionOne/2";
 
     @Resource
     protected ArchiveUploadService archiveUploadService;
 
     @Resource(name = "cloudify-paas-provider-bean")
     protected CloudifyPaaSProvider cloudifyPaaSPovider;
+
     @Resource
     protected ElasticSearchDAO alienDAO;
+
     @Resource
     protected CsarFileRepository archiveRepositry;
+
     protected CloudifyRestClientManager cloudifyRestClientManager;
+
     @Resource
     private ApplicationService applicationService;
-    @Resource
-    private ElasticSearchClient esClient;
+
     @Resource
     protected TestsUtils testsUtils;
+
     @Resource
     private TopologyTreeBuilderService topologyTreeBuilderService;
 
-    public static final String EXTENDED_TYPES_REPO = "alien-extended-types";
-    public static final String EXTENDED_STORAGE_TYPES = "alien-extended-storage-types-1.0-SNAPSHOT";
-
     protected List<String> deployedCloudifyAppIds = new ArrayList<>();
+
     private List<Class<?>> IndiceClassesToClean;
 
     public GenericTestCase() {
@@ -136,7 +142,7 @@ public class GenericTestCase {
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
         // String cloudifyURL = null;
-        cloudifyURL = cloudifyURL == null ? "http://129.185.67.26:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "http://129.185.67.109:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL);
         pluginConfigurationBean.setSynchronousDeployment(true);
@@ -155,7 +161,7 @@ public class GenericTestCase {
         matcherConf.setImageMapping(imageMapping);
 
         Map<CloudImageFlavor, String> flavorMapping = Maps.newHashMap();
-        flavorMapping.put(new CloudImageFlavor(ALIEN_FLAVOR, 1, 1L, 1L), "2");
+        flavorMapping.put(new CloudImageFlavor(ALIEN_FLAVOR, 1, 1L, 1L), IAAS_FLAVOR_ID);
         matcherConf.setFlavorMapping(flavorMapping);
 
         cloudifyPaaSPovider.updateMatcherConfig(matcherConf);
@@ -289,7 +295,7 @@ public class GenericTestCase {
         setup.setCloudResourcesMapping(Maps.<String, ComputeTemplate> newHashMap());
         if (computesId != null) {
             for (String string : computesId) {
-                setup.getCloudResourcesMapping().put(string, new ComputeTemplate(null, DEFAULT_LINUX_COMPUTE_TEMPLATE_ID));
+                setup.getCloudResourcesMapping().put(string, new ComputeTemplate(ALIEN_LINUX_IMAGE, ALIEN_FLAVOR));
             }
         }
         if (computesMatching != null) {
