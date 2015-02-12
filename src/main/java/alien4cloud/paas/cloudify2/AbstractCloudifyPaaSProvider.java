@@ -58,7 +58,6 @@ import alien4cloud.paas.IPaaSProvider;
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.events.BlockStorageEvent;
 import alien4cloud.paas.cloudify2.events.NodeInstanceState;
-import alien4cloud.paas.cloudify2.funtion.FunctionProcessor;
 import alien4cloud.paas.cloudify2.generator.RecipeGenerator;
 import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.exception.OperationExecutionException;
@@ -100,9 +99,6 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     private IGenericSearchDAO alienMonitorDao;
     @Resource
     private TopologyTreeBuilderService topologyTreeBuilderService;
-
-    @Resource
-    private FunctionProcessor functionProcessor;
     @Getter
     private Map<String, PropertyDefinition> deploymentPropertyMap;
 
@@ -139,9 +135,6 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
      *
      */
     protected void configureDefault() {
-        log.info("Setting default configuration for storage templates matchers");
-        recipeGenerator.getStorageScriptGenerator().configure(getPluginConfigurationBean().getStorageTemplates());
-
         log.info("Setting deployments properties");
         setDeploymentProperties();
     }
@@ -247,18 +240,18 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
                 currentDeploymentState = applicationDescription.getApplicationState();
 
                 switch (currentDeploymentState) {
-                    case STARTED:
-                        log.info(String.format("Deployment of application '%s' is finished with success", applicationName));
-                        return;
-                    case FAILED:
-                        throw new PaaSDeploymentException(String.format("Failed deploying application '%s'", applicationName));
-                    default:
-                        try {
-                            Thread.sleep(DEFAULT_SLEEP_TIME);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            log.warn("Waiting to retrieve application '" + applicationName + "' state interrupted... ", e);
-                        }
+                case STARTED:
+                    log.info(String.format("Deployment of application '%s' is finished with success", applicationName));
+                    return;
+                case FAILED:
+                    throw new PaaSDeploymentException(String.format("Failed deploying application '%s'", applicationName));
+                default:
+                    try {
+                        Thread.sleep(DEFAULT_SLEEP_TIME);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        log.warn("Waiting to retrieve application '" + applicationName + "' state interrupted... ", e);
+                    }
                 }
             }
         } catch (RestClientException e) {
@@ -760,12 +753,12 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
 
     private DeploymentStatus statusFromState(DeploymentState deploymentState) {
         switch (deploymentState) {
-            case FAILED:
-                return DeploymentStatus.FAILURE;
-            case IN_PROGRESS:
-                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-            case STARTED:
-                return null;
+        case FAILED:
+            return DeploymentStatus.FAILURE;
+        case IN_PROGRESS:
+            return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+        case STARTED:
+            return null;
         }
         return null;
     }
@@ -789,16 +782,16 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         try {
             USMState state = USMState.valueOf(instanceStatus);
             switch (state) {
-                case INITIALIZING:
-                    return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-                case LAUNCHING:
-                    return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-                case RUNNING:
-                    return DeploymentStatus.DEPLOYED;
-                case SHUTTING_DOWN:
-                    return DeploymentStatus.UNDEPLOYMENT_IN_PROGRESS;
-                case ERROR:
-                    return DeploymentStatus.FAILURE;
+            case INITIALIZING:
+                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+            case LAUNCHING:
+                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+            case RUNNING:
+                return DeploymentStatus.DEPLOYED;
+            case SHUTTING_DOWN:
+                return DeploymentStatus.UNDEPLOYMENT_IN_PROGRESS;
+            case ERROR:
+                return DeploymentStatus.FAILURE;
             }
             return DeploymentStatus.WARNING;
         } catch (IllegalArgumentException e) {

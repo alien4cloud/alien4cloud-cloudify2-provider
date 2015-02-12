@@ -32,6 +32,7 @@ import org.springframework.stereotype.Component;
 import alien4cloud.model.application.DeploymentSetup;
 import alien4cloud.model.cloud.ComputeTemplate;
 import alien4cloud.model.cloud.NetworkTemplate;
+import alien4cloud.model.cloud.StorageTemplate;
 import alien4cloud.model.components.IndexedToscaElement;
 import alien4cloud.model.components.Interface;
 import alien4cloud.model.components.Operation;
@@ -56,6 +57,7 @@ import alien4cloud.paas.plan.StopEvent;
 import alien4cloud.paas.plan.StopPlanGenerator;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.paas.plan.WorkflowStep;
+import alien4cloud.tosca.normative.NormativeBlockStorageConstants;
 import alien4cloud.tosca.normative.NormativeComputeConstants;
 import alien4cloud.tosca.normative.NormativeNetworkConstants;
 import alien4cloud.utils.FileUtil;
@@ -130,6 +132,10 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             if (MapUtils.isNotEmpty(setup.getProviderDeploymentProperties())) {
                 serviceSetup.setProviderDeploymentProperties(setup.getProviderDeploymentProperties());
             }
+            PaaSNodeTemplate storageNode = root.getAttachedNode();
+            if (storageNode != null) {
+                serviceSetup.setStorage(getStorageTemplateOrDie(setup.getStorageMapping(), storageNode));
+            }
             serviceSetup.setId(CloudifyPaaSUtils.serviceIdFromNodeTemplateId(nodeName));
             generateService(nodeTemplates, recipePath, root, serviceSetup);
             serviceIds.add(serviceSetup.getId());
@@ -138,6 +144,15 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         generateApplicationDescriptor(recipePath, topologyId, deploymentName, serviceIds);
 
         return createZip(recipePath);
+    }
+
+    private StorageTemplate getStorageTemplateOrDie(Map<String, StorageTemplate> storageMapping, PaaSNodeTemplate storageNode) {
+        paaSResourceMatcher.verifyNode(storageNode, NormativeBlockStorageConstants.BLOCKSTORAGE_TYPE);
+        StorageTemplate storage = storageMapping.get(storageNode.getId());
+        if (storage != null) {
+            return storage;
+        }
+        throw new ResourceMatchingFailedException("Failed to find a storage for node <" + storageNode.getId() + ">");
     }
 
     private NetworkTemplate getNetworkTemplateOrDie(Map<String, NetworkTemplate> networkMapping, PaaSNodeTemplate networkNode) {
@@ -214,8 +229,12 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         // find the compute template for this service
         String computeTemplate = paaSResourceMatcher.getTemplate(setup.getComputeTemplate());
         String networkName = null;
+        String storageName = null;
         if (setup.getNetwork() != null) {
             networkName = paaSResourceMatcher.getNetwork(setup.getNetwork());
+        }
+        if (setup.getStorage() != null) {
+            storageName = paaSResourceMatcher.getStorage(setup.getStorage());
         }
         log.info("Compute template ID for node <{}> is: [{}]", computeNode.getId(), computeTemplate);
         // create service directory
@@ -236,7 +255,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         this.artifactCopier.copyAllArtifacts(context, computeNode);
 
         // generate cloudify init script
-        generateInitScripts(context, computeNode);
+        generateInitScripts(context, computeNode, storageName);
 
         // generate cloudify global start detection script
         manageStartDetection(context, computeNode);
@@ -266,12 +285,12 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
                 .get(DeploymentPropertiesNames.STARTDETECTION_TIMEOUT_INSECOND));
     }
 
-    private void generateInitScripts(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate computeNode) throws IOException {
+    private void generateInitScripts(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate computeNode, String storageName) throws IOException {
         String initCommand = "{}";
         List<String> executions = Lists.newArrayList();
 
         // process blockstorage init and startup
-        storageScriptGenerator.generateInitStartUpStorageScripts(context, computeNode.getAttachedNode(), executions);
+        storageScriptGenerator.generateInitStartUpStorageScripts(context, computeNode.getAttachedNode(), storageName, executions);
 
         // generate the init script
         if (!executions.isEmpty()) {

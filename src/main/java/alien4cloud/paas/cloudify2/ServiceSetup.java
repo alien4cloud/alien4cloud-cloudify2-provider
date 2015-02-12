@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 import alien4cloud.model.cloud.ComputeTemplate;
 import alien4cloud.model.cloud.NetworkTemplate;
+import alien4cloud.model.cloud.StorageTemplate;
 
 import com.google.common.collect.Maps;
 
@@ -15,6 +16,7 @@ public class ServiceSetup {
     private String id;
     private ComputeTemplate computeTemplate;
     private NetworkTemplate network;
+    private StorageTemplate storage;
     private Map<String, String> providerDeploymentProperties = Maps.newHashMap();
 
 }

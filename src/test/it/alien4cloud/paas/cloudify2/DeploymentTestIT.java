@@ -114,30 +114,19 @@ public class DeploymentTestIT extends GenericTestCase {
         log.info("\n\n >> Executing Test testConfiguringTwoPaaSProvider \n");
 
         String cloudifyURL2 = "http://129.185.67.36:8100/";
-        final int configInitialSTCount = new PluginConfigurationBean().getStorageTemplates().size();
-        final int providerCTCount = cloudifyPaaSPovider.getRecipeGenerator().getStorageScriptGenerator().getStorageTemplateMatcher().getStorageTemplates()
-                .size();
         final String cloudifyURL = cloudifyPaaSPovider.getCloudifyRestClientManager().getCloudifyURL().toString();
 
         PluginConfigurationBean pluginConfigurationBean2 = anotherCloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean2.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL2);
         pluginConfigurationBean2.setSynchronousDeployment(true);
         pluginConfigurationBean2.getCloudifyConnectionConfiguration().setVersion("2.7.1");
-        pluginConfigurationBean2.getStorageTemplates().add(new StorageTemplate());
         try {
             anotherCloudifyPaaSPovider.setConfiguration(pluginConfigurationBean2);
         } catch (Exception e) {
         }
-
-        assertEquals(configInitialSTCount + 1, anotherCloudifyPaaSPovider.getRecipeGenerator().getStorageScriptGenerator().getStorageTemplateMatcher()
-                .getStorageTemplates().size());
         assertEquals(cloudifyURL2, anotherCloudifyPaaSPovider.getCloudifyRestClientManager().getCloudifyURL().toString());
-
         // check the config of the other one still the same
-        assertEquals(providerCTCount, cloudifyPaaSPovider.getRecipeGenerator().getStorageScriptGenerator().getStorageTemplateMatcher().getStorageTemplates()
-                .size());
         assertEquals(cloudifyURL, cloudifyPaaSPovider.getCloudifyRestClientManager().getCloudifyURL().toString());
-
     }
 
     @Test

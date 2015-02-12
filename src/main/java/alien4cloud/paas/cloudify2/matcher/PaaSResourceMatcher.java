@@ -14,6 +14,7 @@ import alien4cloud.model.cloud.CloudImageFlavor;
 import alien4cloud.model.cloud.CloudResourceMatcherConfig;
 import alien4cloud.model.cloud.ComputeTemplate;
 import alien4cloud.model.cloud.NetworkTemplate;
+import alien4cloud.model.cloud.StorageTemplate;
 import alien4cloud.model.components.IndexedNodeType;
 import alien4cloud.paas.cloudify2.CloudifyComputeTemplate;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
@@ -32,6 +33,7 @@ public class PaaSResourceMatcher {
 
     private Map<ComputeTemplate, String> alienTemplateToCloudifyTemplateMapping = Maps.newHashMap();
     private Map<NetworkTemplate, String> alienNetworkToCloudifyNetworkMapping = Maps.newHashMap();
+    private Map<StorageTemplate, String> alienStorageToCloudifyStorageMapping = Maps.newHashMap();
 
     /**
      * Match a cloudify template based on the compute node.
@@ -53,6 +55,16 @@ public class PaaSResourceMatcher {
         return alienNetworkToCloudifyNetworkMapping.get(network);
     }
 
+    /**
+     * Match a cloudify storage based on the storage
+     * 
+     * @param storage the storage
+     * @return the template name which match the given storage
+     */
+    public synchronized String getStorage(StorageTemplate storage) {
+        return alienStorageToCloudifyStorageMapping.get(storage);
+    }
+
     public synchronized void configure(CloudResourceMatcherConfig config, Map<String, CloudifyComputeTemplate> paaSComputeTemplateMap) {
         Map<CloudImage, String> imageMapping = config.getImageMapping();
         Map<CloudImageFlavor, String> flavorsMapping = config.getFlavorMapping();
@@ -62,15 +74,15 @@ public class PaaSResourceMatcher {
         }
         for (Map.Entry<CloudImage, String> cloudImageEntry : imageMapping.entrySet()) {
             for (Map.Entry<CloudImageFlavor, String> flavorEntry : flavorsMapping.entrySet()) {
-                String generatedPaaSResourceId = paaSComputeTemplates.get(new CloudifyComputeTemplate(cloudImageEntry.getValue(),
-                        flavorEntry.getValue()));
+                String generatedPaaSResourceId = paaSComputeTemplates.get(new CloudifyComputeTemplate(cloudImageEntry.getValue(), flavorEntry.getValue()));
                 if (generatedPaaSResourceId != null) {
-                    alienTemplateToCloudifyTemplateMapping.put(new ComputeTemplate(cloudImageEntry.getKey().getId(), flavorEntry
-                            .getKey().getId()), generatedPaaSResourceId);
+                    alienTemplateToCloudifyTemplateMapping.put(new ComputeTemplate(cloudImageEntry.getKey().getId(), flavorEntry.getKey().getId()),
+                            generatedPaaSResourceId);
                 }
             }
         }
         alienNetworkToCloudifyNetworkMapping = config.getNetworkMapping();
+        alienStorageToCloudifyStorageMapping = config.getStorageMapping();
     }
 
     /**
