@@ -16,8 +16,8 @@ public class CloudifyUtils {
   }
   
   @Synchronized
-  static def putRelationshipOperationEvent(application, service, instanceId, eventResume, source, target, parameters) {
-      manager.putRelationshipOperationEvent(application, service, instanceId, eventResume, source, target, parameters);
+  static def putRelationshipOperationEvent(application, service, instanceId, eventResume, source, target) {
+      manager.putRelationshipOperationEvent(application, service, instanceId, eventResume, source, target);
   }
 
   static def waitFor(cloudifyService, serviceToWait, event) {

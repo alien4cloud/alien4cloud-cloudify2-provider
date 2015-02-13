@@ -42,6 +42,7 @@ import alien4cloud.paas.cloudify2.utils.VelocityUtil;
 import alien4cloud.paas.function.FunctionEvaluator;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
+import alien4cloud.paas.plan.ToscaRelationshipLifecycleConstants;
 import alien4cloud.tosca.normative.ToscaFunctionConstants;
 import alien4cloud.utils.CollectionUtils;
 
@@ -109,7 +110,7 @@ abstract class AbstractCloudifyScriptGenerator {
         }
         // if relationship, add relationship env vars
         if (basePaaSTemplate instanceof PaaSRelationshipTemplate) {
-            addRelationshipEnvVars(inputParameters, stringEvalResults, runtimeEvalResults, (PaaSRelationshipTemplate) basePaaSTemplate,
+            addRelationshipEnvVars(operationName, inputParameters, stringEvalResults, runtimeEvalResults, (PaaSRelationshipTemplate) basePaaSTemplate,
                     context.getTopologyNodeTemplates(), instanceId);
         } else {
             addNodeBaseEnvVars((PaaSNodeTemplate) basePaaSTemplate, stringEvalResults, SELF, HOST, SERVICE_NAME);
@@ -121,7 +122,7 @@ abstract class AbstractCloudifyScriptGenerator {
         return commandGenerator.getCommandBasedOnArtifactType(operationFQN, artifact, runtimeEvalResults, stringEvalResults, scriptPath);
     }
 
-    private void addRelationshipEnvVars(Map<String, IOperationParameter> inputParameters, Map<String, String> stringEvalResults,
+    private void addRelationshipEnvVars(String operationName, Map<String, IOperationParameter> inputParameters, Map<String, String> stringEvalResults,
             Map<String, String> runtimeEvalResults, PaaSRelationshipTemplate basePaaSTemplate, Map<String, PaaSNodeTemplate> builtPaaSTemplates,
             String instanceId) throws IOException {
 
@@ -140,7 +141,7 @@ abstract class AbstractCloudifyScriptGenerator {
         stringEvalResults.put(TARGET_SERVICE_NAME,
                 CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(builtPaaSTemplates.get(basePaaSTemplate.getRelationshipTemplate().getTarget())));
 
-        // separate target and source attributes
+        // separate target's from source's attributes
         if (inputParameters != null) {
             for (Entry<String, IOperationParameter> paramEntry : inputParameters.entrySet()) {
                 if (!paramEntry.getValue().isDefinition() && FunctionEvaluator.isGetAttribute((FunctionPropertyValue) paramEntry.getValue())) {
@@ -155,10 +156,26 @@ abstract class AbstractCloudifyScriptGenerator {
         }
 
         // TOSCA SOURCE/SOURCES and TARGET/TARGETS
-        runtimeEvalResults.put(MAP_TO_ADD_KEYWORD + ToscaFunctionConstants.SOURCE,
-                commandGenerator.getTOSCARelationshipEnvsCommand(ToscaFunctionConstants.SOURCE, sourceId, sourceServiceName, instanceId, sourceAttributes));
-        runtimeEvalResults.put(MAP_TO_ADD_KEYWORD + ToscaFunctionConstants.TARGET,
-                commandGenerator.getTOSCARelationshipEnvsCommand(ToscaFunctionConstants.TARGET, targetId, targetServiceName, instanceId, targetAttributes));
+        String finalInstanceId = getProperInstanceIdForRelEnvsBuilding(operationName, ToscaFunctionConstants.SOURCE, instanceId);
+        runtimeEvalResults
+                .put(MAP_TO_ADD_KEYWORD + ToscaFunctionConstants.SOURCE, commandGenerator.getTOSCARelationshipEnvsCommand(ToscaFunctionConstants.SOURCE,
+                        sourceId, sourceServiceName, finalInstanceId, sourceAttributes));
+
+        finalInstanceId = getProperInstanceIdForRelEnvsBuilding(operationName, ToscaFunctionConstants.TARGET, instanceId);
+        runtimeEvalResults
+                .put(MAP_TO_ADD_KEYWORD + ToscaFunctionConstants.TARGET, commandGenerator.getTOSCARelationshipEnvsCommand(ToscaFunctionConstants.TARGET,
+                        targetId, targetServiceName, finalInstanceId, targetAttributes));
+    }
+
+    private String getProperInstanceIdForRelEnvsBuilding(String operationName, String member, String instanceId) {
+        switch (operationName) {
+            case ToscaRelationshipLifecycleConstants.ADD_TARGET:
+                return member.equals(ToscaFunctionConstants.SOURCE) ? null : instanceId;
+            case ToscaRelationshipLifecycleConstants.ADD_SOURCE:
+                return member.equals(ToscaFunctionConstants.TARGET) ? null : instanceId;
+            default:
+                return instanceId;
+        }
     }
 
     protected void generateScriptWorkflow(final Path servicePath, final Path velocityDescriptorPath, final String lifecycle, final List<String> executions,

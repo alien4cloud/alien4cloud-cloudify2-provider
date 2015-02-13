@@ -136,22 +136,19 @@ public class GigaSpacesEventsManager {
         return gotEvent
     }
     
-    def putRelationshipOperationEvent(def application, def service, def instanceId, def eventResume, def source, def target, def parameters) {
+    def putRelationshipOperationEvent(def application, def service, def instanceId, def eventResume, def source, def target) {
         println ">>> putRelationshipOperationEvent application=${application} service=${service} instanceId=${instanceId} event=${eventResume}\n"+
-                "source=${source} target=${target} parameters=${parameters}"
+                "source=${source} target=${target}"
         SpaceDocument document = new SpaceDocument("alien4cloud.paas.cloudify2.events.RelationshipOperationEvent");
         fillEventDocument(application, service, instanceId, eventResume.event, document);
         
+        document.setProperty("executed", false as Boolean);
+        document.setProperty("relationshipId", eventResume.relationshipId as String);
         document.setProperty("source", source.name as String);
         document.setProperty("sourceService", source.service as String);
         document.setProperty("target", target.name as String);
         document.setProperty("targetService", target.service as String);
         document.setProperty("commandName", eventResume.commandName as String);
-        
-        if(parameters) {
-            assert parameters instanceof List
-            document.setProperty("parameters", parameters as List);
-        }
         
         gigaSpace.write(document, DEFAULT_LEASE)
     }

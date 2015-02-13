@@ -19,6 +19,7 @@ import org.apache.http.util.EntityUtils;
 
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.events.NodeInstanceState;
+import alien4cloud.paas.cloudify2.events.RelationshipOperationEvent;
 import alien4cloud.rest.utils.JsonUtil;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -28,6 +29,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class CloudifyEventsListener {
 
     private static final String GET_EVENTS_END_POINT = "/events/getEvents";
+
+    private static final String GET_REL_EVENTS_END_POINT = "/events/getRelEvents";
 
     private static final String SERVICE_KEY = "service";
 
@@ -93,6 +96,16 @@ public class CloudifyEventsListener {
         // return JsonUtil.toList(response, AlienEvent.class);
     }
 
+    public List<RelationshipOperationEvent> getRelEvents() throws IOException, URISyntaxException {
+        URIBuilder builder = new URIBuilder(endpoint.resolve(GET_REL_EVENTS_END_POINT)).addParameter(APPLICATION_KEY, application)
+                .addParameter(SERVICE_KEY, service).addParameter("lastIndex", "0");
+
+        String response = doGet(builder);
+        return new ObjectMapper().readValue(response, new TypeReference<List<RelationshipOperationEvent>>() {
+        });
+        // return JsonUtil.toList(response, AlienEvent.class);
+    }
+
     public List<AlienEvent> getEventsSince(Date date, int maxEvents) throws URISyntaxException, IOException {
         long dateAsLong = date.getTime();
 
@@ -143,4 +156,5 @@ public class CloudifyEventsListener {
         }
         return null;
     }
+
 }

@@ -446,7 +446,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
     private void processWorkflowStep(final RecipeGeneratorServiceContext context, final WorkflowStep workflowStep, final List<String> executions)
             throws IOException {
         if (workflowStep instanceof RelationshipTriggerEvent) {
-            processOperationTriggerOperationEvent(context, (RelationshipTriggerEvent) workflowStep, executions);
+            processRelationshipTriggerEvent(context, (RelationshipTriggerEvent) workflowStep, executions);
         } else if (workflowStep instanceof OperationCallActivity) {
             processOperationCallActivity(context, (OperationCallActivity) workflowStep, executions);
         } else if (workflowStep instanceof StateUpdateEvent) {
@@ -488,7 +488,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         }
     }
 
-    private void processOperationTriggerOperationEvent(final RecipeGeneratorServiceContext context, final RelationshipTriggerEvent operationTriggerEvent,
+    private void processRelationshipTriggerEvent(final RecipeGeneratorServiceContext context, final RelationshipTriggerEvent operationTriggerEvent,
             final List<String> executions) throws IOException {
 
         PaaSNodeTemplate paaSNodeTemplate = context.getNodeTemplateById(operationTriggerEvent.getNodeTemplateId());
@@ -501,7 +501,6 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         if (operationTriggerEvent.getSideOperationImplementationArtifact() != null) {
             // add the reserved env params
             Map<String, String> runtimeEvalResults = Maps.newHashMap();
-            // runtimeEvalResults.put(NAME_VALUE_TO_PARSE_KEWORD, "args");
             String command = getCommandFromOperation(context, paaSRelationshipTemplate, operationTriggerEvent.getInterfaceName(),
                     operationTriggerEvent.getSideOperationName(), operationTriggerEvent.getSideOperationImplementationArtifact(), runtimeEvalResults,
                     Maps.<String, String> newHashMap(), operationTriggerEvent.getSideInputParameters(), "instanceId");
@@ -518,7 +517,8 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             String commandToTrigger = CloudifyPaaSUtils.prefixWith(operationTriggerEvent.getOperationName(), operationTriggerEvent.getNodeTemplateId(),
                     operationTriggerEvent.getRelationshipId());
             String command = commandGenerator.getFireRelationshipTriggerEvent(operationTriggerEvent.getNodeTemplateId(),
-                    operationTriggerEvent.getOperationName(), operationTriggerEvent.getSideNodeTemplateId(), sideServiceName, commandToTrigger);
+                    operationTriggerEvent.getRelationshipId(), operationTriggerEvent.getOperationName(), operationTriggerEvent.getSideNodeTemplateId(),
+                    sideServiceName, commandToTrigger);
             executions.add(command);
         }
     }

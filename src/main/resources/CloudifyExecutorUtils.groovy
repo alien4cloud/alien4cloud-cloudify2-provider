@@ -120,7 +120,7 @@ public class CloudifyExecutorUtils {
         CloudifyUtils.putBlockStorageEvent(application, nodeId, instanceId, event, volumeId)
     }
 
-    static def fireRelationshipEvent(nodeId, event, associatedNodeId, associatedNodeService, command, parameters) {
+    static def fireRelationshipEvent(nodeId, relationshipId, event, associatedNodeId, associatedNodeService, command) {
         def context = ServiceContextFactory.getServiceContext()
         def sourceService = null;
         def targetService = null;
@@ -154,6 +154,7 @@ public class CloudifyExecutorUtils {
         ];
 
         def eventResume = [
+            relationshipId: relationshipId,
             event: event,
             commandName: command
         ]
@@ -161,7 +162,7 @@ public class CloudifyExecutorUtils {
         def application = context.getApplicationName()
         def instanceId = context.getInstanceId()
         println "THE INSTANCE ID is <${instanceId}>"
-        CloudifyUtils.putRelationshipOperationEvent(application, nodeId, instanceId, eventResume, source, target, parameters)
+        CloudifyUtils.putRelationshipOperationEvent(application, nodeId, instanceId, eventResume, source, target)
     }
 
     static def waitFor(cloudifyService, nodeId, status) {

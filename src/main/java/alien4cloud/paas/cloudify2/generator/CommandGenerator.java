@@ -54,7 +54,7 @@ public class CommandGenerator {
     private static final String GET_TOSCA_RELATIONSHIP_ENVS_FORMAT = "EnvironmentBuilder.getTOSCARelationshipEnvs(context, %s, %s, %s, %s, %s)";
     private static final String TO_ABSOLUTE_PATH_FORMAT = "CloudifyUtils.toAbsolutePath(context, \"%s\")";
 
-    private static final String FIRE_RELATIONSHIP_TRIGGER_EVENT = "CloudifyExecutorUtils.fireRelationshipEvent(\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", null)";
+    private static final String FIRE_RELATIONSHIP_TRIGGER_EVENT = "CloudifyExecutorUtils.fireRelationshipEvent(\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\")";
 
     @Resource
     private ApplicationContext applicationContext;
@@ -360,8 +360,9 @@ public class CommandGenerator {
         return null;
     }
 
-    public String getFireRelationshipTriggerEvent(String nodeId, String event, String associatedNodeId, String associatedNodeService, String command) {
-        return String.format(FIRE_RELATIONSHIP_TRIGGER_EVENT, nodeId, event, associatedNodeId, associatedNodeService, command);
+    public String getFireRelationshipTriggerEvent(String nodeId, String relationshipId, String event, String associatedNodeId, String associatedNodeService,
+            String command) {
+        return String.format(FIRE_RELATIONSHIP_TRIGGER_EVENT, nodeId, relationshipId, event, associatedNodeId, associatedNodeService, command);
     }
 
     private String formatString(String serviceName) {

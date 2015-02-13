@@ -127,13 +127,13 @@ relationship_types:
       configure:
         add_target: 
           inputs:
-            CUSTOM_HOSTNAME: { get_property: [TARGET, customHostName] }
-            NAME: { get_property: [SOURCE, customHostName] }
-            COMPUTE_IP: { get_attribute: [TARGET, ip_address] }
-          implementation: relationshipScripts/testEnv.groovy
+            MY_HOSTNAME: { get_property: [TARGET, customHostName] }
+            SOURCE_HOSTNAME: { get_property: [SOURCE, customHostName] }
+            MY_IP: { get_attribute: [TARGET, ip_address] }
+          implementation: relationshipScripts/addTarget_testEnv.groovy
         add_source: 
           inputs:
-            CUSTOM_HOSTNAME: { get_property: [SOURCE, customHostName] }
-            NAME: { get_property: [TARGET, customHostName] }
-            COMPUTE_IP: { get_attribute: [SOURCE, ip_address] }
-          implementation: relationshipScripts/testEnv.groovy
+            MY_HOSTNAME: { get_property: [SOURCE, customHostName] }
+            TARGET_HOSTNAME: { get_property: [TARGET, customHostName] }
+            MY_IP: { get_attribute: [SOURCE, ip_address] }
+          implementation: relationshipScripts/addSource_testEnv.groovy
