@@ -36,6 +36,9 @@ public final class RecipeGeneratorConstants {
     public static final String SERVICE_MAX_ALLOWED_INSTANCES = "maxAllowedInstances";
 
     /** Name of the service property that contains the custom commands definitions (map) */
+    public static final String RELATIONSHIP_CUSTOM_COMMANDS = "relationshipCustomCommands";
+
+    /** Name of the service property that contains the relationships custom commands definitions (map) */
     public static final String SERVICE_CUSTOM_COMMANDS = "customCommands";
 
     /** Name of the service property that contains the start detection script. */

@@ -1,12 +1,14 @@
 package alien4cloud.paas.cloudify2.utils;
 
+import org.apache.commons.lang3.ArrayUtils;
+
 import alien4cloud.model.components.IndexedToscaElement;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.tosca.ToscaUtils;
 
 public class CloudifyPaaSUtils {
 
-    private static final String prefixSeparator = "_";
+    private static final String PREFIX_SEPARATOR = "_";
 
     private CloudifyPaaSUtils() {
     }
@@ -40,17 +42,20 @@ public class CloudifyPaaSUtils {
      * prefix a string with another
      *
      * @param toPrefix
-     * @param prefix
+     * @param prefixes
      * @return
      */
-    public static String prefixWithTemplateId(String toPrefix, String templateId) {
+    public static String prefixWith(String toPrefix, String... prefixes) {
         if (toPrefix == null) {
             return null;
         }
-        if (templateId == null) {
+        if (ArrayUtils.isEmpty(prefixes)) {
             return toPrefix;
         }
-
-        return templateId.concat(prefixSeparator).concat(toPrefix);
+        StringBuilder builder = new StringBuilder();
+        for (String prefix : prefixes) {
+            builder.append(prefix).append(PREFIX_SEPARATOR);
+        }
+        return builder.append(toPrefix).toString();
     }
 }

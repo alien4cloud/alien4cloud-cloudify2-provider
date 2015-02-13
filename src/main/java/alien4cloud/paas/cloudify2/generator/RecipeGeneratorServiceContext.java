@@ -31,8 +31,10 @@ public class RecipeGeneratorServiceContext {
     private final Set<String> recipeTypes = Sets.newHashSet();
     /** Maps nodeId -> script of the start detection commands that we have to aggregate to generate a good start detection for cloudify. */
     private final Map<String, String> startDetectionCommands = Maps.newHashMap();
-    /** Maps operation -> script of the custom commands that we have to add to the service recipe. */
+    /** Maps commandUniqueName -> script of the custom commands that we have to add to the service recipe. */
     private final Map<String, String> customCommands = Maps.newHashMap();
+    /** Maps commandUniqueName -> script of the relationships operations that we have to add to the service recipe as custom command. */
+    private final Map<String, String> relationshipCustomCommands = Maps.newHashMap();
     /** Map of the node templates in the topology. */
     private final Map<String, PaaSNodeTemplate> topologyNodeTemplates;
     /** Maps nodeId -> script of the stop detection commands that we have to aggregate to generate a good stop detection for cloudify. */

@@ -49,6 +49,12 @@ public class DeploymentTestIT extends GenericTestCase {
     public DeploymentTestIT() {
     }
 
+    @Override
+    public void after() {
+        // TODO Auto-generated method stub
+        // super.after();
+    }
+
     @Test(expected = PaaSDeploymentException.class)
     public void deployATopologyWhenNoComputeAreDefinedShouldFail() throws JsonParseException, JsonMappingException, ParsingException,
             CSARVersionAlreadyExistsException, IOException {
@@ -148,6 +154,17 @@ public class DeploymentTestIT extends GenericTestCase {
         String cloudifyAppId = deployTopology("envVarTest", computesId, null);
         this.assertApplicationIsInstalled(cloudifyAppId);
         testEvents(cloudifyAppId, new String[] { "comp_envartest", "test_component" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
+                ToscaNodeLifecycleConstants.CONFIGURED, ToscaNodeLifecycleConstants.STARTED, ToscaNodeLifecycleConstants.AVAILABLE);
+    }
+
+    @Test
+    public void testRelationshipToscaEnvVars2() throws Throwable {
+        this.uploadGitArchive("samples", "tomcat-war");
+        this.uploadTestArchives("test-types-1.0-SNAPSHOT");
+        String[] computesId = new String[] { "source_comp", "target_comp" };
+        String cloudifyAppId = deployTopology("relshipTrigeringTest", computesId, null);
+        this.assertApplicationIsInstalled(cloudifyAppId);
+        testEvents(cloudifyAppId, new String[] { "source_comp", "target_comp" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
                 ToscaNodeLifecycleConstants.CONFIGURED, ToscaNodeLifecycleConstants.STARTED, ToscaNodeLifecycleConstants.AVAILABLE);
     }
 

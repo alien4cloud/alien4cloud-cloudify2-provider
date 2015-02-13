@@ -44,12 +44,13 @@ public class FunctionProcessor {
      * @param basePaaSTemplate The base PaaSTemplate in which the parameter is defined. Can be a {@link PaaSRelationshipTemplate} or a {@link PaaSNodeTemplate}.
      * @param builtPaaSTemplates A map < String, {@link PaaSNodeTemplate}> of built nodetemplates of the processed topology. Note that these
      *            {@link PaaSNodeTemplate}s should have been built, thus referencing their related parents and relationships.
+     * @param instanceId The Id of the instance for which we are processing the inputs
      * @return
      *         StringEvalResult if the result of the valuation is a usable string value
      *         RuntimeEvalResult if the result of the evaluation is an expression to evaluate at runtime.
      */
     public IParamEvalResult evaluate(final AbstractPropertyValue param, final IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
-            final Map<String, PaaSNodeTemplate> builtPaaSTemplates) {
+            final Map<String, PaaSNodeTemplate> builtPaaSTemplates, final String instanceId) {
         // if it is a scalar param, just return its value
         if (param instanceof ScalarPropertyValue) {
             return new StringEvalResult(((ScalarPropertyValue) param).getValue());
@@ -70,7 +71,7 @@ public class FunctionProcessor {
                 result = FunctionEvaluator.evaluateGetPropertyFuntion(functionParam, basePaaSTemplate, builtPaaSTemplates); // process getProperty
                 return new StringEvalResult(result);
             case ToscaFunctionConstants.GET_ATTRIBUTE:
-                result = evaluateGetAttributeFunction(functionParam, basePaaSTemplate, builtPaaSTemplates);
+                result = evaluateGetAttributeFunction(functionParam, basePaaSTemplate, builtPaaSTemplates, instanceId);
                 return new RuntimeEvalResult(result);
             default:
                 throw new NotSupportedException("The function <" + functionParam.getFunction() + "> is not supported.");
@@ -87,16 +88,17 @@ public class FunctionProcessor {
      * @param basePaaSTemplate The base PaaSTemplate in which the parameter is defined. Can be a {@link PaaSRelationshipTemplate} or a {@link PaaSNodeTemplate}.
      * @param builtPaaSTemplates A map < {@link String}, {@link PaaSNodeTemplate}> of built nodetemplates of the processed topology. Note that these
      *            {@link PaaSNodeTemplate}s should have been built, thus referencing their related parents and relationships.
+     * @param instanceId The Id of the instance for which we are processing the inputs
      */
     public void processParameters(Map<String, IOperationParameter> inputParameters, Map<String, String> stringEvalResults,
             Map<String, String> runtimeEvalResults, final IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
-            final Map<String, PaaSNodeTemplate> builtPaaSTemplates) {
+            final Map<String, PaaSNodeTemplate> builtPaaSTemplates, String instanceId) {
         if (inputParameters == null) {
             return;
         }
         for (Entry<String, IOperationParameter> paramEntry : inputParameters.entrySet()) {
             if (!paramEntry.getValue().isDefinition()) {
-                IParamEvalResult evaluatedParam = evaluate((AbstractPropertyValue) paramEntry.getValue(), basePaaSTemplate, builtPaaSTemplates);
+                IParamEvalResult evaluatedParam = evaluate((AbstractPropertyValue) paramEntry.getValue(), basePaaSTemplate, builtPaaSTemplates, instanceId);
                 if (evaluatedParam instanceof StringEvalResult) {
                     stringEvalResults.put(paramEntry.getKey(), evaluatedParam.get());
                 } else {
@@ -107,10 +109,10 @@ public class FunctionProcessor {
     }
 
     private String evaluateGetAttributeFunction(FunctionPropertyValue functionParam, IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
-            Map<String, PaaSNodeTemplate> builtPaaSTemplates) {
+            Map<String, PaaSNodeTemplate> builtPaaSTemplates, String instanceId) {
         PaaSNodeTemplate entity = FunctionEvaluator.getPaaSEntity(basePaaSTemplate, functionParam.getParameters().get(0), builtPaaSTemplates);
         String serviceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(ToscaUtils.getHostTemplate(entity));
-        return evaluateAttributeName(functionParam.getParameters().get(1), serviceName);
+        return evaluateAttributeName(functionParam.getParameters().get(1), serviceName, instanceId);
     }
 
     /* consider doing this in the tosca yaml parser */
@@ -119,12 +121,12 @@ public class FunctionProcessor {
         return CollectionUtils.isNotEmpty(parameters) && parameters.size() >= 2;
     }
 
-    private String evaluateAttributeName(String attributeName, String serviceName) {
+    private String evaluateAttributeName(String attributeName, String serviceName, String instanceId) {
         switch (attributeName) {
             case IP_ADDRESS:
-                return cloudifyCommandGen.getIpCommand(serviceName, null);
+                return cloudifyCommandGen.getIpCommand(serviceName, instanceId);
             default:
-                return cloudifyCommandGen.getAttributeCommand(attributeName, serviceName, null);
+                return cloudifyCommandGen.getAttributeCommand(attributeName, serviceName, instanceId);
         }
     }
 

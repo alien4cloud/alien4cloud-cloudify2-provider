@@ -118,3 +118,22 @@ relationship_types:
             NAME: { get_property: [SOURCE, name] }
             COMPUTE_IP: { get_attribute: [TARGET, ip_address] }
           implementation: relationshipScripts/test_hostedOn_post_configure_source.groovy
+          
+  alien.test.relationships.TestTrigger:
+    derived_from: tosca.relationships.DependsOn
+    valid_sources: [ alien.test.TestCompute ]
+    valid_targets: [ alien.test.TestCompute ]
+    interfaces:
+      configure:
+        add_target: 
+          inputs:
+            CUSTOM_HOSTNAME: { get_property: [TARGET, customHostName] }
+            NAME: { get_property: [SOURCE, customHostName] }
+            COMPUTE_IP: { get_attribute: [TARGET, ip_address] }
+          implementation: relationshipScripts/testEnv.groovy
+        add_source: 
+          inputs:
+            CUSTOM_HOSTNAME: { get_property: [SOURCE, customHostName] }
+            NAME: { get_property: [TARGET, customHostName] }
+            COMPUTE_IP: { get_attribute: [SOURCE, ip_address] }
+          implementation: relationshipScripts/testEnv.groovy

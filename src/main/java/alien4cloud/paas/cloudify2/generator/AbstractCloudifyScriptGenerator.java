@@ -1,6 +1,10 @@
 package alien4cloud.paas.cloudify2.generator;
 
-import static alien4cloud.paas.cloudify2.generator.AlienEnvironmentVariables.*;
+import static alien4cloud.paas.cloudify2.generator.AlienEnvironmentVariables.SERVICE_NAME;
+import static alien4cloud.paas.cloudify2.generator.AlienEnvironmentVariables.SOURCE_NAME;
+import static alien4cloud.paas.cloudify2.generator.AlienEnvironmentVariables.SOURCE_SERVICE_NAME;
+import static alien4cloud.paas.cloudify2.generator.AlienEnvironmentVariables.TARGET_NAME;
+import static alien4cloud.paas.cloudify2.generator.AlienEnvironmentVariables.TARGET_SERVICE_NAME;
 import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SCRIPTS;
 import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SCRIPT_LIFECYCLE;
 import static alien4cloud.tosca.normative.ToscaFunctionConstants.HOST;
@@ -27,6 +31,7 @@ import org.springframework.context.ApplicationContext;
 import alien4cloud.model.components.FunctionPropertyValue;
 import alien4cloud.model.components.IOperationParameter;
 import alien4cloud.model.components.ImplementationArtifact;
+import alien4cloud.model.components.IndexedArtifactToscaElement;
 import alien4cloud.model.components.IndexedToscaElement;
 import alien4cloud.model.components.Interface;
 import alien4cloud.model.components.Operation;
@@ -71,30 +76,31 @@ abstract class AbstractCloudifyScriptGenerator {
         return command;
     }
 
-    protected String prepareAndGetCommand(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate nodeTemplate, final String interfaceName,
-            final String operationName, final Map<String, String> paramsAsVar, Map<String, String> stringParams, Operation operation)
+    protected String prepareAndGetCommand(final RecipeGeneratorServiceContext context, final IPaaSTemplate<? extends IndexedArtifactToscaElement> paaSTemplate,
+            final String interfaceName, final String operationName, final Map<String, String> paramsAsVar, Map<String, String> stringParams, Operation operation)
             throws IOException {
         String command;
         stringParams = stringParams == null ? Maps.<String, String> newHashMap() : stringParams;
-        command = getCommandFromOperation(context, nodeTemplate, interfaceName, operationName, operation.getImplementationArtifact(), paramsAsVar,
-                stringParams, operation.getInputParameters());
+        command = getCommandFromOperation(context, paaSTemplate, interfaceName, operationName, operation.getImplementationArtifact(), paramsAsVar,
+                stringParams, operation.getInputParameters(), null);
         if (StringUtils.isNotBlank(command)) {
-            this.artifactCopier.copyImplementationArtifact(context, nodeTemplate.getCsarPath(), operation.getImplementationArtifact(),
-                    nodeTemplate.getIndexedToscaElement());
+            this.artifactCopier.copyImplementationArtifact(context, paaSTemplate.getCsarPath(), operation.getImplementationArtifact(),
+                    paaSTemplate.getIndexedToscaElement());
         }
         return command;
     }
 
     protected String getCommandFromOperation(final RecipeGeneratorServiceContext context, final IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
             final String interfaceName, final String operationName, final ImplementationArtifact artifact, final Map<String, String> varEnvVars,
-            final Map<String, String> stringEnvVars, Map<String, IOperationParameter> inputParameters) throws IOException {
+            final Map<String, String> stringEnvVars, Map<String, IOperationParameter> inputParameters, String instanceId) throws IOException {
         if (artifact == null || StringUtils.isBlank(artifact.getArtifactRef())) {
             return null;
         }
 
         Map<String, String> runtimeEvalResults = Maps.newHashMap();
         Map<String, String> stringEvalResults = Maps.newHashMap();
-        funtionProcessor.processParameters(inputParameters, stringEvalResults, runtimeEvalResults, basePaaSTemplate, context.getTopologyNodeTemplates());
+        funtionProcessor.processParameters(inputParameters, stringEvalResults, runtimeEvalResults, basePaaSTemplate, context.getTopologyNodeTemplates(),
+                instanceId);
         if (stringEnvVars != null) {
             stringEvalResults.putAll(stringEnvVars);
         }
@@ -104,7 +110,7 @@ abstract class AbstractCloudifyScriptGenerator {
         // if relationship, add relationship env vars
         if (basePaaSTemplate instanceof PaaSRelationshipTemplate) {
             addRelationshipEnvVars(inputParameters, stringEvalResults, runtimeEvalResults, (PaaSRelationshipTemplate) basePaaSTemplate,
-                    context.getTopologyNodeTemplates());
+                    context.getTopologyNodeTemplates(), instanceId);
         } else {
             addNodeBaseEnvVars((PaaSNodeTemplate) basePaaSTemplate, stringEvalResults, SELF, HOST, SERVICE_NAME);
         }
@@ -116,8 +122,8 @@ abstract class AbstractCloudifyScriptGenerator {
     }
 
     private void addRelationshipEnvVars(Map<String, IOperationParameter> inputParameters, Map<String, String> stringEvalResults,
-            Map<String, String> runtimeEvalResults, PaaSRelationshipTemplate basePaaSTemplate, Map<String, PaaSNodeTemplate> builtPaaSTemplates)
-            throws IOException {
+            Map<String, String> runtimeEvalResults, PaaSRelationshipTemplate basePaaSTemplate, Map<String, PaaSNodeTemplate> builtPaaSTemplates,
+            String instanceId) throws IOException {
 
         Map<String, String> targetAttributes = Maps.newHashMap();
         Map<String, String> sourceAttributes = Maps.newHashMap();
@@ -150,9 +156,9 @@ abstract class AbstractCloudifyScriptGenerator {
 
         // TOSCA SOURCE/SOURCES and TARGET/TARGETS
         runtimeEvalResults.put(MAP_TO_ADD_KEYWORD + ToscaFunctionConstants.SOURCE,
-                commandGenerator.getTOSCARelationshipEnvsCommand(ToscaFunctionConstants.SOURCE, sourceId, sourceServiceName, sourceAttributes));
+                commandGenerator.getTOSCARelationshipEnvsCommand(ToscaFunctionConstants.SOURCE, sourceId, sourceServiceName, instanceId, sourceAttributes));
         runtimeEvalResults.put(MAP_TO_ADD_KEYWORD + ToscaFunctionConstants.TARGET,
-                commandGenerator.getTOSCARelationshipEnvsCommand(ToscaFunctionConstants.TARGET, targetId, targetServiceName, targetAttributes));
+                commandGenerator.getTOSCARelationshipEnvsCommand(ToscaFunctionConstants.TARGET, targetId, targetServiceName, instanceId, targetAttributes));
     }
 
     protected void generateScriptWorkflow(final Path servicePath, final Path velocityDescriptorPath, final String lifecycle, final List<String> executions,

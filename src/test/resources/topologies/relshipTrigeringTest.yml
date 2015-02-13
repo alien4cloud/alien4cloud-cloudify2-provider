@@ -1,0 +1,40 @@
+
+node_templates:
+  source_comp:
+    type: alien.test.TestCompute
+    properties:
+      os_type: linux
+      os_distribution: ubuntu
+      os_version: ubuntu
+      customHostName: source
+    relationships:
+      dependsOnTarget_comp:
+        target: target_comp
+        type: alien.test.relationships.TestTrigger
+        requirement_name: dependency
+        requirement_type: tosca.capabilities.Root
+        targeted_capability_name: root
+
+  target_comp:
+    type: alien.test.TestCompute
+    properties:
+      os_type: linux
+      os_distribution: ubuntu
+      os_version: ubuntu
+      customHostName: target
+        
+scaling_policies:
+  source_comp:
+    min_instances: 1
+    max_instances: 4
+    initial_instances: 1
+  target_comp:
+    min_instances: 1
+    max_instances: 4
+    initial_instances: 1
+
+dependencies:
+  - name: tosca-normative-types
+    version: 1.0.0.wd03-SNAPSHOT
+  - name: test-types
+    version: 1.0-SNAPSHOT
