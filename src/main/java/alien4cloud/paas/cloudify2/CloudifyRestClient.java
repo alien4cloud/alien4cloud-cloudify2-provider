@@ -37,6 +37,7 @@ public class CloudifyRestClient extends RestClient {
         });
     }
 
+    @SuppressWarnings("unchecked")
     public Map<String, CloudifyComputeTemplate> getCloudifyComputeTemplates() throws RestClientException {
         String listTemplatesInternalUrl = getFormattedUrl(this.versionedTemplatesControllerUrl, "", new String[0]);
         Map<String, Object> response = this.executor.get(listTemplatesInternalUrl, new TypeReference<Response<Map<String, Object>>>() {

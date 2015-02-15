@@ -3,7 +3,7 @@ import java.util.concurrent.TimeUnit
 import org.cloudifysource.utilitydomain.context.ServiceContextFactory
 
 public class CloudifyUtils {
-  static def manager = new GigaSpacesEventsManager()
+  static GigaSpacesEventsManager manager = new GigaSpacesEventsManager()
 
   @Synchronized
   static def putEvent(application, service, instanceId, event) {
@@ -13,6 +13,11 @@ public class CloudifyUtils {
   @Synchronized
   static def putBlockStorageEvent(application, service, instanceId, event, volumeId) {
     manager.putBlockStorageEvent(application, service, instanceId, event, volumeId)
+  }
+  
+  @Synchronized
+  static def putRelationshipOperationEvent(application, service, instanceId, eventResume, source, target) {
+      manager.putRelationshipOperationEvent(application, service, instanceId, eventResume, source, target);
   }
 
   static def waitFor(cloudifyService, serviceToWait, event) {
