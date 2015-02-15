@@ -823,7 +823,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         Map<String, String> operationResponse = Maps.newHashMap();
         String serviceName = retrieveServiceName(deploymentId, request.getNodeTemplateName());
         InvokeCustomCommandRequest invokeRequest = new InvokeCustomCommandRequest();
-        invokeRequest.setCommandName(CloudifyPaaSUtils.prefixWithTemplateId(request.getOperationName(), request.getNodeTemplateName()));
+        invokeRequest.setCommandName(CloudifyPaaSUtils.prefixWith(request.getOperationName(), request.getNodeTemplateName()));
         buildParameters(deploymentId, request, invokeRequest);
         String operationFQN = operationFQN(serviceName, request, invokeRequest);
         try {

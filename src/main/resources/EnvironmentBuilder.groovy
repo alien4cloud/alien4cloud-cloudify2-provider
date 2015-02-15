@@ -43,9 +43,9 @@ public class EnvironmentBuilder {
      * @param attributes
      * @return
      */
-    public static Map getTOSCARelationshipEnvs(context, String name, String baseValue, String serviceName, Map attributes) {
+    public static Map getTOSCARelationshipEnvs(context, String name, String baseValue, String serviceName, String instanceId, Map attributes) {
         def envMap = [:]
-        buildTOSCARelationshipEnvVar(context, name, baseValue, serviceName, attributes?:[:], envMap)
+        buildTOSCARelationshipEnvVar(context, name, baseValue, serviceName, attributes?:[:], envMap, instanceId)
         return envMap
     }
     
@@ -136,8 +136,8 @@ public class EnvironmentBuilder {
      * @param argsMap
      * @return
      */
-    private static def buildTOSCARelationshipEnvVar(context, String envVar, String baseValue, String serviceName, Map attrToProcess, Map argsMap) {
-        def instanceId = context.instanceId;
+    private static def buildTOSCARelationshipEnvVar(context, String envVar, String baseValue, String serviceName, Map attrToProcess, Map argsMap, String instanceId) {
+        instanceId = instanceId?:context.instanceId;
         def nbInstances = context.waitForService(serviceName, 60, TimeUnit.SECONDS).getNumberOfPlannedInstances();
         StringBuilder values = new StringBuilder();
         

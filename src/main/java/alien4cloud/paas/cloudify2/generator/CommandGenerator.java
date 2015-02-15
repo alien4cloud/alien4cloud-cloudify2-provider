@@ -51,8 +51,10 @@ public class CommandGenerator {
     private static final String GET_INSTANCE_ATTRIBUTE_FORMAT = "CloudifyAttributesUtils.getAttribute(context, %s, %s, %s)";
     private static final String GET_IP_FORMAT = "CloudifyAttributesUtils.getIp(context, %s, %s)";
 
-    private static final String GET_TOSCA_RELATIONSHIP_ENVS_FORMAT = "EnvironmentBuilder.getTOSCARelationshipEnvs(context, %s, %s, %s, %s)";
+    private static final String GET_TOSCA_RELATIONSHIP_ENVS_FORMAT = "EnvironmentBuilder.getTOSCARelationshipEnvs(context, %s, %s, %s, %s, %s)";
     private static final String TO_ABSOLUTE_PATH_FORMAT = "CloudifyUtils.toAbsolutePath(context, \"%s\")";
+
+    private static final String FIRE_RELATIONSHIP_TRIGGER_EVENT = "CloudifyExecutorUtils.fireRelationshipEvent(\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\")";
 
     @Resource
     private ApplicationContext applicationContext;
@@ -311,7 +313,6 @@ public class CommandGenerator {
     public String getAttributeCommand(String attributeName, String cloudifyServiceName, String instanceId) {
         cloudifyServiceName = formatString(cloudifyServiceName);
         attributeName = formatString(attributeName);
-        instanceId = formatString(instanceId);
         return String.format(GET_INSTANCE_ATTRIBUTE_FORMAT, cloudifyServiceName, instanceId, attributeName);
     }
 
@@ -324,7 +325,6 @@ public class CommandGenerator {
      */
     public String getIpCommand(String cloudifyServiceName, String instanceId) {
         cloudifyServiceName = formatString(cloudifyServiceName);
-        instanceId = formatString(instanceId);
         return String.format(GET_IP_FORMAT, cloudifyServiceName, instanceId);
     }
 
@@ -338,12 +338,13 @@ public class CommandGenerator {
      * @return
      * @throws IOException
      */
-    public String getTOSCARelationshipEnvsCommand(String name, String baseValue, String serviceName, Map<String, String> attributes) throws IOException {
+    public String getTOSCARelationshipEnvsCommand(String name, String baseValue, String serviceName, String instanceId, Map<String, String> attributes)
+            throws IOException {
         name = formatString(name);
         baseValue = formatString(baseValue);
         serviceName = formatString(serviceName);
         String formatedParams = formatParams(attributes, null);
-        return String.format(GET_TOSCA_RELATIONSHIP_ENVS_FORMAT, name, baseValue, serviceName, formatedParams);
+        return String.format(GET_TOSCA_RELATIONSHIP_ENVS_FORMAT, name, baseValue, serviceName, instanceId, formatedParams);
     }
 
     /**
@@ -357,6 +358,11 @@ public class CommandGenerator {
             return String.format(TO_ABSOLUTE_PATH_FORMAT, relativePath);
         }
         return null;
+    }
+
+    public String getFireRelationshipTriggerEvent(String nodeId, String relationshipId, String event, String associatedNodeId, String associatedNodeService,
+            String command) {
+        return String.format(FIRE_RELATIONSHIP_TRIGGER_EVENT, nodeId, relationshipId, event, associatedNodeId, associatedNodeService, command);
     }
 
     private String formatString(String serviceName) {

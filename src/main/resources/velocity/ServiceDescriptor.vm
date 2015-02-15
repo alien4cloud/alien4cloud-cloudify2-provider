@@ -41,10 +41,16 @@ service {
     }
   }
   
-  #if($customCommands.size() > 0)
+  #if($customCommands.size() > 0 || $relationshipCustomCommands.size() > 0)
   customCommands ([
     #foreach ($mapEntry in $customCommands.entrySet())
     "$mapEntry.getKey()" : { String[] args->
+    	return $mapEntry.getValue()
+    },
+    #end
+
+	#foreach($mapEntry in $relationshipCustomCommands.entrySet())
+    "$mapEntry.getKey()" : { String instanceId ->
     	return $mapEntry.getValue()
     },
     #end
