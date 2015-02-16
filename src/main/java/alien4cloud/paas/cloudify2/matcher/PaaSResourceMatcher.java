@@ -9,10 +9,14 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import alien4cloud.model.cloud.CloudImage;
+import alien4cloud.model.cloud.CloudImageFlavor;
 import alien4cloud.model.cloud.CloudResourceMatcherConfig;
 import alien4cloud.model.cloud.ComputeTemplate;
-import alien4cloud.model.cloud.Network;
+import alien4cloud.model.cloud.NetworkTemplate;
+import alien4cloud.model.cloud.StorageTemplate;
 import alien4cloud.model.components.IndexedNodeType;
+import alien4cloud.paas.cloudify2.CloudifyComputeTemplate;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.tosca.ToscaUtils;
@@ -28,7 +32,8 @@ import com.google.common.collect.Maps;
 public class PaaSResourceMatcher {
 
     private Map<ComputeTemplate, String> alienTemplateToCloudifyTemplateMapping = Maps.newHashMap();
-    private Map<Network, String> alienNetworkToCloudifyNetworkMapping = Maps.newHashMap();
+    private Map<NetworkTemplate, String> alienNetworkToCloudifyNetworkMapping = Maps.newHashMap();
+    private Map<StorageTemplate, String> alienStorageToCloudifyStorageMapping = Maps.newHashMap();
 
     /**
      * Match a cloudify template based on the compute node.
@@ -46,13 +51,38 @@ public class PaaSResourceMatcher {
      * @param network The network.
      * @return The template that matches the given network.
      */
-    public synchronized String getNetwork(Network network) {
+    public synchronized String getNetwork(NetworkTemplate network) {
         return alienNetworkToCloudifyNetworkMapping.get(network);
     }
 
-    public synchronized void configure(CloudResourceMatcherConfig config) {
-        alienTemplateToCloudifyTemplateMapping = config.getComputeTemplateMapping();
+    /**
+     * Match a cloudify storage based on the storage
+     * 
+     * @param storage the storage
+     * @return the template name which match the given storage
+     */
+    public synchronized String getStorage(StorageTemplate storage) {
+        return alienStorageToCloudifyStorageMapping.get(storage);
+    }
+
+    public synchronized void configure(CloudResourceMatcherConfig config, Map<String, CloudifyComputeTemplate> paaSComputeTemplateMap) {
+        Map<CloudImage, String> imageMapping = config.getImageMapping();
+        Map<CloudImageFlavor, String> flavorsMapping = config.getFlavorMapping();
+        Map<CloudifyComputeTemplate, String> paaSComputeTemplates = Maps.newHashMap();
+        for (Map.Entry<String, CloudifyComputeTemplate> cloudifyComputeTemplateEntry : paaSComputeTemplateMap.entrySet()) {
+            paaSComputeTemplates.put(cloudifyComputeTemplateEntry.getValue(), cloudifyComputeTemplateEntry.getKey());
+        }
+        for (Map.Entry<CloudImage, String> cloudImageEntry : imageMapping.entrySet()) {
+            for (Map.Entry<CloudImageFlavor, String> flavorEntry : flavorsMapping.entrySet()) {
+                String generatedPaaSResourceId = paaSComputeTemplates.get(new CloudifyComputeTemplate(cloudImageEntry.getValue(), flavorEntry.getValue()));
+                if (generatedPaaSResourceId != null) {
+                    alienTemplateToCloudifyTemplateMapping.put(new ComputeTemplate(cloudImageEntry.getKey().getId(), flavorEntry.getKey().getId()),
+                            generatedPaaSResourceId);
+                }
+            }
+        }
         alienNetworkToCloudifyNetworkMapping = config.getNetworkMapping();
+        alienStorageToCloudifyStorageMapping = config.getStorageMapping();
     }
 
     /**

@@ -6,8 +6,15 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import javax.annotation.Resource;
 
@@ -21,7 +28,6 @@ import org.cloudifysource.dsl.rest.response.ServiceDescription;
 import org.cloudifysource.dsl.rest.response.ServiceInstanceDetails;
 import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
-import org.elasticsearch.mapping.ElasticSearchClient;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -36,9 +42,11 @@ import alien4cloud.model.application.Application;
 import alien4cloud.model.application.ApplicationEnvironment;
 import alien4cloud.model.application.ApplicationVersion;
 import alien4cloud.model.application.DeploymentSetup;
+import alien4cloud.model.cloud.CloudImage;
+import alien4cloud.model.cloud.CloudImageFlavor;
 import alien4cloud.model.cloud.CloudResourceMatcherConfig;
 import alien4cloud.model.cloud.ComputeTemplate;
-import alien4cloud.model.cloud.MatchedComputeTemplate;
+import alien4cloud.model.cloud.StorageTemplate;
 import alien4cloud.model.components.Csar;
 import alien4cloud.model.deployment.Deployment;
 import alien4cloud.model.topology.Topology;
@@ -50,6 +58,7 @@ import alien4cloud.paas.exception.OperationExecutionException;
 import alien4cloud.paas.model.NodeOperationExecRequest;
 import alien4cloud.paas.model.PaaSDeploymentContext;
 import alien4cloud.paas.model.PaaSNodeTemplate;
+import alien4cloud.paas.model.PaaSTopology;
 import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.plugin.PluginConfiguration;
@@ -64,38 +73,52 @@ import com.google.common.collect.Maps;
 @ContextConfiguration("classpath:application-context-testit.xml")
 @Slf4j
 public class GenericTestCase {
+
     protected static final int HTTP_CODE_OK = 200;
+
     protected static final String DEFAULT_TOMCAT_PORT = "8080";
 
-    protected static final String DEFAULT_LINUX_COMPUTE_TEMPLATE_ID = "MEDIUM_LINUX";
-    protected static final String DEFAULT_WINDOWS_COMPUTE_TEMPLATE_ID = "WINDOWS";
+    protected static final String ALIEN_WINDOWS_IMAGE = "alienWindowsImage";
+
+    protected static final String ALIEN_LINUX_IMAGE = "alienLinuxImage";
+
+    protected static final String ALIEN_FLAVOR = "alienFlavor";
+
+    public static final String IAAS_IMAGE_ID = "RegionOne/2b4475df-b6d6-49b7-a062-a3a20d45ab7c";
+
+    public static final String EXTENDED_TYPES_REPO = "alien-extended-types";
+
+    public static final String EXTENDED_STORAGE_TYPES = "alien-extended-storage-types-1.0-SNAPSHOT";
+    public static final String IAAS_FLAVOR_ID = "RegionOne/2";
+    public static final String ALIEN_STORAGE = "alienStorage";
+    public static final String ALIEN_STORAGE_DEVICE = "/dev/vdb";
+    public static final String IAAS_BLOCK_STORAGE_ID = "SMALL_BLOCK";
 
     @Resource
     protected ArchiveUploadService archiveUploadService;
 
     @Resource(name = "cloudify-paas-provider-bean")
     protected CloudifyPaaSProvider cloudifyPaaSPovider;
+
     @Resource
     protected ElasticSearchDAO alienDAO;
+
     @Resource
     protected CsarFileRepository archiveRepositry;
+
     protected CloudifyRestClientManager cloudifyRestClientManager;
+
     @Resource
     private ApplicationService applicationService;
-    @Resource
-    private ElasticSearchClient esClient;
+
     @Resource
     protected TestsUtils testsUtils;
+
     @Resource
     private TopologyTreeBuilderService topologyTreeBuilderService;
 
-    public static final String EXTENDED_TYPES_REPO = "alien-extended-types";
-    public static final String EXTENDED_STORAGE_TYPES = "alien-extended-storage-types-1.0-SNAPSHOT";
-
-    public static final String SAMPLE_REPO = "samples";
-    public static final String TOMCAT_WAR_TYPES = "tomcat-war";
-
     protected List<String> deployedCloudifyAppIds = new ArrayList<>();
+
     private List<Class<?>> IndiceClassesToClean;
 
     public GenericTestCase() {
@@ -123,8 +146,7 @@ public class GenericTestCase {
         testsUtils.uploadGitArchive("alien-extended-types", "alien-base-types-1.0-SNAPSHOT");
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        // String cloudifyURL = null;
-        cloudifyURL = cloudifyURL == null ? "http://129.185.67.26:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "http://129.185.67.109:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL);
         pluginConfigurationBean.setSynchronousDeployment(true);
@@ -132,9 +154,23 @@ public class GenericTestCase {
         cloudifyPaaSPovider.setConfiguration(pluginConfigurationBean);
         cloudifyRestClientManager = cloudifyPaaSPovider.getCloudifyRestClientManager();
         CloudResourceMatcherConfig matcherConf = new CloudResourceMatcherConfig();
-        matcherConf.setMatchedComputeTemplates(Lists.newArrayList(new MatchedComputeTemplate(new ComputeTemplate(null, DEFAULT_LINUX_COMPUTE_TEMPLATE_ID),
-                DEFAULT_LINUX_COMPUTE_TEMPLATE_ID), new MatchedComputeTemplate(new ComputeTemplate(null, DEFAULT_WINDOWS_COMPUTE_TEMPLATE_ID),
-                DEFAULT_WINDOWS_COMPUTE_TEMPLATE_ID)));
+
+        Map<CloudImage, String> imageMapping = Maps.newHashMap();
+        CloudImage cloudImage = new CloudImage();
+        cloudImage.setId(ALIEN_LINUX_IMAGE);
+        imageMapping.put(cloudImage, IAAS_IMAGE_ID);
+        cloudImage = new CloudImage();
+        cloudImage.setId(ALIEN_WINDOWS_IMAGE);
+        imageMapping.put(cloudImage, IAAS_IMAGE_ID);
+        matcherConf.setImageMapping(imageMapping);
+
+        Map<CloudImageFlavor, String> flavorMapping = Maps.newHashMap();
+        flavorMapping.put(new CloudImageFlavor(ALIEN_FLAVOR, 1, 1L, 1L), IAAS_FLAVOR_ID);
+        matcherConf.setFlavorMapping(flavorMapping);
+
+        Map<StorageTemplate, String> storageMapping = Maps.newHashMap();
+        storageMapping.put(new StorageTemplate(ALIEN_STORAGE, 1L, ALIEN_STORAGE_DEVICE), IAAS_BLOCK_STORAGE_ID);
+        matcherConf.setStorageMapping(storageMapping);
         cloudifyPaaSPovider.updateMatcherConfig(matcherConf);
     }
 
@@ -266,12 +302,13 @@ public class GenericTestCase {
         setup.setCloudResourcesMapping(Maps.<String, ComputeTemplate> newHashMap());
         if (computesId != null) {
             for (String string : computesId) {
-                setup.getCloudResourcesMapping().put(string, new ComputeTemplate(null, DEFAULT_LINUX_COMPUTE_TEMPLATE_ID));
+                setup.getCloudResourcesMapping().put(string, new ComputeTemplate(ALIEN_LINUX_IMAGE, ALIEN_FLAVOR));
             }
         }
         if (computesMatching != null) {
             setup.getCloudResourcesMapping().putAll(computesMatching);
         }
+        setup.setStorageMapping(Maps.<String, StorageTemplate> newHashMap());
         log.info("\n\n TESTS: Deploying topology <{}>. Deployment id is <{}>. \n", topologyFileName, topology.getId());
         deployedCloudifyAppIds.add(topology.getId());
         PaaSTopologyDeploymentContext deploymentContext = new PaaSTopologyDeploymentContext();
@@ -280,7 +317,11 @@ public class GenericTestCase {
         deploymentContext.setRecipeId(topologyFileName);
         deploymentContext.setDeploymentId(topology.getId());
         Map<String, PaaSNodeTemplate> nodes = topologyTreeBuilderService.buildPaaSNodeTemplate(topology);
-        deploymentContext.setPaaSTopology(topologyTreeBuilderService.buildPaaSTopology(nodes));
+        PaaSTopology paaSTopology = topologyTreeBuilderService.buildPaaSTopology(nodes);
+        deploymentContext.setPaaSTopology(paaSTopology);
+        for (PaaSNodeTemplate volume : paaSTopology.getVolumes()) {
+            setup.getStorageMapping().put(volume.getId(), new StorageTemplate(ALIEN_STORAGE, 1L, ALIEN_STORAGE_DEVICE));
+        }
         cloudifyPaaSPovider.deploy(deploymentContext, null);
         return topology.getId();
     }

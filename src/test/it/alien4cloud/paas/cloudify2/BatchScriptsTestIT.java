@@ -41,7 +41,7 @@ public class BatchScriptsTestIT extends GenericTestCase {
         this.uploadGitArchive("samples", "tomcat-war");
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         Map<String, ComputeTemplate> templates = Maps.newHashMap();
-        templates.put("computeWindows", new ComputeTemplate(null, DEFAULT_WINDOWS_COMPUTE_TEMPLATE_ID));
+        templates.put("computeWindows", new ComputeTemplate(ALIEN_WINDOWS_IMAGE, ALIEN_FLAVOR));
         String cloudifyAppId = deployTopology("computeWindows", null, templates);
         this.assertApplicationIsInstalled(cloudifyAppId);
         waitForServiceToStarts(cloudifyAppId, "computewindows", 1000L * 120);

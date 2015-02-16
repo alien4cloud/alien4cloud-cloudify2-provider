@@ -1,8 +1,6 @@
 package alien4cloud.paas.cloudify2.generator;
 
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.CONTEXT_THIS_INSTANCE_ATTRIBUTES;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.CONTEXT_THIS_SERVICE_ATTRIBUTES;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SHUTDOWN_COMMAND;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.*;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -12,15 +10,11 @@ import java.util.Map;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 
-import lombok.Getter;
-
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import alien4cloud.paas.cloudify2.StorageTemplate;
-import alien4cloud.paas.cloudify2.matcher.StorageTemplateMatcher;
 import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
@@ -47,11 +41,6 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
 
     @Resource
     private CommandGenerator commandGenerator;
-    @Resource
-    private RecipePropertiesGenerator recipePropertiesGenerator;
-    @Resource
-    @Getter
-    private StorageTemplateMatcher storageTemplateMatcher;
 
     private String STORAGE_STARTUP_FILE_NAME = "startupBlockStorage";
     private ObjectMapper jsonMapper;
@@ -77,7 +66,8 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         jsonMapper = new ObjectMapper();
     }
 
-    public void generateInitStartUpStorageScripts(final RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode, List<String> executions)
+    public void generateInitStartUpStorageScripts(final RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode, String storageName,
+            List<String> executions)
     // FIXME try manage it via plan generator
             throws IOException {
         // do nothing if no blockstorage
@@ -85,7 +75,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
             return;
         }
 
-        generateInitVolumeIdsScript(context, blockStorageNode, executions);
+        generateInitVolumeIdsScript(context, blockStorageNode, storageName, executions);
         generateStartUpStorageScript(context, blockStorageNode, executions);
     }
 
@@ -104,22 +94,18 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         executions.add(commandGenerator.getGroovyCommand(STORAGE_SHUTDOWN_FILE_NAME.concat(".groovy"), null, null));
     }
 
-    private void generateInitVolumeIdsScript(RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode, List<String> executions)
-            throws IOException {
+    private void generateInitVolumeIdsScript(RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode, String storageName,
+            List<String> executions) throws IOException {
         Map<String, String> velocityProps = Maps.newHashMap();
+        // setting the storage template ID to be used when creating new volume for this application
+        velocityProps.put(STORAGE_TEMPLATE_KEY, storageName);
+
         Map<String, String> properties = blockStorageNode.getNodeTemplate().getProperties();
-        String size = null;
         String volumeIds = null;
         if (properties != null) {
-            size = properties.get(NormativeBlockStorageConstants.SIZE);
             volumeIds = properties.get(NormativeBlockStorageConstants.VOLUME_ID);
             verifyNoVolumeIdForDeletableStorage(blockStorageNode, volumeIds);
         }
-
-        // setting the storage template ID to be used when creating new volume for this application
-        String storageTemplate = StringUtils.isNotBlank(size) ? storageTemplateMatcher.getTemplate(blockStorageNode) : storageTemplateMatcher
-                .getDefaultTemplate();
-        velocityProps.put(STORAGE_TEMPLATE_KEY, storageTemplate);
 
         // setting the volumes Ids array for instances
         String volumeIdsAsArrayString = "null";
@@ -235,9 +221,5 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
             throw new PaaSDeploymentException("Failed to generate scripts for BlockStorage <" + blockStorageNode.getId() + " >. A storage of type <"
                     + AlienCustomTypes.DELETABLE_BLOCKSTORAGE_TYPE + "> should not be provided with volumeIds.");
         }
-    }
-
-    public void configure(List<StorageTemplate> storageTemplates) {
-        this.storageTemplateMatcher.configure(storageTemplates);
     }
 }

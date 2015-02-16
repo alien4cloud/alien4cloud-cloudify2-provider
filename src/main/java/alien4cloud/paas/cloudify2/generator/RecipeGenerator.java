@@ -35,7 +35,9 @@ import org.springframework.stereotype.Component;
 
 import alien4cloud.model.application.DeploymentSetup;
 import alien4cloud.model.cloud.ComputeTemplate;
-import alien4cloud.model.cloud.Network;
+import alien4cloud.model.cloud.NetworkTemplate;
+import alien4cloud.model.cloud.StorageTemplate;
+import alien4cloud.model.components.IndexedArtifactToscaElement;
 import alien4cloud.model.components.IndexedToscaElement;
 import alien4cloud.model.components.Interface;
 import alien4cloud.model.components.Operation;
@@ -54,12 +56,14 @@ import alien4cloud.paas.plan.BuildPlanGenerator;
 import alien4cloud.paas.plan.OperationCallActivity;
 import alien4cloud.paas.plan.ParallelGateway;
 import alien4cloud.paas.plan.ParallelJoinStateGateway;
+import alien4cloud.paas.plan.RelationshipTriggerEvent;
 import alien4cloud.paas.plan.StartEvent;
 import alien4cloud.paas.plan.StateUpdateEvent;
 import alien4cloud.paas.plan.StopEvent;
 import alien4cloud.paas.plan.StopPlanGenerator;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.paas.plan.WorkflowStep;
+import alien4cloud.tosca.normative.NormativeBlockStorageConstants;
 import alien4cloud.tosca.normative.NormativeComputeConstants;
 import alien4cloud.tosca.normative.NormativeNetworkConstants;
 import alien4cloud.utils.FileUtil;
@@ -134,6 +138,10 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             if (MapUtils.isNotEmpty(setup.getProviderDeploymentProperties())) {
                 serviceSetup.setProviderDeploymentProperties(setup.getProviderDeploymentProperties());
             }
+            PaaSNodeTemplate storageNode = root.getAttachedNode();
+            if (storageNode != null) {
+                serviceSetup.setStorage(getStorageTemplateOrDie(setup.getStorageMapping(), storageNode));
+            }
             serviceSetup.setId(CloudifyPaaSUtils.serviceIdFromNodeTemplateId(nodeName));
             generateService(nodeTemplates, recipePath, root, serviceSetup);
             serviceIds.add(serviceSetup.getId());
@@ -144,9 +152,18 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         return createZip(recipePath);
     }
 
-    private Network getNetworkTemplateOrDie(Map<String, Network> networkMapping, PaaSNodeTemplate networkNode) {
+    private StorageTemplate getStorageTemplateOrDie(Map<String, StorageTemplate> storageMapping, PaaSNodeTemplate storageNode) {
+        paaSResourceMatcher.verifyNode(storageNode, NormativeBlockStorageConstants.BLOCKSTORAGE_TYPE);
+        StorageTemplate storage = storageMapping.get(storageNode.getId());
+        if (storage != null) {
+            return storage;
+        }
+        throw new ResourceMatchingFailedException("Failed to find a storage for node <" + storageNode.getId() + ">");
+    }
+
+    private NetworkTemplate getNetworkTemplateOrDie(Map<String, NetworkTemplate> networkMapping, PaaSNodeTemplate networkNode) {
         paaSResourceMatcher.verifyNode(networkNode, NormativeNetworkConstants.NETWORK_TYPE);
-        Network network = networkMapping.get(networkNode.getId());
+        NetworkTemplate network = networkMapping.get(networkNode.getId());
         if (network != null) {
             return network;
         }
@@ -218,8 +235,12 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         // find the compute template for this service
         String computeTemplate = paaSResourceMatcher.getTemplate(setup.getComputeTemplate());
         String networkName = null;
+        String storageName = null;
         if (setup.getNetwork() != null) {
             networkName = paaSResourceMatcher.getNetwork(setup.getNetwork());
+        }
+        if (setup.getStorage() != null) {
+            storageName = paaSResourceMatcher.getStorage(setup.getStorage());
         }
         log.info("Compute template ID for node <{}> is: [{}]", computeNode.getId(), computeTemplate);
         // create service directory
@@ -240,7 +261,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         this.artifactCopier.copyAllArtifacts(context, computeNode);
 
         // generate cloudify init script
-        generateInitScripts(context, computeNode);
+        generateInitScripts(context, computeNode, storageName);
 
         // generate cloudify global start detection script
         manageStartDetection(context, computeNode);
@@ -270,12 +291,12 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
                 .get(DeploymentPropertiesNames.STARTDETECTION_TIMEOUT_INSECOND));
     }
 
-    private void generateInitScripts(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate computeNode) throws IOException {
+    private void generateInitScripts(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate computeNode, String storageName) throws IOException {
         String initCommand = "{}";
         List<String> executions = Lists.newArrayList();
 
         // process blockstorage init and startup
-        storageScriptGenerator.generateInitStartUpStorageScripts(context, computeNode.getAttachedNode(), executions);
+        storageScriptGenerator.generateInitStartUpStorageScripts(context, computeNode.getAttachedNode(), storageName, executions);
 
         // generate the init script
         if (!executions.isEmpty()) {
@@ -393,18 +414,8 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         if (customInterface != null) {
             Map<String, Operation> operations = customInterface.getOperations();
             for (Entry<String, Operation> entry : operations.entrySet()) {
-
-                // add the reserved env params
-                Map<String, String> runtimeEvalResults = Maps.newHashMap();
-                runtimeEvalResults.put(NAME_VALUE_TO_PARSE_KEWORD, "args");
-
-                // prepare and get the command
-                String command = prepareAndGetCommand(context, nodeTemplate, CUSTOM_INTERFACE_NAME, entry.getKey(), runtimeEvalResults,
-                        Maps.<String, String> newHashMap(), entry.getValue());
-
-                String commandUniqueKey = CloudifyPaaSUtils.prefixWithTemplateId(entry.getKey(), nodeTemplate.getId());
-                log.debug("Configuring customCommand " + commandUniqueKey + " with value " + command);
-                context.getCustomCommands().put(commandUniqueKey, command);
+                String commandUniqueName = CloudifyPaaSUtils.prefixWith(entry.getKey(), nodeTemplate.getId());
+                addCustomCommand(context, nodeTemplate, CUSTOM_INTERFACE_NAME, commandUniqueName, entry);
             }
         }
 
@@ -417,6 +428,20 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         if (nodeTemplate.getAttachedNode() != null) {
             addCustomCommands(nodeTemplate.getAttachedNode(), context);
         }
+    }
+
+    private void addCustomCommand(final RecipeGeneratorServiceContext context, final IPaaSTemplate<? extends IndexedArtifactToscaElement> nodeTemplate,
+            String interfaceName, String uniqueName, Entry<String, Operation> entry) throws IOException {
+        // add the reserved env params
+        Map<String, String> runtimeEvalResults = Maps.newHashMap();
+        runtimeEvalResults.put(NAME_VALUE_TO_PARSE_KEWORD, "args");
+
+        // prepare and get the command
+        String command = prepareAndGetCommand(context, nodeTemplate, interfaceName, entry.getKey(), runtimeEvalResults, Maps.<String, String> newHashMap(),
+                entry.getValue());
+
+        log.debug("Configuring customCommand " + uniqueName + " with value " + command);
+        context.getCustomCommands().put(uniqueName, command);
     }
 
     private void generateScript(final StartEvent startEvent, final String lifecycleName, final RecipeGeneratorServiceContext context) throws IOException {
@@ -439,7 +464,9 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
 
     private void processWorkflowStep(final RecipeGeneratorServiceContext context, final WorkflowStep workflowStep, final List<String> executions)
             throws IOException {
-        if (workflowStep instanceof OperationCallActivity) {
+        if (workflowStep instanceof RelationshipTriggerEvent) {
+            processRelationshipTriggerEvent(context, (RelationshipTriggerEvent) workflowStep, executions);
+        } else if (workflowStep instanceof OperationCallActivity) {
             processOperationCallActivity(context, (OperationCallActivity) workflowStep, executions);
         } else if (workflowStep instanceof StateUpdateEvent) {
             StateUpdateEvent stateUpdateEvent = (StateUpdateEvent) workflowStep;
@@ -480,6 +507,54 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         }
     }
 
+    private void processRelationshipTriggerEvent(final RecipeGeneratorServiceContext context, final RelationshipTriggerEvent operationTriggerEvent,
+            final List<String> executions) throws IOException {
+
+        PaaSNodeTemplate paaSNodeTemplate = context.getNodeTemplateById(operationTriggerEvent.getNodeTemplateId());
+        String uniqueName = CloudifyPaaSUtils.prefixWith(operationTriggerEvent.getSideOperationName(), operationTriggerEvent.getSideNodeTemplateId(),
+                operationTriggerEvent.getRelationshipId());
+        PaaSRelationshipTemplate paaSRelationshipTemplate = paaSNodeTemplate.getRelationshipTemplate(operationTriggerEvent.getRelationshipId());
+        String sideServiceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(context.getNodeTemplateById(operationTriggerEvent.getSideNodeTemplateId()));
+
+        // first add the side operation as a custom command:
+        // ex, if the operation is add_target, then add add_source as a customCommand for this node.
+        addRelationshipCustomCommand(context, operationTriggerEvent, uniqueName, paaSRelationshipTemplate, sideServiceName);
+
+        // then, trigger the main operation. Send an event to trigger it on the other pair node.
+        // ex, if the operation is add_target, then trigger a custom command on the source node
+        if (StringUtils.isNotBlank(operationTriggerEvent.getOperationName())) {
+            String commandToTrigger = CloudifyPaaSUtils.prefixWith(operationTriggerEvent.getOperationName(), operationTriggerEvent.getNodeTemplateId(),
+                    operationTriggerEvent.getRelationshipId());
+            String command = commandGenerator.getFireRelationshipTriggerEvent(operationTriggerEvent.getNodeTemplateId(),
+                    operationTriggerEvent.getRelationshipId(), operationTriggerEvent.getOperationName(), operationTriggerEvent.getSideNodeTemplateId(),
+                    sideServiceName, commandToTrigger);
+            executions.add(command);
+        }
+    }
+
+    private void addRelationshipCustomCommand(final RecipeGeneratorServiceContext context, final RelationshipTriggerEvent operationTriggerEvent,
+            String uniqueName, PaaSRelationshipTemplate paaSRelationshipTemplate, String sideServiceName) throws IOException {
+        if (operationTriggerEvent.getSideOperationImplementationArtifact() != null) {
+            Map<String, String> runtimeEvalParams = Maps.newHashMap();
+            String serviceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(context.getNodeTemplateById(operationTriggerEvent.getNodeTemplateId()));
+            // add artifacts paths of the related node (only if the two member of the relationship are hosted on the same compute)
+            // FIXME: manage it via get_artifact function
+            if (serviceName.equals(sideServiceName)) {
+                Map<String, String> copiedArtifactPathCmds = formatToAbsolutePathCmds(context.getNodeArtifactsPaths().get(
+                        operationTriggerEvent.getSideNodeTemplateId()));
+                if (copiedArtifactPathCmds != null) {
+                    runtimeEvalParams.putAll(copiedArtifactPathCmds);
+                }
+            }
+            String command = getCommandFromOperation(context, paaSRelationshipTemplate, operationTriggerEvent.getInterfaceName(),
+                    operationTriggerEvent.getSideOperationName(), operationTriggerEvent.getSideOperationImplementationArtifact(), runtimeEvalParams,
+                    Maps.<String, String> newHashMap(), operationTriggerEvent.getSideInputParameters(), "instanceId");
+            this.artifactCopier.copyImplementationArtifact(context, operationTriggerEvent.getCsarPath(),
+                    operationTriggerEvent.getSideOperationImplementationArtifact(), paaSRelationshipTemplate.getIndexedToscaElement());
+            context.getRelationshipCustomCommands().put(uniqueName, command);
+        }
+    }
+
     private void processOperationCallActivity(final RecipeGeneratorServiceContext context, final OperationCallActivity operationCall,
             final List<String> executions) throws IOException {
         if (operationCall.getImplementationArtifact() == null) {
@@ -511,17 +586,6 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         generateOperationCallCommand(context, operationCall, executions, isAsynchronous);
     }
 
-    private Map<String, String> escapeForLinuxPath(Map<String, String> paths) {
-        if (paths == null) {
-            return null;
-        }
-        Map<String, String> toReturnMap = Maps.newHashMap();
-        for (Entry<String, String> entry : paths.entrySet()) {
-            toReturnMap.put(entry.getKey(), entry.getValue().replaceAll("\\\\", "/"));
-        }
-        return toReturnMap;
-    }
-
     private void generateRelationshipOperationCall(final RecipeGeneratorServiceContext context, final OperationCallActivity operationCall,
             final List<String> executions, final PaaSNodeTemplate paaSNodeTemplate) throws IOException {
         PaaSRelationshipTemplate paaSRelationshipTemplate = paaSNodeTemplate.getRelationshipTemplate(operationCall.getRelationshipId());
@@ -541,15 +605,16 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             basePaaSTemplate = ((PaaSNodeTemplate) basePaaSTemplate).getRelationshipTemplate(operationCall.getRelationshipId());
         }
 
-        // add artifacts paths of the node (source node in case of a relationship )
-        Map<String, String> copiedArtifactPath = escapeForLinuxPath(context.getNodeArtifactsPaths().get(operationCall.getNodeTemplateId()));
-        if (copiedArtifactPath != null) {
-            stringParameters.putAll(copiedArtifactPath);
+        // add artifacts paths of the node
+        // Map<String, String> copiedArtifactPath = escapeForLinuxPath(context.getNodeArtifactsPaths().get(operationCall.getNodeTemplateId()));
+        Map<String, String> copiedArtifactPathCmds = formatToAbsolutePathCmds(context.getNodeArtifactsPaths().get(operationCall.getNodeTemplateId()));
+        if (copiedArtifactPathCmds != null) {
+            varParamNames.putAll(copiedArtifactPathCmds);
         }
 
         // now call the operation script
         String command = getCommandFromOperation(context, basePaaSTemplate, operationCall.getInterfaceName(), operationCall.getOperationName(),
-                operationCall.getImplementationArtifact(), varParamNames, stringParameters, operationCall.getInputParameters());
+                operationCall.getImplementationArtifact(), varParamNames, stringParameters, operationCall.getInputParameters(), null);
 
         if (isAsynchronous) {
             final String serviceId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(operationCall.getNodeTemplateId());
@@ -583,6 +648,18 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         } else {
             executions.add(command);
         }
+    }
+
+    private Map<String, String> formatToAbsolutePathCmds(Map<String, String> paths) {
+        if (paths == null) {
+            return null;
+        }
+        Map<String, String> toReturnMap = Maps.newHashMap();
+        for (Entry<String, String> entry : paths.entrySet()) {
+            String linuxFormated = entry.getValue().replaceAll("\\\\", "/");
+            toReturnMap.put(entry.getKey(), commandGenerator.getToAbsolutePathCommand(linuxFormated));
+        }
+        return toReturnMap;
     }
 
     private String getRestartCondition(final RecipeGeneratorServiceContext context, final OperationCallActivity operationCall) {
@@ -620,6 +697,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         }
         properties.put(START_DETECTION_TIMEOUT_SEC, startDetectionTimeoutSec == null ? DEFAULT_START_DETECTION_TIMEOUT : startDetectionTimeoutSec);
         properties.put(SERVICE_CUSTOM_COMMANDS, context.getCustomCommands());
+        properties.put(RELATIONSHIP_CUSTOM_COMMANDS, context.getRelationshipCustomCommands());
         for (Entry<String, String> entry : context.getAdditionalProperties().entrySet()) {
             properties.put(entry.getKey(), entry.getValue());
         }
