@@ -27,7 +27,7 @@ scaling_policies:
   source_comp:
     min_instances: 1
     max_instances: 4
-    initial_instances: 1
+    initial_instances: 2
   target_comp:
     min_instances: 1
     max_instances: 4
