@@ -6,8 +6,8 @@ public class CloudifyUtils {
   static GigaSpacesEventsManager manager = new GigaSpacesEventsManager()
 
   @Synchronized
-  static def putEvent(application, service, instanceId, event) {
-      manager.putEvent(application, service, instanceId, event)
+  static def putEvent(application, service, instanceId, eventResume) {
+      manager.putEvent(application, service, instanceId, eventResume)
   }
   
   @Synchronized
@@ -20,20 +20,18 @@ public class CloudifyUtils {
       manager.putRelationshipOperationEvent(application, service, instanceId, eventResume, source, target);
   }
 
-  static def waitFor(cloudifyService, serviceToWait, event) {
+  static def waitFor(cloudifyService, serviceToWait, List states) {
     def context = ServiceContextFactory.getServiceContext()
-    // FIXME Added the "Compute" suffix to the service name to match the serviceName in Cloudify.
-    // This is a hard coded fix that must be handled differently
     def dbService = context.waitForService(cloudifyService, 60, TimeUnit.MINUTES)
     def dbInstances = dbService.waitForInstances(dbService.numberOfPlannedInstances, 60, TimeUnit.MINUTES)
 
     dbInstances.each() { instance ->
-      manager.waitFor(context.getApplicationName(), serviceToWait, instance.getInstanceId(), event)
+      manager.waitFor(context.getApplicationName(), serviceToWait, instance.getInstanceId(), states)
     }
   }
   
-  static def getLastEvent(applicationName, cloudifyService, nodeToCheck, instanceId) {
-      return manager.getLastEvent(applicationName, nodeToCheck, instanceId)
+  static def getState(applicationName, nodeToCheck, instanceId) {
+      return manager.getState(applicationName, nodeToCheck, instanceId)
   }
   
   static def toAbsolutePath(context, String relativePath) {

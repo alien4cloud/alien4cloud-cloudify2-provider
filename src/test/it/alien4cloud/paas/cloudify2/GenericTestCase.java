@@ -309,6 +309,8 @@ public class GenericTestCase {
             setup.getCloudResourcesMapping().putAll(computesMatching);
         }
         setup.setStorageMapping(Maps.<String, StorageTemplate> newHashMap());
+        setup.setProviderDeploymentProperties(Maps.<String, String> newHashMap());
+        setup.getProviderDeploymentProperties().put(DeploymentPropertiesNames.DISABLE_SELF_HEALING, "true");
         log.info("\n\n TESTS: Deploying topology <{}>. Deployment id is <{}>. \n", topologyFileName, topology.getId());
         deployedCloudifyAppIds.add(topology.getId());
         PaaSTopologyDeploymentContext deploymentContext = new PaaSTopologyDeploymentContext();

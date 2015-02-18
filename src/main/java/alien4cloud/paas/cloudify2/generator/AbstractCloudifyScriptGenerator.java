@@ -105,7 +105,6 @@ abstract class AbstractCloudifyScriptGenerator {
                     envMaps);
         } else {
             addNodeEnvVars(context, (PaaSNodeTemplate) basePaaSTemplate, instanceId, inputParameters, envMaps, SELF, HOST, SERVICE_NAME);
-            // addNodeEnvVars((PaaSNodeTemplate) basePaaSTemplate, stringEvalResults, SELF, HOST, SERVICE_NAME);
         }
 
         String relativePath = CloudifyPaaSUtils.getNodeTypeRelativePath(basePaaSTemplate.getIndexedToscaElement());

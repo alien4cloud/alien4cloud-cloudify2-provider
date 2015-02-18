@@ -8,6 +8,9 @@ import java.util.Set;
 
 import lombok.Getter;
 import lombok.Setter;
+
+import org.apache.commons.lang3.StringUtils;
+
 import alien4cloud.model.components.IndexedToscaElement;
 import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.model.PaaSNodeTemplate;
@@ -48,6 +51,9 @@ public class RecipeGeneratorServiceContext {
     /** Maps <elementId -> Path > of paths of directories of different tosca element */
     private final Map<String, Path> elementsRecipeDirectoryPaths = Maps.newHashMap();
 
+    /** Events lease time for this service */
+    private Double eventsLeaseInHour = 2.0;
+
     /**
      * Initialize a new context for service recipe generation.
      *
@@ -85,4 +91,9 @@ public class RecipeGeneratorServiceContext {
         return nodeTypePath;
     }
 
+    public void setEventsLeaseInHour(String valueInHour) {
+        if (StringUtils.isNotBlank(valueInHour) && Double.parseDouble(valueInHour) > 0) {
+            this.eventsLeaseInHour = Double.parseDouble(valueInHour);
+        }
+    }
 }

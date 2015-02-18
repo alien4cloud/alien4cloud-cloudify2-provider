@@ -90,7 +90,8 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
 
         String unmountDeleteCommand = getStorageUnmountDeleteCommand(context, blockStorageNode);
         Map<String, String> velocityProps = Maps.newHashMap();
-        velocityProps.put("stoppedEvent", commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.STOPPED));
+        velocityProps.put("stoppedEvent",
+                commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.STOPPED, context.getEventsLeaseInHour()));
         velocityProps.put(SHUTDOWN_COMMAND, unmountDeleteCommand);
         generateScriptWorkflow(context.getServicePath(), shutdownBlockStorageScriptDescriptorPath, STORAGE_SHUTDOWN_FILE_NAME, null, velocityProps);
         executions.add(commandGenerator.getGroovyCommand(STORAGE_SHUTDOWN_FILE_NAME.concat(".groovy"), null, null));
@@ -126,11 +127,12 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         // startup (create, attach, format, mount)
         Map<String, String> velocityProps = Maps.newHashMap();
         // events
+        Double lease = context.getEventsLeaseInHour();
         velocityProps.put("createdEvent",
-                commandGenerator.getFireBlockStorageEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.CREATED, VOLUME_ID_KEY));
-        velocityProps.put("configuredEvent", commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.CONFIGURED));
-        velocityProps.put("startedEvent", commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.STARTED));
-        velocityProps.put("availableEvent", commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.AVAILABLE));
+                commandGenerator.getFireBlockStorageEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.CREATED, VOLUME_ID_KEY, lease));
+        velocityProps.put("configuredEvent", commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.CONFIGURED, lease));
+        velocityProps.put("startedEvent", commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.STARTED, lease));
+        velocityProps.put("availableEvent", commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.AVAILABLE, lease));
 
         String createAttachCommand = getStorageCreateAttachCommand(context, blockStorageNode);
         velocityProps.put(RecipeGeneratorConstants.CREATE_COMMAND, createAttachCommand);

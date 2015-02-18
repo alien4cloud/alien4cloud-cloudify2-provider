@@ -33,10 +33,10 @@ public class CommandGenerator {
     private final static String[] SERVICE_RECIPE_RESOURCES = new String[] { "chmod-init.groovy", "CloudifyUtils.groovy", "GigaSpacesEventsManager.groovy",
             "CloudifyExecutorUtils.groovy", "CloudifyAttributesUtils.groovy", "EnvironmentBuilder.groovy" };
 
-    private static final String FIRE_EVENT_FORMAT = "CloudifyExecutorUtils.fireEvent(\"%s\", \"%s\")";
-    private static final String FIRE_BLOCKSTORAGE_EVENT_FORMAT = "CloudifyExecutorUtils.fireBlockStorageEvent(\"%s\", \"%s\", %s)";
+    private static final String FIRE_EVENT_FORMAT = "CloudifyExecutorUtils.fireEvent(\"%s\", \"%s\", %s)";
+    private static final String FIRE_BLOCKSTORAGE_EVENT_FORMAT = "CloudifyExecutorUtils.fireBlockStorageEvent(\"%s\", \"%s\", %s, %s)";
     private static final String WAIT_EVENT_FORMAT = "CloudifyExecutorUtils.waitFor(\"%s\", \"%s\", \"%s\")";
-    private static final String IS_NODE_STARTED_FORMAT = "CloudifyExecutorUtils.isNodeStarted(context, \"%s\", \"%s\")";
+    private static final String IS_NODE_STARTED_FORMAT = "CloudifyExecutorUtils.isNodeStarted(context, \"%s\")";
     private static final String EXECUTE_PARALLEL_FORMAT = "CloudifyExecutorUtils.executeParallel(%s, %s)";
     private static final String EXECUTE_ASYNC_FORMAT = "CloudifyExecutorUtils.executeAsync(%s, %s)";
     private static final String EXECUTE_GROOVY_FORMAT = "CloudifyExecutorUtils.executeGroovy(context, \"%s\", %s)";
@@ -54,7 +54,7 @@ public class CommandGenerator {
     private static final String GET_TOSCA_RELATIONSHIP_ENVS_FORMAT = "EnvironmentBuilder.getTOSCARelationshipEnvs(context, %s, %s, %s, %s, %s)";
     private static final String TO_ABSOLUTE_PATH_FORMAT = "CloudifyUtils.toAbsolutePath(context, \"%s\")";
 
-    private static final String FIRE_RELATIONSHIP_TRIGGER_EVENT = "CloudifyExecutorUtils.fireRelationshipEvent(\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\")";
+    private static final String FIRE_RELATIONSHIP_TRIGGER_EVENT = "CloudifyExecutorUtils.fireRelationshipEvent(\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", %s)";
 
     @Resource
     private ApplicationContext applicationContext;
@@ -260,23 +260,27 @@ public class CommandGenerator {
     /**
      * Return the execution command to fire an event.
      *
+     * @param eventLease event lease
      * @param The node that has a status change.
      * @param The new status for the node.
+     *
      * @return The execution command.
      */
-    public String getFireEventCommand(String nodeName, String status) {
-        return String.format(FIRE_EVENT_FORMAT, nodeName, status);
+    public String getFireEventCommand(String nodeName, String status, Double eventLease) {
+        return String.format(FIRE_EVENT_FORMAT, nodeName, status, eventLease);
     }
 
     /**
      * Return the execution command to fire a blockstorage event.
      *
+     * @param eventLease event lease
      * @param The node that has a status change.
      * @param The new status for the node.
+     *
      * @return The execution command.
      */
-    public String getFireBlockStorageEventCommand(String nodeName, String status, String volumeId) {
-        return String.format(FIRE_BLOCKSTORAGE_EVENT_FORMAT, nodeName, status, volumeId);
+    public String getFireBlockStorageEventCommand(String nodeName, String status, String volumeId, Double eventLease) {
+        return String.format(FIRE_BLOCKSTORAGE_EVENT_FORMAT, nodeName, status, volumeId, eventLease);
     }
 
     /**
@@ -294,12 +298,11 @@ public class CommandGenerator {
     /**
      * Return the execution command to check if a node is started.
      *
-     * @param cloudifyService The name of the service from Cloudify point of view.
      * @param nodeName The node that has a status change.
      * @return The execution command.
      */
-    public String getIsNodeStartedCommand(String cloudifyService, String nodeName) {
-        return String.format(IS_NODE_STARTED_FORMAT, cloudifyService, nodeName);
+    public String getIsNodeStartedCommand(String nodeName) {
+        return String.format(IS_NODE_STARTED_FORMAT, nodeName);
     }
 
     /**
@@ -360,9 +363,21 @@ public class CommandGenerator {
         return null;
     }
 
+    /**
+     * Return the execution command to fire a relationship triggering event.
+     *
+     * @param nodeId
+     * @param relationshipId
+     * @param event
+     * @param associatedNodeId
+     * @param associatedNodeService
+     * @param command
+     * @param eventLease
+     * @return
+     */
     public String getFireRelationshipTriggerEvent(String nodeId, String relationshipId, String event, String associatedNodeId, String associatedNodeService,
-            String command) {
-        return String.format(FIRE_RELATIONSHIP_TRIGGER_EVENT, nodeId, relationshipId, event, associatedNodeId, associatedNodeService, command);
+            String command, Double eventLease) {
+        return String.format(FIRE_RELATIONSHIP_TRIGGER_EVENT, nodeId, relationshipId, event, associatedNodeId, associatedNodeService, command, eventLease);
     }
 
     private String formatString(String serviceName) {

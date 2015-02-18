@@ -250,6 +250,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         RecipeGeneratorServiceContext context = new RecipeGeneratorServiceContext(nodeTemplates);
         context.setServiceId(setup.getId());
         context.setServicePath(servicePath);
+        context.setEventsLeaseInHour(setup.getProviderDeploymentProperties().get(DeploymentPropertiesNames.EVENTS_LEASE_INHOUR));
 
         // copy internal static resources for the service
         commandGenerator.copyInternalResources(servicePath);
@@ -361,8 +362,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         List<String> commands = Lists.newArrayList();
         // generate a check started state command for each node
         for (String nodeId : nodeIds) {
-            PaaSNodeTemplate node = context.getNodeTemplateById(nodeId);
-            commands.add(commandGenerator.getIsNodeStartedCommand(CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(node), nodeId));
+            commands.add(commandGenerator.getIsNodeStartedCommand(nodeId));
         }
         String command = commandGenerator.getMultipleGroovyCommand(AND_OPERATOR, commands.toArray(new String[0]));
 
@@ -473,7 +473,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             if (stateUpdateEvent.getState().equals(ToscaNodeLifecycleConstants.STARTED)) {
                 addLoppedCommandToExecutions(context.getStartDetectionCommands().get(stateUpdateEvent.getElementId()), executions);
             }
-            String command = commandGenerator.getFireEventCommand(stateUpdateEvent.getElementId(), stateUpdateEvent.getState());
+            String command = commandGenerator.getFireEventCommand(stateUpdateEvent.getElementId(), stateUpdateEvent.getState(), context.getEventsLeaseInHour());
             executions.add(command);
         } else if (workflowStep instanceof ParallelJoinStateGateway) {
             // generate wait for operations
@@ -526,7 +526,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
                     operationTriggerEvent.getRelationshipId());
             String command = commandGenerator.getFireRelationshipTriggerEvent(operationTriggerEvent.getNodeTemplateId(),
                     operationTriggerEvent.getRelationshipId(), operationTriggerEvent.getOperationName(), operationTriggerEvent.getSideNodeTemplateId(),
-                    sideServiceName, commandToTrigger);
+                    sideServiceName, commandToTrigger, context.getEventsLeaseInHour());
             executions.add(command);
         }
     }
@@ -628,7 +628,8 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
                 if (restartCondition != null) {
                     String trigger = contextInstanceAttrRestart + " != true || (" + restartCondition + ")";
                     // TODO: fire already started state instead
-                    String alreadyStartedCommand = commandGenerator.getFireEventCommand(operationCall.getNodeTemplateId(), ToscaNodeLifecycleConstants.STARTED);
+                    String alreadyStartedCommand = commandGenerator.getFireEventCommand(operationCall.getNodeTemplateId(), ToscaNodeLifecycleConstants.STARTED,
+                            context.getEventsLeaseInHour());
                     String elseCommand = alreadyStartedCommand;
                     asyncCommand = commandGenerator.getConditionalSnippet(trigger, asyncCommand, elseCommand);
                 } else {
