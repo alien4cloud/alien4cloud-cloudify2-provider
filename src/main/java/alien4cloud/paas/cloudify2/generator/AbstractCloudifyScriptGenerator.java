@@ -174,8 +174,10 @@ abstract class AbstractCloudifyScriptGenerator {
     private String getProperInstanceIdForRelEnvsBuilding(String operationName, String member, String instanceId) {
         switch (operationName) {
             case ToscaRelationshipLifecycleConstants.ADD_TARGET:
+            case ToscaRelationshipLifecycleConstants.REMOVE_TARGET:
                 return member.equals(ToscaFunctionConstants.SOURCE) ? null : instanceId;
             case ToscaRelationshipLifecycleConstants.ADD_SOURCE:
+            case ToscaRelationshipLifecycleConstants.REMOVE_SOURCE:
                 return member.equals(ToscaFunctionConstants.TARGET) ? null : instanceId;
             default:
                 return instanceId;

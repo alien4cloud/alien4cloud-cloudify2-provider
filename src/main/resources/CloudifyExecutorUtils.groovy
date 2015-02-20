@@ -141,17 +141,19 @@ public class CloudifyExecutorUtils {
         def targetId = null;
 
         switch(event) {
-            case "add_target":
-                sourceService =  associatedNodeService;
-                targetService = context.getServiceName();
-                sourceId = associatedNodeId;
-                targetId = nodeId;
-                break;
             case "add_source":
+            case "remove_source":
                 sourceService =  context.getServiceName();
                 targetService = associatedNodeService;
                 sourceId = nodeId;
                 targetId = associatedNodeId;
+                break;
+            case "add_target":
+            case "remove_target":
+                sourceService =  associatedNodeService;
+                targetService = context.getServiceName();
+                sourceId = associatedNodeId;
+                targetId = nodeId;
                 break;
             default:
                 return;
