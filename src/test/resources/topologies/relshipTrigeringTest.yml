@@ -27,11 +27,11 @@ scaling_policies:
   source_comp:
     min_instances: 1
     max_instances: 4
-    initial_instances: 2
+    initial_instances: 1
   target_comp:
     min_instances: 1
     max_instances: 4
-    initial_instances: 1
+    initial_instances: 2
 
 dependencies:
   - name: tosca-normative-types

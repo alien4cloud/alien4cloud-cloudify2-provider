@@ -140,7 +140,6 @@ public class GigaSpacesEventsManager {
         fillEventDocument(application, service, instanceId, eventResume.event, document);
         
         document.setProperty("executed", false as Boolean);
-        document.setProperty("success", false as Boolean);
         document.setProperty("relationshipId", eventResume.relationshipId as String);
         document.setProperty("source", source.name as String);
         document.setProperty("sourceService", source.service as String);
