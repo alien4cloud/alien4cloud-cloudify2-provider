@@ -489,7 +489,7 @@ public class GenericTestCase {
         Assert.assertEquals("Application " + applicationId + " is not in UNDEPLOYED state", DeploymentStatus.UNDEPLOYED, status);
     }
 
-    protected void scale(String nodeID, int nbToAdd, String appId, Topology topo) throws Exception {
+    protected void scale(String nodeID, int nbToAdd, String appId, Topology topo, Integer sleepTimeSec) throws Exception {
         int plannedInstance = topo.getScalingPolicies().get(nodeID).getInitialInstances() + nbToAdd;
         log.info("Scaling to " + nbToAdd);
         topo.getScalingPolicies().get(nodeID).setInitialInstances(plannedInstance);
@@ -497,7 +497,8 @@ public class GenericTestCase {
         PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
         deploymentContext.setDeploymentId(appId);
         cloudifyPaaSPovider.scale(deploymentContext, nodeID, nbToAdd, null);
-
-        Thread.sleep(10000L);
+        if (sleepTimeSec != null) {
+            Thread.sleep(sleepTimeSec * 1000L);
+        }
     }
 }

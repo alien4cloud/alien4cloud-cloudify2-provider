@@ -53,7 +53,7 @@ public class RelationshipOperationTriggeringTestIT extends GenericTestCase {
     }
 
     @Test
-    public void testRelationshipToscaEnvVars2() throws Throwable {
+    public void testRelationshipOperationTrigger() throws Throwable {
         this.uploadGitArchive("samples", "tomcat-war");
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         String[] computesId = new String[] { "source_comp", "target_comp" };
@@ -66,14 +66,16 @@ public class RelationshipOperationTriggeringTestIT extends GenericTestCase {
         testRelationsEventsSucceeded(cloudifyAppId, null, lastRelIndex, 10000L, ToscaRelationshipLifecycleConstants.ADD_SOURCE,
                 ToscaRelationshipLifecycleConstants.ADD_TARGET);
 
-        scale("target_comp", -1, cloudifyAppId, topo);
+        scale("target_comp", -1, cloudifyAppId, topo, 10);
 
-        testRelationsEventsSucceeded(cloudifyAppId, null, lastRelIndex, 10000L, ToscaRelationshipLifecycleConstants.REMOVE_TARGET);
+        testEvents(cloudifyAppId, new String[] { "target_comp" }, 30000L, ToscaNodeLifecycleConstants.DELETED);
+
+        testRelationsEventsSucceeded(cloudifyAppId, null, lastRelIndex, 20000L, ToscaRelationshipLifecycleConstants.REMOVE_TARGET);
 
         testUndeployment(cloudifyAppId);
 
-        testRelationsEventsSkiped(cloudifyAppId, null, lastRelIndex, 10000L, ToscaRelationshipLifecycleConstants.REMOVE_SOURCE,
-                ToscaRelationshipLifecycleConstants.REMOVE_TARGET);
+        // testRelationsEventsSkiped(cloudifyAppId, null, lastRelIndex, 20000L, ToscaRelationshipLifecycleConstants.REMOVE_SOURCE,
+        // ToscaRelationshipLifecycleConstants.REMOVE_TARGET);
 
     }
 
@@ -91,14 +93,26 @@ public class RelationshipOperationTriggeringTestIT extends GenericTestCase {
 
     private void testRelationsEventsSucceeded(String application, String nodeName, Integer beginIndex, long timeoutInMillis, String... expectedEvents)
             throws Throwable {
-        List<RelationshipOperationEvent> relEvents = getAndAssertRelEventsFired(application, nodeName, beginIndex, timeoutInMillis, expectedEvents);
-        assertRelEvents(relEvents, true, true);
+        testRelationsEventsStatus(application, nodeName, beginIndex, timeoutInMillis, true, true, expectedEvents);
+        // List<RelationshipOperationEvent> relEvents = getAndAssertRelEventsFired(application, nodeName, beginIndex, timeoutInMillis, expectedEvents);
+        // assertRelEvents(relEvents, true, true);
     }
 
-    private void testRelationsEventsSkiped(String application, String nodeName, Integer beginIndex, long timeoutInMillis, String... expectedEvents)
-            throws Throwable {
-        List<RelationshipOperationEvent> relEvents = getAndAssertRelEventsFired(application, nodeName, beginIndex, timeoutInMillis, expectedEvents);
-        assertRelEvents(relEvents, true, null);
+    // private void testRelationsEventsSkiped(String application, String nodeName, Integer beginIndex, long timeoutInMillis, String... expectedEvents)
+    // throws Throwable {
+    // testRelationsEventsStatus(application, nodeName, beginIndex, timeoutInMillis, true, null, expectedEvents);
+    // }
+
+    private void testRelationsEventsStatus(String application, String nodeName, Integer beginIndex, long timeoutInMillis, Boolean executed, Boolean succeeded,
+            String... expectedEvents) throws Throwable, InterruptedException {
+        long timeout = System.currentTimeMillis() + timeoutInMillis;
+        List<RelationshipOperationEvent> relEvents;
+        boolean passed = false;
+        do {
+            relEvents = getAndAssertRelEventsFired(application, nodeName, beginIndex, timeoutInMillis, expectedEvents);
+            passed = assertRelEvents(relEvents, executed, succeeded);
+        } while (System.currentTimeMillis() < timeout && !passed);
+        Assert.assertTrue("Status not matched as expected! executed:" + executed + ", success:" + succeeded + ".\n\t got events: " + relEvents, passed);
     }
 
     private List<RelationshipOperationEvent> getAndAssertRelEventsFired(String application, String nodeName, Integer beginIndex, long timeoutInMillis,
@@ -129,11 +143,20 @@ public class RelationshipOperationTriggeringTestIT extends GenericTestCase {
         return relEvents;
     }
 
-    private void assertRelEvents(List<RelationshipOperationEvent> events, Boolean executed, Boolean succeeded) {
+    private boolean assertRelEvents(List<RelationshipOperationEvent> events, Boolean executed, Boolean succeeded) {
+        Set<Boolean> executedSet = Sets.newHashSet();
+        Set<Boolean> succeededSet = Sets.newHashSet();
+        Integer higherIndex = 0;
         for (RelationshipOperationEvent event : events) {
-            Assert.assertEquals(executed, event.getExecuted());
-            Assert.assertEquals(succeeded, event.getSuccess());
-            lastRelIndex = lastRelIndex < event.getEventIndex() ? event.getEventIndex() : lastRelIndex;
+            executedSet.add(event.getExecuted());
+            succeededSet.add(event.getSuccess());
+            higherIndex = higherIndex < event.getEventIndex() ? event.getEventIndex() : higherIndex;
         }
+
+        boolean passed = executedSet.equals(Sets.<Boolean> newHashSet(executed)) && succeededSet.equals(Sets.<Boolean> newHashSet(succeeded));
+        if (passed) {
+            lastRelIndex = higherIndex;
+        }
+        return passed;
     }
 }

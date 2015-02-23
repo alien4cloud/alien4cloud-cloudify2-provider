@@ -24,7 +24,7 @@ public class InstanceInfoTestIT extends GenericTestCase {
     }
 
     @Test
-    public void testScaleAndGetInstancesInformations() throws Throwable {
+    public void testScaleAndGetInstancesInformations() throws Exception {
         log.info("\n\n >> Executing Test testScaleAndGetInstancesInformations \n");
         String cloudifyAppId = null;
         this.uploadGitArchive("samples", "tomcat-war");
@@ -39,7 +39,7 @@ public class InstanceInfoTestIT extends GenericTestCase {
         assertAllInstanceStatus("comp_tomcat_scaling", InstanceStatus.SUCCESS, instancesInformations);
         assertAllInstanceStatus("tomcat", InstanceStatus.SUCCESS, instancesInformations);
 
-        scale("comp_tomcat_scaling", 1, cloudifyAppId, topo);
+        scale("comp_tomcat_scaling", 1, cloudifyAppId, topo, 10);
 
         // TODO: test scaling
     }
