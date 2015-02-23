@@ -5,8 +5,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import javax.annotation.Resource;
-
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.http.HttpResponse;
@@ -22,7 +20,6 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.cloudify2.events.RelationshipOperationEvent;
-import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.paas.plan.ToscaRelationshipLifecycleConstants;
 
@@ -39,9 +36,6 @@ public class RelationshipOperationTriggeringTestIT extends GenericTestCase {
     private static final String SERVICE_KEY = "service";
     private static final String APPLICATION_KEY = "application";
     private Integer lastRelIndex = 0;
-
-    @Resource
-    private TopologyTreeBuilderService topologyTreeBuilderService;
 
     public RelationshipOperationTriggeringTestIT() {
     }
@@ -88,8 +82,6 @@ public class RelationshipOperationTriggeringTestIT extends GenericTestCase {
     private void testRelationsEventsSucceeded(String application, String nodeName, Integer beginIndex, long timeoutInMillis, String... expectedEvents)
             throws Throwable {
         testRelationsEventsStatus(application, nodeName, beginIndex, timeoutInMillis, true, true, expectedEvents);
-        // List<RelationshipOperationEvent> relEvents = getAndAssertRelEventsFired(application, nodeName, beginIndex, timeoutInMillis, expectedEvents);
-        // assertRelEvents(relEvents, true, true);
     }
 
     // private void testRelationsEventsSkiped(String application, String nodeName, Integer beginIndex, long timeoutInMillis, String... expectedEvents)
