@@ -46,12 +46,6 @@ public class RelationshipOperationTriggeringTestIT extends GenericTestCase {
     public RelationshipOperationTriggeringTestIT() {
     }
 
-    @Override
-    public void after() {
-        // TODO Auto-generated method stub
-        // super.after();
-    }
-
     @Test
     public void testRelationshipOperationTrigger() throws Throwable {
         this.uploadGitArchive("samples", "tomcat-war");
