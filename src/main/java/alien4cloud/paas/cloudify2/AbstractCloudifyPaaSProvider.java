@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -46,9 +45,6 @@ import alien4cloud.exception.TechnicalException;
 import alien4cloud.model.application.DeploymentSetup;
 import alien4cloud.model.components.IOperationParameter;
 import alien4cloud.model.components.IndexedNodeType;
-import alien4cloud.model.components.PropertyConstraint;
-import alien4cloud.model.components.PropertyDefinition;
-import alien4cloud.model.components.constraints.GreaterThanConstraint;
 import alien4cloud.model.topology.NodeTemplate;
 import alien4cloud.model.topology.ScalingPolicy;
 import alien4cloud.model.topology.Topology;
@@ -79,7 +75,6 @@ import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
-import alien4cloud.tosca.normative.ToscaType;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -98,8 +93,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     private IGenericSearchDAO alienMonitorDao;
     @Resource
     private TopologyTreeBuilderService topologyTreeBuilderService;
-    @Getter
-    private Map<String, PropertyDefinition> deploymentPropertyMap;
 
     private static final long TIMEOUT_IN_MILLIS = 1000L * 60L * 10L; // 10 minutes
     private static final long MAX_DEPLOYMENT_TIMEOUT_MILLIS = 1000L * 60L * 5L; // 5 minutes
@@ -134,8 +127,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
      *
      */
     protected void configureDefault() {
-        log.info("Setting deployments properties");
-        setDeploymentProperties();
+        log.info("Configuring the paaS provider");
     }
 
     @Override
@@ -239,18 +231,18 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                 currentDeploymentState = applicationDescription.getApplicationState();
 
                 switch (currentDeploymentState) {
-                    case STARTED:
-                        log.info(String.format("Deployment of application '%s' is finished with success", applicationName));
-                        return;
-                    case FAILED:
-                        throw new PaaSDeploymentException(String.format("Failed deploying application '%s'", applicationName));
-                    default:
-                        try {
-                            Thread.sleep(DEFAULT_SLEEP_TIME);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            log.warn("Waiting to retrieve application '" + applicationName + "' state interrupted... ", e);
-                        }
+                case STARTED:
+                    log.info(String.format("Deployment of application '%s' is finished with success", applicationName));
+                    return;
+                case FAILED:
+                    throw new PaaSDeploymentException(String.format("Failed deploying application '%s'", applicationName));
+                default:
+                    try {
+                        Thread.sleep(DEFAULT_SLEEP_TIME);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        log.warn("Waiting to retrieve application '" + applicationName + "' state interrupted... ", e);
+                    }
                 }
             }
         } catch (RestClientException e) {
@@ -752,12 +744,12 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
     private DeploymentStatus statusFromState(DeploymentState deploymentState) {
         switch (deploymentState) {
-            case FAILED:
-                return DeploymentStatus.FAILURE;
-            case IN_PROGRESS:
-                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-            case STARTED:
-                return null;
+        case FAILED:
+            return DeploymentStatus.FAILURE;
+        case IN_PROGRESS:
+            return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+        case STARTED:
+            return null;
         }
         return null;
     }
@@ -781,16 +773,16 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         try {
             USMState state = USMState.valueOf(instanceStatus);
             switch (state) {
-                case INITIALIZING:
-                    return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-                case LAUNCHING:
-                    return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-                case RUNNING:
-                    return DeploymentStatus.DEPLOYED;
-                case SHUTTING_DOWN:
-                    return DeploymentStatus.UNDEPLOYMENT_IN_PROGRESS;
-                case ERROR:
-                    return DeploymentStatus.FAILURE;
+            case INITIALIZING:
+                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+            case LAUNCHING:
+                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+            case RUNNING:
+                return DeploymentStatus.DEPLOYED;
+            case SHUTTING_DOWN:
+                return DeploymentStatus.UNDEPLOYMENT_IN_PROGRESS;
+            case ERROR:
+                return DeploymentStatus.FAILURE;
             }
             return DeploymentStatus.WARNING;
         } catch (IllegalArgumentException e) {
@@ -920,41 +912,5 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         }
         fqnBuilder.append(")");
         return fqnBuilder.toString();
-    }
-
-    private void setDeploymentProperties() throws PaaSTechnicalException {
-        if (deploymentPropertyMap != null) {
-            return;
-        }
-        deploymentPropertyMap = Maps.newHashMap();
-        // Field 1 : startDetection_timeout_inSecond as string
-        PropertyDefinition startDetectionTimeout = new PropertyDefinition();
-        startDetectionTimeout.setType(ToscaType.INTEGER.toString());
-        startDetectionTimeout.setRequired(false);
-        startDetectionTimeout.setDescription("Cloudify start detection timout in seconds for this deployment.");
-        startDetectionTimeout.setDefault("600");
-        GreaterThanConstraint detectionConstraint = new GreaterThanConstraint();
-        detectionConstraint.setGreaterThan("0");
-        startDetectionTimeout.setConstraints(Arrays.asList((PropertyConstraint) detectionConstraint));
-        deploymentPropertyMap.put(DeploymentPropertiesNames.STARTDETECTION_TIMEOUT_INSECOND, startDetectionTimeout);
-
-        // Field 2 : disable_self_healing
-        PropertyDefinition disableSelfHealing = new PropertyDefinition();
-        disableSelfHealing.setType(ToscaType.BOOLEAN.toString());
-        disableSelfHealing.setRequired(false);
-        disableSelfHealing.setDescription("Whether to disable or not the cloudify's self-healing mechanism for this deployment.");
-        disableSelfHealing.setDefault("false");
-        deploymentPropertyMap.put(DeploymentPropertiesNames.DISABLE_SELF_HEALING, disableSelfHealing);
-
-        // Field 3 : events_lease_inHour
-        PropertyDefinition eventsLease = new PropertyDefinition();
-        eventsLease.setType(ToscaType.FLOAT.toString());
-        eventsLease.setRequired(false);
-        eventsLease.setDescription("Lease time in hour for alien4cloud events.");
-        eventsLease.setDefault("2");
-        GreaterThanConstraint leaseConstraint = new GreaterThanConstraint();
-        leaseConstraint.setGreaterThan("0");
-        eventsLease.setConstraints(Arrays.asList((PropertyConstraint) leaseConstraint));
-        deploymentPropertyMap.put(DeploymentPropertiesNames.EVENTS_LEASE_INHOUR, eventsLease);
     }
 }
