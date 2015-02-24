@@ -101,9 +101,9 @@ public class DeploymentTestIT extends GenericTestCase {
         final String cloudifyURL = cloudifyPaaSPovider.getCloudifyRestClientManager().getCloudifyURL().toString();
 
         PluginConfigurationBean pluginConfigurationBean2 = anotherCloudifyPaaSPovider.getPluginConfigurationBean();
-        pluginConfigurationBean2.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL2);
+        pluginConfigurationBean2.getCloudifyConnectionConfigurations().get(0).setCloudifyURL(cloudifyURL2);
         pluginConfigurationBean2.setSynchronousDeployment(true);
-        pluginConfigurationBean2.getCloudifyConnectionConfiguration().setVersion("2.7.1");
+        pluginConfigurationBean2.getCloudifyConnectionConfigurations().get(0).setVersion("2.7.1");
         try {
             anotherCloudifyPaaSPovider.setConfiguration(pluginConfigurationBean2);
         } catch (Exception e) {

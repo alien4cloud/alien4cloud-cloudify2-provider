@@ -65,6 +65,7 @@ import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.exception.PaaSNotYetDeployedException;
 import alien4cloud.paas.exception.PaaSTechnicalException;
+import alien4cloud.paas.exception.PluginConfigurationException;
 import alien4cloud.paas.function.FunctionEvaluator;
 import alien4cloud.paas.model.AbstractMonitorEvent;
 import alien4cloud.paas.model.DeploymentStatus;
@@ -224,8 +225,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             if (getPluginConfigurationBean().isSynchronousDeployment()) {
                 this.waitForApplicationInstallation(restClient, deploymentId);
             }
-        } catch (RestClientException e) {
-            throw new PaaSDeploymentException("Unable to deploy application '" + deploymentId + "'.\n\t Cause: " + e.getMessageFormattedText(), e);
+        } catch (RestClientException | PluginConfigurationException e) {
+            throwPaaSDeploymentException("Unable to deploy application '" + deploymentId + "'.", e);
         }
     }
 
@@ -284,9 +285,14 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
                 String cdfyDeploymentId = uninstallApplication.getDeploymentID();
                 this.waitUndeployApplication(cdfyDeploymentId);
             }
-        } catch (RestClientException e) {
-            throw new PaaSDeploymentException("Couldn't uninstall topology '" + deploymentId + "'. Cause: " + e.getMessageFormattedText(), e);
+        } catch (RestClientException | PluginConfigurationException e) {
+            throwPaaSDeploymentException("Couldn't uninstall topology '" + deploymentId + "'.", e);
         }
+    }
+
+    private void throwPaaSDeploymentException(String message, Exception e) {
+        String cause = e instanceof RestClientException ? ((RestClientException) e).getMessageFormattedText() : e.getMessage();
+        throw new PaaSDeploymentException(message + "\n\tCause: " + cause, e);
     }
 
     private void registerDeploymentStatus(String deploymentId, DeploymentStatus status) {
@@ -297,7 +303,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         monitorEvents.add(dsMonitorEvent);
     }
 
-    private void waitUndeployApplication(String deploymentID) throws RestClientException {
+    private void waitUndeployApplication(String deploymentID) throws PluginConfigurationException, RestClientException {
         long timeout = System.currentTimeMillis() + TIMEOUT_IN_MILLIS;
         while (System.currentTimeMillis() < timeout) {
             DeploymentEvent lastEvent = cloudifyRestClientManager.getRestClient().getLastEvent(deploymentID);
@@ -427,8 +433,10 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
      * @param deploymentId The id of the deployment/ applicaiton for which to retrieve instance states.
      * @param instanceInformations The current map of instance informations to fill-in with additional states.
      * @throws RestClientException In case we fail to get data from cloudify rest api.
+     * @throws PluginConfigurationException
      */
-    private void fillRuntimeInformations(String deploymentId, Map<String, Map<String, InstanceInformation>> instanceInformations) throws RestClientException {
+    private void fillRuntimeInformations(String deploymentId, Map<String, Map<String, InstanceInformation>> instanceInformations)
+            throws PluginConfigurationException, RestClientException {
         CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
         ApplicationDescription applicationDescription = restClient.getApplicationDescription(deploymentId);
 
@@ -845,6 +853,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         } catch (RestClientException e) {
             callback.onFailure(new PaaSTechnicalException("Unable to execute the operation <" + operationFQN + ">.\n\t Cause: " + e.getMessageFormattedText(),
                     e));
+        } catch (PluginConfigurationException e) {
+            callback.onFailure(new PaaSTechnicalException("Unable to execute the operation <" + operationFQN + ">.\n\t Cause: " + e.getMessage(), e));
         }
 
         log.debug("Result is: \n" + operationResponse);

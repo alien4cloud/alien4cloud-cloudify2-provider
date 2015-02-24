@@ -4,6 +4,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -29,15 +32,17 @@ public class CloudifyRestClientManager {
     private CloudifyRestClient restClient;
     private URI restEventEndpoint;
 
+    private LinkedList<CloudifyConnectionConfiguration> connexionConfigs = new LinkedList<>();
+
     /**
      * Get the cloudify rest client.
      *
      * @return An instance of the cloudify rest client.
-     * @throws RestClientException In case of an error while creating the cloudify rest client.
+     * @throws PluginConfigurationException In case of an error while creating the cloudify rest client.
      */
-    public CloudifyRestClient getRestClient() throws RestClientException {
-        if (restClient == null && cloudifyURL != null) {
-            this.restClient = new CloudifyRestClient(cloudifyURL, username, password, version);
+    public CloudifyRestClient getRestClient() throws PluginConfigurationException {
+        if (restClient == null || !restClient.test()) {
+            tryCloudifyConfigurations();
         }
         return restClient;
     }
@@ -45,11 +50,16 @@ public class CloudifyRestClientManager {
     /**
      * Set the configuration of the cloudify connection.
      *
-     * @param cloudifyConnectionConfiguration The configuration elements of the cloudify configuration.
+     * @param cloudifyConnectionConfigurations A list of configuration elements of the cloudify configuration.
      * @throws PluginConfigurationException In case the connection configuration is not correct.
      */
-    public void setCloudifyConnectionConfiguration(CloudifyConnectionConfiguration cloudifyConnectionConfiguration) throws PluginConfigurationException {
-        log.info("Cloudify manager REST API url is set to <" + cloudifyConnectionConfiguration.getCloudifyURL() + ">");
+    public void setCloudifyConnectionConfiguration(List<CloudifyConnectionConfiguration> cloudifyConnectionConfigurations) throws PluginConfigurationException {
+        this.connexionConfigs = (LinkedList<CloudifyConnectionConfiguration>) cloudifyConnectionConfigurations;
+        tryCloudifyConfigurations();
+    }
+
+    private boolean setCloudifyConnectionConfiguration(CloudifyConnectionConfiguration cloudifyConnectionConfiguration) throws PluginConfigurationException {
+        log.info("Trying to set Cloudify manager REST API url to <" + cloudifyConnectionConfiguration.getCloudifyURL() + ">");
         this.restClient = null;
         this.restEventEndpoint = null;
         try {
@@ -62,14 +72,36 @@ public class CloudifyRestClientManager {
             this.restEventEndpoint = new URI(String.format("http://%s:8081", cloudifyURL.getHost()));
             CloudifyEventsListener cloudifyEventsListener = new CloudifyEventsListener(this.restEventEndpoint);
             // check connection
-            cloudifyEventsListener.test();
+            log.info("Testing events module endpoint " + this.restEventEndpoint + "... ==> " + cloudifyEventsListener.test());
+            log.info("Cloudify rest client manager configuration done.");
+            return true;
         } catch (RestClientException | URISyntaxException | IOException e) {
-            if (e instanceof RestClientException) {
-                log.error("Failed to configure cloudify plugin.\n\t Cause: " + ((RestClientException) e).getMessageFormattedText(), e);
-            }
-            log.error("Failed to configure cloudify plugin.", e);
-            throw new PluginConfigurationException("Failed to configure cloudify plugin.", e);
+            String cause = e instanceof RestClientException ? ((RestClientException) e).getMessageFormattedText() : e.getMessage();
+            log.warn("Failed to set cloudify connexion to " + cloudifyConnectionConfiguration + ".\n\tCause: " + cause, e);
+            return false;
         }
+    }
+
+    /**
+     *
+     * try configurations for cloudify connexion. Put the first valid one ontop of the list.
+     *
+     * @param configurations
+     * @throws PluginConfigurationException
+     */
+    private void tryCloudifyConfigurations() throws PluginConfigurationException {
+        Iterator<CloudifyConnectionConfiguration> iterator = connexionConfigs.iterator();
+        while (iterator.hasNext()) {
+            CloudifyConnectionConfiguration config = iterator.next();
+            if (setCloudifyConnectionConfiguration(config)) {
+                if (connexionConfigs.indexOf(config) > 0) {
+                    connexionConfigs.remove(config);
+                    connexionConfigs.push(config);
+                }
+                return;
+            }
+        }
+        throw new PluginConfigurationException("Failed to configure cloudify plugin. None of the provided cloudify connexion configurations is responding.");
     }
 
     /**

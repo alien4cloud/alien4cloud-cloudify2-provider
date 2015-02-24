@@ -54,4 +54,16 @@ public class CloudifyRestClient extends RestClient {
         }
         return computeTemplates;
     }
+
+    public boolean test() {
+        try {
+            // this.executor.get("service/testrest", new TypeReference<Response<String>>() {
+            // });
+            connect();
+            return true;
+        } catch (RestClientException e) {
+            log.warn("Fail to connect to cloudify manager rest endpoint: " + e.getMessageFormattedText());
+            return false;
+        }
+    }
 }

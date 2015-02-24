@@ -35,7 +35,8 @@ public class CloudifyPaaSProvider extends AbstractCloudifyPaaSProvider<PluginCon
     @Override
     public void setConfiguration(PluginConfigurationBean configuration) throws PluginConfigurationException {
         this.configurationBean = configuration;
-        this.cloudifyRestClientManager.setCloudifyConnectionConfiguration(configuration.getCloudifyConnectionConfiguration());
+        // tryCloudifyConfigurations(configuration.getCloudifyConnectionConfiguration());
+        this.cloudifyRestClientManager.setCloudifyConnectionConfiguration(configuration.getCloudifyConnectionConfigurations());
         try {
             this.templates = this.cloudifyRestClientManager.getRestClient().getCloudifyComputeTemplates();
         } catch (RestClientException e) {
@@ -55,20 +56,20 @@ public class CloudifyPaaSProvider extends AbstractCloudifyPaaSProvider<PluginCon
             return null;
         }
         switch (resourceType) {
-        case IMAGE:
-            Set<String> imageIds = Sets.newHashSet();
-            for (CloudifyComputeTemplate template : templates.values()) {
-                imageIds.add(template.getImageId());
-            }
-            return imageIds.toArray(new String[imageIds.size()]);
-        case FLAVOR:
-            Set<String> flavorIds = Sets.newHashSet();
-            for (CloudifyComputeTemplate template : templates.values()) {
-                flavorIds.add(template.getHardwareId());
-            }
-            return flavorIds.toArray(new String[flavorIds.size()]);
-        default:
-            return null;
+            case IMAGE:
+                Set<String> imageIds = Sets.newHashSet();
+                for (CloudifyComputeTemplate template : templates.values()) {
+                    imageIds.add(template.getImageId());
+                }
+                return imageIds.toArray(new String[imageIds.size()]);
+            case FLAVOR:
+                Set<String> flavorIds = Sets.newHashSet();
+                for (CloudifyComputeTemplate template : templates.values()) {
+                    flavorIds.add(template.getHardwareId());
+                }
+                return flavorIds.toArray(new String[flavorIds.size()]);
+            default:
+                return null;
         }
     }
 
@@ -78,16 +79,17 @@ public class CloudifyPaaSProvider extends AbstractCloudifyPaaSProvider<PluginCon
             return null;
         }
         switch (resourceType) {
-        case IMAGE:
-            Set<String> flavorIds = Sets.newHashSet();
-            for (CloudifyComputeTemplate template : templates.values()) {
-                if (imageId.equals(template.getImageId())) {
-                    flavorIds.add(template.getHardwareId());
+            case IMAGE:
+                Set<String> flavorIds = Sets.newHashSet();
+                for (CloudifyComputeTemplate template : templates.values()) {
+                    if (imageId.equals(template.getImageId())) {
+                        flavorIds.add(template.getHardwareId());
+                    }
                 }
-            }
-            return flavorIds.toArray(new String[flavorIds.size()]);
-        default:
-            return null;
+                return flavorIds.toArray(new String[flavorIds.size()]);
+            default:
+                return null;
         }
     }
+
 }
