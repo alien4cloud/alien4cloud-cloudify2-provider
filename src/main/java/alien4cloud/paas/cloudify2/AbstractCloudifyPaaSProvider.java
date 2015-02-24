@@ -232,18 +232,18 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                 currentDeploymentState = applicationDescription.getApplicationState();
 
                 switch (currentDeploymentState) {
-                case STARTED:
-                    log.info(String.format("Deployment of application '%s' is finished with success", applicationName));
-                    return;
-                case FAILED:
-                    throw new PaaSDeploymentException(String.format("Failed deploying application '%s'", applicationName));
-                default:
-                    try {
-                        Thread.sleep(DEFAULT_SLEEP_TIME);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        log.warn("Waiting to retrieve application '" + applicationName + "' state interrupted... ", e);
-                    }
+                    case STARTED:
+                        log.info(String.format("Deployment of application '%s' is finished with success", applicationName));
+                        return;
+                    case FAILED:
+                        throw new PaaSDeploymentException(String.format("Failed deploying application '%s'", applicationName));
+                    default:
+                        try {
+                            Thread.sleep(DEFAULT_SLEEP_TIME);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            log.warn("Waiting to retrieve application '" + applicationName + "' state interrupted... ", e);
+                        }
                 }
             }
         } catch (RestClientException e) {
@@ -752,12 +752,12 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
     private DeploymentStatus statusFromState(DeploymentState deploymentState) {
         switch (deploymentState) {
-        case FAILED:
-            return DeploymentStatus.FAILURE;
-        case IN_PROGRESS:
-            return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-        case STARTED:
-            return null;
+            case FAILED:
+                return DeploymentStatus.FAILURE;
+            case IN_PROGRESS:
+                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+            case STARTED:
+                return null;
         }
         return null;
     }
@@ -781,16 +781,16 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         try {
             USMState state = USMState.valueOf(instanceStatus);
             switch (state) {
-            case INITIALIZING:
-                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-            case LAUNCHING:
-                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-            case RUNNING:
-                return DeploymentStatus.DEPLOYED;
-            case SHUTTING_DOWN:
-                return DeploymentStatus.UNDEPLOYMENT_IN_PROGRESS;
-            case ERROR:
-                return DeploymentStatus.FAILURE;
+                case INITIALIZING:
+                    return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+                case LAUNCHING:
+                    return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+                case RUNNING:
+                    return DeploymentStatus.DEPLOYED;
+                case SHUTTING_DOWN:
+                    return DeploymentStatus.UNDEPLOYMENT_IN_PROGRESS;
+                case ERROR:
+                    return DeploymentStatus.FAILURE;
             }
             return DeploymentStatus.WARNING;
         } catch (IllegalArgumentException e) {

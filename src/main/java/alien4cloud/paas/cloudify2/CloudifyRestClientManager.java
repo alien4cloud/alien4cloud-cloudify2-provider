@@ -18,6 +18,8 @@ import org.springframework.stereotype.Component;
 
 import alien4cloud.paas.exception.PluginConfigurationException;
 
+import com.google.common.collect.Lists;
+
 @Component
 @Scope(BeanDefinition.SCOPE_PROTOTYPE)
 @Slf4j
@@ -54,7 +56,7 @@ public class CloudifyRestClientManager {
      * @throws PluginConfigurationException In case the connection configuration is not correct.
      */
     public void setCloudifyConnectionConfiguration(List<CloudifyConnectionConfiguration> cloudifyConnectionConfigurations) throws PluginConfigurationException {
-        this.connexionConfigs = (LinkedList<CloudifyConnectionConfiguration>) cloudifyConnectionConfigurations;
+        this.connexionConfigs = Lists.newLinkedList(cloudifyConnectionConfigurations);
         tryCloudifyConfigurations();
     }
 
