@@ -41,7 +41,7 @@ components.search.boost:
 # Configuration of the elastic search cluster.
 elasticSearch:
   clusterName: cdfyprovideresclusterunittest
-  local: false
+  local: true
   client: false
   resetData: false
   prefix_max_expansions: 10

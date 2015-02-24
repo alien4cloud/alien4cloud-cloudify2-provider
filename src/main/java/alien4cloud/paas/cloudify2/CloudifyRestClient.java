@@ -5,6 +5,7 @@ import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang3.StringUtils;
 import org.cloudifysource.dsl.rest.response.Response;
 import org.cloudifysource.dsl.rest.response.ServiceInstanceDetails;
 import org.cloudifysource.restclient.RestClient;
@@ -50,7 +51,9 @@ public class CloudifyRestClient extends RestClient {
         for (Map.Entry<String, Object> templateEntry : templates.entrySet()) {
             String imageId = (String) MapUtil.get((Map<String, Object>) templateEntry.getValue(), "imageId");
             String hardwareId = (String) MapUtil.get((Map<String, Object>) templateEntry.getValue(), "hardwareId");
-            computeTemplates.put(templateEntry.getKey(), new CloudifyComputeTemplate(imageId, hardwareId));
+            if (!StringUtils.isEmpty(imageId) && !StringUtils.isEmpty(hardwareId)) {
+                computeTemplates.put(templateEntry.getKey(), new CloudifyComputeTemplate(imageId, hardwareId));
+            }
         }
         return computeTemplates;
     }
