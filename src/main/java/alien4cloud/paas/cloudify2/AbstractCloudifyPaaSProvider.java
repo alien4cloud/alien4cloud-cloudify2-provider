@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -47,15 +46,11 @@ import alien4cloud.model.application.DeploymentSetup;
 import alien4cloud.model.components.IAttributeValue;
 import alien4cloud.model.components.IOperationParameter;
 import alien4cloud.model.components.IndexedNodeType;
-import alien4cloud.model.components.PropertyConstraint;
-import alien4cloud.model.components.PropertyDefinition;
-import alien4cloud.model.components.constraints.GreaterThanConstraint;
 import alien4cloud.model.topology.NodeTemplate;
 import alien4cloud.model.topology.ScalingPolicy;
 import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.IConfigurablePaaSProvider;
 import alien4cloud.paas.IPaaSCallback;
-import alien4cloud.paas.IPaaSProvider;
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.events.BlockStorageEvent;
 import alien4cloud.paas.cloudify2.events.NodeInstanceState;
@@ -81,14 +76,13 @@ import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
-import alien4cloud.tosca.normative.ToscaType;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 @Slf4j
-public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfigurationBean> implements IConfigurablePaaSProvider<T>, IPaaSProvider {
+public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSProvider<PluginConfigurationBean> {
 
     @Resource
     @Getter
@@ -100,8 +94,6 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     private IGenericSearchDAO alienMonitorDao;
     @Resource
     private TopologyTreeBuilderService topologyTreeBuilderService;
-    @Getter
-    private Map<String, PropertyDefinition> deploymentPropertyMap;
 
     private static final long TIMEOUT_IN_MILLIS = 1000L * 60L * 10L; // 10 minutes
     private static final long MAX_DEPLOYMENT_TIMEOUT_MILLIS = 1000L * 60L * 5L; // 5 minutes
@@ -136,8 +128,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
      *
      */
     protected void configureDefault() {
-        log.info("Setting deployments properties");
-        setDeploymentProperties();
+        log.info("Configuring the paaS provider");
     }
 
     @Override
@@ -925,41 +916,5 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         }
         fqnBuilder.append(")");
         return fqnBuilder.toString();
-    }
-
-    private void setDeploymentProperties() throws PaaSTechnicalException {
-        if (deploymentPropertyMap != null) {
-            return;
-        }
-        deploymentPropertyMap = Maps.newHashMap();
-        // Field 1 : startDetection_timeout_inSecond as string
-        PropertyDefinition startDetectionTimeout = new PropertyDefinition();
-        startDetectionTimeout.setType(ToscaType.INTEGER.toString());
-        startDetectionTimeout.setRequired(false);
-        startDetectionTimeout.setDescription("Cloudify start detection timout in seconds for this deployment.");
-        startDetectionTimeout.setDefault("600");
-        GreaterThanConstraint detectionConstraint = new GreaterThanConstraint();
-        detectionConstraint.setGreaterThan("0");
-        startDetectionTimeout.setConstraints(Arrays.asList((PropertyConstraint) detectionConstraint));
-        deploymentPropertyMap.put(DeploymentPropertiesNames.STARTDETECTION_TIMEOUT_INSECOND, startDetectionTimeout);
-
-        // Field 2 : disable_self_healing
-        PropertyDefinition disableSelfHealing = new PropertyDefinition();
-        disableSelfHealing.setType(ToscaType.BOOLEAN.toString());
-        disableSelfHealing.setRequired(false);
-        disableSelfHealing.setDescription("Whether to disable or not the cloudify's self-healing mechanism for this deployment.");
-        disableSelfHealing.setDefault("false");
-        deploymentPropertyMap.put(DeploymentPropertiesNames.DISABLE_SELF_HEALING, disableSelfHealing);
-
-        // Field 3 : events_lease_inHour
-        PropertyDefinition eventsLease = new PropertyDefinition();
-        eventsLease.setType(ToscaType.FLOAT.toString());
-        eventsLease.setRequired(false);
-        eventsLease.setDescription("Lease time in hour for alien4cloud events.");
-        eventsLease.setDefault("2");
-        GreaterThanConstraint leaseConstraint = new GreaterThanConstraint();
-        leaseConstraint.setGreaterThan("0");
-        eventsLease.setConstraints(Arrays.asList((PropertyConstraint) leaseConstraint));
-        deploymentPropertyMap.put(DeploymentPropertiesNames.EVENTS_LEASE_INHOUR, eventsLease);
     }
 }

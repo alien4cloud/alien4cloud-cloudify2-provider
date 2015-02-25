@@ -16,7 +16,7 @@ import com.google.common.collect.Sets;
 
 @Component("cloudify-paas-provider-bean")
 @Scope(BeanDefinition.SCOPE_PROTOTYPE)
-public class CloudifyPaaSProvider extends AbstractCloudifyPaaSProvider<PluginConfigurationBean> {
+public class CloudifyPaaSProvider extends AbstractCloudifyPaaSProvider {
 
     private PluginConfigurationBean configurationBean = new PluginConfigurationBean();
 
@@ -24,11 +24,6 @@ public class CloudifyPaaSProvider extends AbstractCloudifyPaaSProvider<PluginCon
 
     @Override
     protected PluginConfigurationBean getPluginConfigurationBean() {
-        return configurationBean;
-    }
-
-    @Override
-    public PluginConfigurationBean getDefaultConfiguration() {
         return configurationBean;
     }
 

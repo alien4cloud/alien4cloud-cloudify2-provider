@@ -14,7 +14,6 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.model.InstanceInformation;
 import alien4cloud.paas.model.InstanceStatus;
-import alien4cloud.paas.model.PaaSDeploymentContext;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("classpath:application-context-testit.xml")
@@ -40,19 +39,9 @@ public class InstanceInfoTestIT extends GenericTestCase {
         assertAllInstanceStatus("comp_tomcat_scaling", InstanceStatus.SUCCESS, instancesInformations);
         assertAllInstanceStatus("tomcat", InstanceStatus.SUCCESS, instancesInformations);
 
-        scale("comp_tomcat_scaling", 1, cloudifyAppId, topo);
+        scale("comp_tomcat_scaling", 1, cloudifyAppId, topo, 10);
 
         // TODO: test scaling
-    }
-
-    private void scale(String nodeID, int nbToAdd, String appId, Topology topo) {
-        int plannedInstance = topo.getScalingPolicies().get(nodeID).getInitialInstances() + nbToAdd;
-        log.info("Scaling to " + nbToAdd);
-        topo.getScalingPolicies().get(nodeID).setInitialInstances(plannedInstance);
-        alienDAO.save(topo);
-        PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
-        deploymentContext.setDeploymentId(appId);
-        cloudifyPaaSPovider.scale(deploymentContext, nodeID, nbToAdd, null);
     }
 
     private void printStatuses(Map<String, Map<String, InstanceInformation>> instancesInformations) {

@@ -17,6 +17,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.mapping.ElasticSearchClient;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
@@ -24,6 +27,7 @@ import alien4cloud.dao.ElasticSearchDAO;
 import alien4cloud.git.RepositoryManager;
 import alien4cloud.model.components.Csar;
 import alien4cloud.model.topology.Topology;
+import alien4cloud.security.Role;
 import alien4cloud.tosca.ArchiveUploadService;
 import alien4cloud.tosca.parser.ParsingError;
 import alien4cloud.tosca.parser.ParsingErrorLevel;
@@ -63,6 +67,8 @@ public class TestsUtils {
     }
 
     public void uploadCsarFile(String path) throws IOException, ParsingException, CSARVersionAlreadyExistsException {
+        Authentication auth = new TestingAuthenticationToken(Role.ADMIN.name().toLowerCase(), "", Role.ADMIN.name());
+        SecurityContextHolder.getContext().setAuthentication(auth);
         log.info("uploading archive " + path);
         Path inputPath = Paths.get(path);
         Path zipPath = Files.createTempFile("csar", ".zip");

@@ -24,10 +24,9 @@ public class CloudifyExecutorUtils {
      * @param argsMap
      * @return
      */
-    static def executeScript(script, Map argsMap) {
+    static def executeScript(context, script, Map argsMap) {
 
         // Execute bash script
-        def context = ServiceContextFactory.getServiceContext()
         def serviceDirectory = context.getServiceDirectory()
         println "service dir is: ${serviceDirectory}; script is: ${script}"
         def fullPathScript = "${serviceDirectory}/${script}";
@@ -141,17 +140,19 @@ public class CloudifyExecutorUtils {
         def targetId = null;
 
         switch(event) {
-            case "add_target":
-                sourceService =  associatedNodeService;
-                targetService = context.getServiceName();
-                sourceId = associatedNodeId;
-                targetId = nodeId;
-                break;
             case "add_source":
+            case "remove_source":
                 sourceService =  context.getServiceName();
                 targetService = associatedNodeService;
                 sourceId = nodeId;
                 targetId = associatedNodeId;
+                break;
+            case "add_target":
+            case "remove_target":
+                sourceService =  associatedNodeService;
+                targetService = context.getServiceName();
+                sourceId = associatedNodeId;
+                targetId = nodeId;
                 break;
             default:
                 return;

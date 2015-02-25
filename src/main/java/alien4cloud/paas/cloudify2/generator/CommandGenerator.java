@@ -40,7 +40,7 @@ public class CommandGenerator {
     private static final String EXECUTE_PARALLEL_FORMAT = "CloudifyExecutorUtils.executeParallel(%s, %s)";
     private static final String EXECUTE_ASYNC_FORMAT = "CloudifyExecutorUtils.executeAsync(%s, %s)";
     private static final String EXECUTE_GROOVY_FORMAT = "CloudifyExecutorUtils.executeGroovy(context, \"%s\", %s)";
-    private static final String EXECUTE_SCRIPT_FORMAT = "CloudifyExecutorUtils.executeScript(\"%s\", %s)";
+    private static final String EXECUTE_SCRIPT_FORMAT = "CloudifyExecutorUtils.executeScript(context, \"%s\", %s)";
     public static final String SHUTDOWN_COMMAND = "CloudifyExecutorUtils.shutdown()";
     public static final String DESTROY_COMMAND = "CloudifyUtils.destroy()";
     private static final String EXECUTE_LOOPED_GROOVY_FORMAT = "while(%s){\n\t %s \n}";

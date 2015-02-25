@@ -3,16 +3,12 @@ package alien4cloud.paas.cloudify2;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
-import java.util.Date;
-import java.util.Iterator;
 import java.util.Map;
 
 import javax.annotation.Resource;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.cloudifysource.restclient.exceptions.RestClientException;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
@@ -20,12 +16,8 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
 import alien4cloud.model.topology.Topology;
-import alien4cloud.paas.IPaaSCallback;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.PaaSDeploymentException;
-import alien4cloud.paas.model.AbstractMonitorEvent;
-import alien4cloud.paas.model.DeploymentStatus;
-import alien4cloud.paas.model.PaaSDeploymentContext;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
@@ -75,14 +67,6 @@ public class DeploymentTestIT extends GenericTestCase {
                     ToscaNodeLifecycleConstants.CONFIGURED, ToscaNodeLifecycleConstants.STARTED);
 
             testUndeployment(cloudifyAppId);
-
-            Iterator<String> idsIter = deployedCloudifyAppIds.iterator();
-            while (idsIter.hasNext()) {
-                if (idsIter.next().equals(cloudifyAppId)) {
-                    idsIter.remove();
-                    break;
-                }
-            }
 
         } catch (Exception e) {
             log.error("Test Failed", e);
@@ -139,32 +123,4 @@ public class DeploymentTestIT extends GenericTestCase {
         testEvents(cloudifyAppId, new String[] { "comp_envartest", "test_component" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
                 ToscaNodeLifecycleConstants.CONFIGURED, ToscaNodeLifecycleConstants.STARTED, ToscaNodeLifecycleConstants.AVAILABLE);
     }
-
-    private void testUndeployment(String applicationId) throws RestClientException {
-        PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
-        deploymentContext.setDeploymentId(applicationId);
-        cloudifyPaaSPovider.undeploy(deploymentContext, null);
-        assertApplicationIsUninstalled(applicationId);
-    }
-
-    private void assertApplicationIsUninstalled(String applicationId) throws RestClientException {
-
-        // RestClient restClient = cloudifyRestClientManager.getRestClient();
-        // ApplicationDescription appliDesc = restClient.getApplicationDescription(applicationId);
-        // Assert.assertNull("Application " + applicationId + " is not undeloyed!", appliDesc);
-
-        // FIXME this is a hack, for the provider to set the status of the application to UNDEPLOYED
-        cloudifyPaaSPovider.getEventsSince(new Date(), 1, new IPaaSCallback<AbstractMonitorEvent[]>() {
-            @Override
-            public void onSuccess(AbstractMonitorEvent[] abstractMonitorEvents) {
-            }
-
-            @Override
-            public void onFailure(Throwable throwable) {
-            }
-        });
-        DeploymentStatus status = cloudifyPaaSPovider.getStatus(applicationId);
-        Assert.assertEquals("Application " + applicationId + " is not in UNDEPLOYED state", DeploymentStatus.UNDEPLOYED, status);
-    }
-
 }

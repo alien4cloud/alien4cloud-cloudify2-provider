@@ -24,8 +24,8 @@ import alien4cloud.utils.MapUtil;
 @ContextConfiguration("classpath:mock-context-test.xml")
 public class CloudifyPaaSPoviderTest {
 
-    @Resource(name = "cloudify-paas-provider-bean")
-    private CloudifyPaaSProvider cloudifyPaaSPovider;
+    @Resource(name = "cloudify-paas-provider")
+    private CloudifyPaaSProviderFactory cloudifyPaaSProvider;
 
     @Resource
     private CommandGenerator generator;
@@ -58,9 +58,9 @@ public class CloudifyPaaSPoviderTest {
 
     @Test
     public void deploymentPropertiesMapTest() {
-        Map<String, PropertyDefinition> properties = cloudifyPaaSPovider.getDeploymentPropertyMap();
+        Map<String, PropertyDefinition> properties = cloudifyPaaSProvider.getDeploymentPropertyDefinitions();
         Assert.assertNotNull(properties);
-        assertEquals(2, properties.size());
+        assertEquals(3, properties.size());
         PropertyDefinition prop = properties.get(DeploymentPropertiesNames.STARTDETECTION_TIMEOUT_INSECOND);
         Assert.assertNotNull(prop);
         assertEquals("600", prop.getDefault());
