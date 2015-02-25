@@ -24,10 +24,9 @@ public class CloudifyExecutorUtils {
      * @param argsMap
      * @return
      */
-    static def executeScript(script, Map argsMap) {
+    static def executeScript(context, script, Map argsMap) {
 
         // Execute bash script
-        def context = ServiceContextFactory.getServiceContext()
         def serviceDirectory = context.getServiceDirectory()
         println "service dir is: ${serviceDirectory}; script is: ${script}"
         def fullPathScript = "${serviceDirectory}/${script}";
