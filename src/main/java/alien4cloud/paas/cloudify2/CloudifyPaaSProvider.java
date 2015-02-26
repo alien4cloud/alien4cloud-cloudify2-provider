@@ -31,7 +31,8 @@ public class CloudifyPaaSProvider extends AbstractCloudifyPaaSProvider {
     public void setConfiguration(PluginConfigurationBean configuration) throws PluginConfigurationException {
         this.configurationBean = configuration;
         // tryCloudifyConfigurations(configuration.getCloudifyConnectionConfiguration());
-        this.cloudifyRestClientManager.setCloudifyConnectionConfiguration(configuration.getCloudifyConnectionConfigurations());
+        this.cloudifyRestClientManager.setCloudifyConnectionConfiguration(configuration.getCloudifyConnectionConfigurations(),
+                configuration.getConnectionTimeOutInSeconds());
         try {
             this.templates = this.cloudifyRestClientManager.getRestClient().getCloudifyComputeTemplates();
         } catch (RestClientException e) {

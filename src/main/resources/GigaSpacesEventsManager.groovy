@@ -82,6 +82,7 @@ public class GigaSpacesEventsManager {
             lastIndex = readMultiple[0].getProperty("eventIndex");
         }
 
+        document.setProperty("routing", 1 as Integer);
         document.setProperty("applicationName", application as String);
         document.setProperty("serviceName", service as String);
         document.setProperty("instanceId", instanceId as String);
@@ -139,7 +140,7 @@ public class GigaSpacesEventsManager {
         SpaceDocument document = new SpaceDocument("alien4cloud.paas.cloudify2.events.RelationshipOperationEvent");
         fillEventDocument(application, service, instanceId, eventResume.event, document);
         
-        document.setProperty("executed", false as Boolean);
+        document.setProperty("processed", false as Boolean);
         document.setProperty("relationshipId", eventResume.relationshipId as String);
         document.setProperty("source", source.name as String);
         document.setProperty("sourceService", source.service as String);

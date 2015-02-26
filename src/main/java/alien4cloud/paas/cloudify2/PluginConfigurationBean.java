@@ -22,6 +22,9 @@ public class PluginConfigurationBean {
     @FormLabel("CLOUDS.DRIVER.CLOUDIFY.CLOUDIFY_CONNECTION_CONFIGURATION")
     private List<CloudifyConnectionConfiguration> cloudifyConnectionConfigurations = Lists.newLinkedList(Lists
             .newArrayList(new CloudifyConnectionConfiguration()));
+    /** timout to try to connect to the provided urls */
+    @FormLabel("CLOUDS.DRIVER.CLOUDIFY.CONNECTION_CONFIGURATION.TIMEOUT")
+    private Integer connectionTimeOutInSeconds = 60;
     /** True if the undeployment must be performed synchronously, false if not. */
     @FormLabel("CLOUDS.DRIVER.CLOUDIFY.SYNCHRONOUS_DEPLOYMENT")
     private boolean synchronousDeployment = false;
