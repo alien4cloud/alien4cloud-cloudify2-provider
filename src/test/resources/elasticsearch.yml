@@ -11,3 +11,12 @@ path:
 gateway:
   recover_after_nodes: 1
   expected_nodes: 1
+  
+discovery:
+  zen:
+    ping:
+      multicast:
+        enabled: false
+      unicast:
+        enabled: true
+        hosts: localhost
