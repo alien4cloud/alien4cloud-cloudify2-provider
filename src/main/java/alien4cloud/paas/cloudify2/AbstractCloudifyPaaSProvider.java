@@ -43,7 +43,6 @@ import org.cloudifysource.restclient.exceptions.RestClientException;
 import alien4cloud.dao.IGenericSearchDAO;
 import alien4cloud.exception.TechnicalException;
 import alien4cloud.model.application.DeploymentSetup;
-import alien4cloud.model.components.IAttributeValue;
 import alien4cloud.model.components.IOperationParameter;
 import alien4cloud.model.components.IndexedNodeType;
 import alien4cloud.model.topology.NodeTemplate;
@@ -232,18 +231,18 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                 currentDeploymentState = applicationDescription.getApplicationState();
 
                 switch (currentDeploymentState) {
-                case STARTED:
-                    log.info(String.format("Deployment of application '%s' is finished with success", applicationName));
-                    return;
-                case FAILED:
-                    throw new PaaSDeploymentException(String.format("Failed deploying application '%s'", applicationName));
-                default:
-                    try {
-                        Thread.sleep(DEFAULT_SLEEP_TIME);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        log.warn("Waiting to retrieve application '" + applicationName + "' state interrupted... ", e);
-                    }
+                    case STARTED:
+                        log.info(String.format("Deployment of application '%s' is finished with success", applicationName));
+                        return;
+                    case FAILED:
+                        throw new PaaSDeploymentException(String.format("Failed deploying application '%s'", applicationName));
+                    default:
+                        try {
+                            Thread.sleep(DEFAULT_SLEEP_TIME);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            log.warn("Waiting to retrieve application '" + applicationName + "' state interrupted... ", e);
+                        }
                 }
             }
         } catch (RestClientException e) {
@@ -470,26 +469,23 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         }
     }
 
-    private void parseAttributes(Map<String, Map<String, InstanceInformation>> instanceInformations, DeploymentInfo deploymentInfo) {
-        Topology topology = deploymentInfo.topology;
+    private void parseAttributes(Map<String, Map<String, InstanceInformation>> instanceInformations, Topology topology) {
         // parse attributes
-        for (Entry<String, Map<String, InstanceInformation>> nodeInstanceId : instanceInformations.entrySet()) {
-
-            for (Entry<String, InstanceInformation> nodeInstanceNumber : instanceInformations.get(nodeInstanceId).entrySet()) {
-
-                if (nodeInstanceNumber.getValue().getAttributes() != null) {
-                    for (Entry<String, String> attributeEntry : nodeInstanceNumber.getValue().getAttributes().entrySet()) {
-
-                        PaaSNodeTemplate nodeType = deploymentInfo.paaSNodeTemplates.get(nodeInstanceId);
-                        Map<String, IAttributeValue> nodeTypeAttributes = nodeType.getIndexedToscaElement().getAttributes();
-                        String parsedAttribute = FunctionEvaluator.parseAttribute(nodeTypeAttributes.get(attributeEntry.getValue()), topology,
-                                instanceInformations, nodeInstanceNumber.getKey());
+        for (Map<String, InstanceInformation> nodeInstanceInfo : instanceInformations.values()) {
+            for (Entry<String, InstanceInformation> entry : nodeInstanceInfo.entrySet()) {
+                if (entry.getValue().getAttributes() != null) {
+                    for (Entry<String, String> attributeEntry : entry.getValue().getAttributes().entrySet()) {
+                        String parsedAttribute = FunctionEvaluator.parseString(attributeEntry.getValue(), topology, instanceInformations, entry.getKey());
                         attributeEntry.setValue(parsedAttribute);
                     }
                 }
-
+                if (entry.getValue().getProperties() != null) {
+                    for (Entry<String, String> propertyEntry : entry.getValue().getProperties().entrySet()) {
+                        String parsedAttribute = FunctionEvaluator.parseString(propertyEntry.getValue(), topology, instanceInformations, entry.getKey());
+                        propertyEntry.setValue(parsedAttribute);
+                    }
+                }
             }
-
         }
     }
 
@@ -514,7 +510,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         try {
             fillInstanceStates(deploymentId, instanceInformations, restEventEndpoint);
             fillRuntimeInformations(deploymentId, instanceInformations);
-            parseAttributes(instanceInformations, statusByDeployments.get(deploymentId));
+            parseAttributes(instanceInformations, topology);
             return instanceInformations;
         } catch (RestClientException e) {
             log.warn("Error getting " + deploymentId + " deployment informations. \n\t Cause: " + e.getMessageFormattedText());
@@ -748,12 +744,12 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
     private DeploymentStatus statusFromState(DeploymentState deploymentState) {
         switch (deploymentState) {
-        case FAILED:
-            return DeploymentStatus.FAILURE;
-        case IN_PROGRESS:
-            return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-        case STARTED:
-            return null;
+            case FAILED:
+                return DeploymentStatus.FAILURE;
+            case IN_PROGRESS:
+                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+            case STARTED:
+                return null;
         }
         return null;
     }
@@ -777,16 +773,16 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         try {
             USMState state = USMState.valueOf(instanceStatus);
             switch (state) {
-            case INITIALIZING:
-                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-            case LAUNCHING:
-                return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
-            case RUNNING:
-                return DeploymentStatus.DEPLOYED;
-            case SHUTTING_DOWN:
-                return DeploymentStatus.UNDEPLOYMENT_IN_PROGRESS;
-            case ERROR:
-                return DeploymentStatus.FAILURE;
+                case INITIALIZING:
+                    return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+                case LAUNCHING:
+                    return DeploymentStatus.DEPLOYMENT_IN_PROGRESS;
+                case RUNNING:
+                    return DeploymentStatus.DEPLOYED;
+                case SHUTTING_DOWN:
+                    return DeploymentStatus.UNDEPLOYMENT_IN_PROGRESS;
+                case ERROR:
+                    return DeploymentStatus.FAILURE;
             }
             return DeploymentStatus.WARNING;
         } catch (IllegalArgumentException e) {
