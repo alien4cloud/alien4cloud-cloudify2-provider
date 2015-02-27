@@ -18,19 +18,18 @@ import alien4cloud.component.repository.ArtifactRepositoryConstants;
 import alien4cloud.model.components.DeploymentArtifact;
 import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.model.InstanceInformation;
-import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 
 import com.google.common.collect.Maps;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("classpath:application-context-testit.xml")
 @Slf4j
-public class ArtifactsCopyTestIT extends GenericTestCase {
+public class ParseAttributesTestIT extends GenericTestCase {
 
     @Resource
     private ArtifactLocalRepository artifactRepository;
 
-    public ArtifactsCopyTestIT() {
+    public ParseAttributesTestIT() {
     }
 
     @Test
@@ -57,15 +56,15 @@ public class ArtifactsCopyTestIT extends GenericTestCase {
         String[] computes = new String[] { "comp_tomcat_war" };
         cloudifyAppId = deployTopology(computes, topology, topologyFileName, null);
         assertApplicationIsInstalled(cloudifyAppId);
-        testEvents(cloudifyAppId, new String[] { "comp_tomcat_war", "War_1", "war_2" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
-                ToscaNodeLifecycleConstants.CONFIGURED, ToscaNodeLifecycleConstants.STARTED);
 
         Map<String, Map<String, InstanceInformation>> infos = cloudifyPaaSPovider.getInstancesInformation(cloudifyAppId, topology);
 
-        // org.junit.Assert.assertNotNull(infos);
+        String serviceName = "comp_tomcat_war";
+        // NodeTemplate war1 = topology.getNodeTemplates().get("War_1");
+        // NodeTemplate war2 = topology.getNodeTemplates().get("war_2");
 
-        log.info("INFOS ATTRIBUTES : {}", infos);
-
+        // assertHttpCodeEquals(cloudifyAppId, serviceName, DEFAULT_TOMCAT_PORT, "", HTTP_CODE_OK, null);
+        // assertHttpCodeEquals(cloudifyAppId, serviceName, DEFAULT_TOMCAT_PORT, war1.getProperties().get("contextPath"), HTTP_CODE_OK, 20 * 1000);
+        // assertHttpCodeEquals(cloudifyAppId, serviceName, DEFAULT_TOMCAT_PORT, war2.getProperties().get("contextPath"), HTTP_CODE_OK, 20 * 1000);
     }
-
 }

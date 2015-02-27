@@ -8,6 +8,8 @@ node_templates:
       os_version: ubuntu
   tomcat:
     type: alien.nodes.cloudify.Tomcat
+    properties:
+      port: 9999
     relationships:
       hostedOnServeurWeb:
         target: comp_tomcat_war
@@ -19,6 +21,9 @@ node_templates:
     type: alien.nodes.cloudify.War
     properties:
       contextPath: war1
+    attributes:
+      instance_count:
+      url:
     relationships:
       hostedOnTomcat:
         target: tomcat
@@ -31,6 +36,9 @@ node_templates:
     type: alien.nodes.cloudify.War
     properties:
       contextPath: war2
+    attributes:
+      instance_count:
+      url:
     relationships:
       hostedOnTomcat:
         target: tomcat

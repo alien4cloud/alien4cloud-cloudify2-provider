@@ -480,10 +480,10 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                 if (nodeInstanceNumber.getValue().getAttributes() != null) {
                     for (Entry<String, String> attributeEntry : nodeInstanceNumber.getValue().getAttributes().entrySet()) {
 
-                        PaaSNodeTemplate nodeType = deploymentInfo.paaSNodeTemplates.get(nodeInstanceId.getKey());
-                        Map<String, IAttributeValue> nodeTypeAttributes = nodeType.getIndexedToscaElement().getAttributes();
-                        String parsedAttribute = FunctionEvaluator.parseAttribute(nodeTypeAttributes.get(attributeEntry.getKey()), topology,
-                                instanceInformations, nodeInstanceNumber.getKey(), nodeType);
+                        PaaSNodeTemplate nodeTemplate = deploymentInfo.paaSNodeTemplates.get(nodeInstanceId.getKey());
+                        Map<String, IAttributeValue> nodeTemplateAttributes = nodeTemplate.getIndexedToscaElement().getAttributes();
+                        String parsedAttribute = FunctionEvaluator.parseAttribute(attributeEntry.getKey(), nodeTemplateAttributes.get(attributeEntry.getKey()),
+                                topology, instanceInformations, nodeInstanceNumber.getKey(), nodeTemplate);
                         attributeEntry.setValue(parsedAttribute);
                     }
                 }
