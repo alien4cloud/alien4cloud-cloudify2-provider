@@ -130,7 +130,7 @@ relationship_types:
             MY_HOSTNAME: { get_property: [TARGET, customHostName] }
             SOURCE_HOSTNAME: { get_property: [SOURCE, customHostName] }
             MY_IP: { get_attribute: [TARGET, ip_address] }
-          implementation: relationshipScripts/target_testEnv.groovy
+          implementation: relationshipScripts/target_testEnv.sh
         add_source: 
           inputs:
             MY_HOSTNAME: { get_property: [SOURCE, customHostName] }
@@ -142,7 +142,7 @@ relationship_types:
             MY_HOSTNAME: { get_property: [TARGET, customHostName] }
             SOURCE_HOSTNAME: { get_property: [SOURCE, customHostName] }
             MY_IP: { get_attribute: [TARGET, ip_address] }
-          implementation: relationshipScripts/target_testEnv.groovy
+          implementation: relationshipScripts/target_testEnv.sh
         remove_source: 
           inputs:
             MY_HOSTNAME: { get_property: [SOURCE, customHostName] }
