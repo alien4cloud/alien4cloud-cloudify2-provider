@@ -43,7 +43,7 @@ import org.cloudifysource.restclient.exceptions.RestClientException;
 import alien4cloud.dao.IGenericSearchDAO;
 import alien4cloud.exception.TechnicalException;
 import alien4cloud.model.application.DeploymentSetup;
-import alien4cloud.model.components.IAttributeValue;
+import alien4cloud.model.components.AbstractPropertyValue;
 import alien4cloud.model.components.IOperationParameter;
 import alien4cloud.model.components.IndexedNodeType;
 import alien4cloud.model.topology.NodeTemplate;
@@ -350,13 +350,13 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             // get the current number of instances
             int currentPlannedInstances = getPlannedInstancesCount(nodeTempalteEntry.getKey(), topology);
             for (int i = 1; i <= currentPlannedInstances; i++) {
-                Map<String, String> properties = nodeTempalteEntry.getValue().getProperties() == null ? null : Maps.newHashMap(nodeTempalteEntry.getValue()
-                        .getProperties());
+                Map<String, AbstractPropertyValue> properties = nodeTempalteEntry.getValue().getProperties() == null ? null : Maps.newHashMap(nodeTempalteEntry
+                        .getValue().getProperties());
                 Map<String, String> attributes = nodeTempalteEntry.getValue().getAttributes() == null ? null : Maps.newHashMap(nodeTempalteEntry.getValue()
                         .getAttributes());
                 // Map<String, String> runtimeProperties = Maps.newHashMap();
-                InstanceInformation instanceInfo = new InstanceInformation(ToscaNodeLifecycleConstants.INITIAL, InstanceStatus.PROCESSING, properties,
-                        attributes, null);
+                InstanceInformation instanceInfo = new InstanceInformation(ToscaNodeLifecycleConstants.INITIAL, InstanceStatus.PROCESSING,
+                        FunctionEvaluator.getScalarValues(properties), attributes, null);
                 nodeInstanceInfos.put(String.valueOf(i), instanceInfo);
             }
             instanceInformations.put(nodeTempalteEntry.getKey(), nodeInstanceInfos);
@@ -514,7 +514,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         try {
             fillInstanceStates(deploymentId, instanceInformations, restEventEndpoint);
             fillRuntimeInformations(deploymentId, instanceInformations);
-            parseAttributes(instanceInformations, statusByDeployments.get(deploymentId));
+            parseAttributes(instanceInformations, topology);
             return instanceInformations;
         } catch (RestClientException e) {
             log.warn("Error getting " + deploymentId + " deployment informations. \n\t Cause: " + e.getMessageFormattedText());

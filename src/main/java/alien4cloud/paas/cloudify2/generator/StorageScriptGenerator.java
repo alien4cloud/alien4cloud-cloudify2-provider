@@ -1,8 +1,6 @@
 package alien4cloud.paas.cloudify2.generator;
 
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.CONTEXT_THIS_INSTANCE_ATTRIBUTES;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.CONTEXT_THIS_SERVICE_ATTRIBUTES;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SHUTDOWN_COMMAND;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.*;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -12,12 +10,17 @@ import java.util.Map;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import alien4cloud.model.components.AbstractPropertyValue;
+import alien4cloud.model.components.ScalarPropertyValue;
 import alien4cloud.paas.exception.PaaSDeploymentException;
+import alien4cloud.paas.function.FunctionEvaluator;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.tosca.ToscaUtils;
@@ -29,6 +32,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 
 @Component
+@Slf4j
 @Scope(BeanDefinition.SCOPE_PROTOTYPE)
 public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
     private static final String INIT_STORAGE_SCRIPT_FILE_NAME = "initStorage";
@@ -103,10 +107,17 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         // setting the storage template ID to be used when creating new volume for this application
         velocityProps.put(STORAGE_TEMPLATE_KEY, storageName);
 
-        Map<String, String> properties = blockStorageNode.getNodeTemplate().getProperties();
+        Map<String, AbstractPropertyValue> properties = blockStorageNode.getNodeTemplate().getProperties();
         String volumeIds = null;
         if (properties != null) {
-            volumeIds = properties.get(NormativeBlockStorageConstants.VOLUME_ID);
+            AbstractPropertyValue volumeIdsValue = properties.get(NormativeBlockStorageConstants.VOLUME_ID);
+            if (volumeIdsValue != null) {
+                if (volumeIdsValue instanceof ScalarPropertyValue) {
+                    volumeIds = ((ScalarPropertyValue) volumeIdsValue).getValue();
+                } else {
+                    log.warn(NormativeBlockStorageConstants.VOLUME_ID + " is not of type Scalar, it's not supported by the driver, volume will not be reused");
+                }
+            }
             verifyNoVolumeIdForDeletableStorage(blockStorageNode, volumeIds);
         }
 
@@ -156,13 +167,14 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         if (StringUtils.isBlank(formatMountCommand)) {
 
             // get the fs and the mounting location (path on the file system)
-            Map<String, String> properties = blockStorageNode.getNodeTemplate().getProperties();
+            Map<String, AbstractPropertyValue> properties = blockStorageNode.getNodeTemplate().getProperties();
             String fs = DEFAULT_BLOCKSTORAGE_FS;
             String storageLocation = DEFAULT_BLOCKSTORAGE_LOCATION;
             if (properties != null) {
-                fs = StringUtils.isNotBlank(properties.get(FS_KEY)) ? properties.get(FS_KEY) : fs;
-                storageLocation = StringUtils.isNotBlank(properties.get(NormativeBlockStorageConstants.LOCATION)) ? properties
-                        .get(NormativeBlockStorageConstants.LOCATION) : storageLocation;
+                fs = StringUtils.isNotBlank(FunctionEvaluator.getScalarValue(properties.get(FS_KEY))) ? FunctionEvaluator
+                        .getScalarValue(properties.get(FS_KEY)) : fs;
+                storageLocation = StringUtils.isNotBlank(FunctionEvaluator.getScalarValue(properties.get(NormativeBlockStorageConstants.LOCATION))) ? FunctionEvaluator
+                        .getScalarValue(properties.get(NormativeBlockStorageConstants.LOCATION)) : storageLocation;
             }
             envMaps.strings.put(FS_KEY, fs);
             envMaps.strings.put(LOCATION_KEY, storageLocation);
@@ -183,10 +195,10 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
 
         // if no custom management then generate the default routine
         if (StringUtils.isBlank(createAttachCommand)) {
-            Map<String, String> properties = blockStorageNode.getNodeTemplate().getProperties();
+            Map<String, AbstractPropertyValue> properties = blockStorageNode.getNodeTemplate().getProperties();
             String device = DEFAULT_BLOCKSTORAGE_DEVICE;
-            if (properties != null && StringUtils.isNotBlank(properties.get(NormativeBlockStorageConstants.DEVICE))) {
-                device = properties.get(NormativeBlockStorageConstants.DEVICE);
+            if (properties != null && StringUtils.isNotBlank(FunctionEvaluator.getScalarValue(properties.get(NormativeBlockStorageConstants.DEVICE)))) {
+                device = FunctionEvaluator.getScalarValue(properties.get(NormativeBlockStorageConstants.DEVICE));
             }
             generateScriptWorkflow(context.getServicePath(), createAttachBlockStorageScriptDescriptorPath, DEFAULT_STORAGE_CREATE_FILE_NAME, null, null);
             createAttachCommand = commandGenerator.getGroovyCommand(DEFAULT_STORAGE_CREATE_FILE_NAME.concat(".groovy"), envMaps.runtimes,
