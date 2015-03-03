@@ -64,7 +64,7 @@ public class FunctionProcessor {
             return null;
         }
 
-        AbstractPropertyValue result = null;
+        String result = null;
         switch (functionParam.getFunction()) {
         case ToscaFunctionConstants.GET_PROPERTY:
             result = FunctionEvaluator.evaluateGetPropertyFuntion(functionParam, basePaaSTemplate, builtPaaSTemplates); // process getProperty
