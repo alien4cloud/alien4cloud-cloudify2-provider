@@ -15,6 +15,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import alien4cloud.component.repository.ArtifactLocalRepository;
 import alien4cloud.component.repository.ArtifactRepositoryConstants;
 import alien4cloud.model.components.DeploymentArtifact;
+import alien4cloud.model.components.ScalarPropertyValue;
 import alien4cloud.model.topology.NodeTemplate;
 import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
@@ -61,7 +62,7 @@ public class ArtifactsCopyTestIT extends GenericTestCase {
         NodeTemplate war1 = topology.getNodeTemplates().get("War_1");
         NodeTemplate war2 = topology.getNodeTemplates().get("war_2");
 
-        assertHttpCodeEquals(cloudifyAppId, serviceName, DEFAULT_TOMCAT_PORT, "", HTTP_CODE_OK, null);
+        assertHttpCodeEquals(cloudifyAppId, serviceName, DEFAULT_TOMCAT_PORT, new ScalarPropertyValue(""), HTTP_CODE_OK, null);
         assertHttpCodeEquals(cloudifyAppId, serviceName, DEFAULT_TOMCAT_PORT, war1.getProperties().get("contextPath"), HTTP_CODE_OK, 20 * 1000);
         assertHttpCodeEquals(cloudifyAppId, serviceName, DEFAULT_TOMCAT_PORT, war2.getProperties().get("contextPath"), HTTP_CODE_OK, 20 * 1000);
     }

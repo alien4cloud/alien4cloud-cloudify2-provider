@@ -48,6 +48,7 @@ import alien4cloud.model.cloud.CloudImageFlavor;
 import alien4cloud.model.cloud.CloudResourceMatcherConfig;
 import alien4cloud.model.cloud.ComputeTemplate;
 import alien4cloud.model.cloud.StorageTemplate;
+import alien4cloud.model.components.AbstractPropertyValue;
 import alien4cloud.model.components.Csar;
 import alien4cloud.model.deployment.Deployment;
 import alien4cloud.model.topology.Topology;
@@ -56,6 +57,7 @@ import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.exception.A4CCloudifyDriverITException;
 import alien4cloud.paas.cloudify2.testutils.TestsUtils;
 import alien4cloud.paas.exception.OperationExecutionException;
+import alien4cloud.paas.function.FunctionEvaluator;
 import alien4cloud.paas.model.AbstractMonitorEvent;
 import alien4cloud.paas.model.DeploymentStatus;
 import alien4cloud.paas.model.NodeOperationExecRequest;
@@ -264,13 +266,13 @@ public class GenericTestCase {
         }
     }
 
-    protected void assertHttpCodeEquals(String applicationId, String serviceName, String port, String path, int expectedCode, Integer timeoutInMillis)
-            throws RestClientException, IOException, InterruptedException {
-        log.info("About to check path <:" + port.concat("/").concat(path) + ">");
+    protected void assertHttpCodeEquals(String applicationId, String serviceName, String port, AbstractPropertyValue abstractPropertyValue, int expectedCode,
+            Integer timeoutInMillis) throws RestClientException, IOException, InterruptedException {
+        log.info("About to check path <:" + port.concat("/").concat(FunctionEvaluator.getScalarValue(abstractPropertyValue)) + ">");
         CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
         ServiceInstanceDetails instanceDetails = restClient.getServiceInstanceDetails(applicationId, serviceName, 1);
         String instancePublicIp = instanceDetails.getPublicIp();
-        String urlString = "http://" + instancePublicIp + ":" + port + "/" + path;
+        String urlString = "http://" + instancePublicIp + ":" + port + "/" + abstractPropertyValue;
         log.info("Full URL is: " + urlString);
         int httpResponseCode = 0;
         if (expectedCode == 404) {
