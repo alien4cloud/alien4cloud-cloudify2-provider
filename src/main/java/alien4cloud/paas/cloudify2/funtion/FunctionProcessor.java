@@ -21,7 +21,6 @@ import alien4cloud.paas.exception.NotSupportedException;
 import alien4cloud.paas.function.FunctionEvaluator;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
-import alien4cloud.tosca.ToscaUtils;
 import alien4cloud.tosca.normative.ToscaFunctionConstants;
 
 /**
@@ -65,16 +64,16 @@ public class FunctionProcessor {
             return null;
         }
 
-        String result = null;
+        AbstractPropertyValue result = null;
         switch (functionParam.getFunction()) {
-            case ToscaFunctionConstants.GET_PROPERTY:
-                result = FunctionEvaluator.evaluateGetPropertyFuntion(functionParam, basePaaSTemplate, builtPaaSTemplates); // process getProperty
-                return new StringEvalResult(result);
-            case ToscaFunctionConstants.GET_ATTRIBUTE:
-                result = evaluateGetAttributeFunction(functionParam, basePaaSTemplate, builtPaaSTemplates, instanceId);
-                return new RuntimeEvalResult(result);
-            default:
-                throw new NotSupportedException("The function <" + functionParam.getFunction() + "> is not supported.");
+        case ToscaFunctionConstants.GET_PROPERTY:
+            result = FunctionEvaluator.evaluateGetPropertyFuntion(functionParam, basePaaSTemplate, builtPaaSTemplates); // process getProperty
+            return new StringEvalResult(result);
+        case ToscaFunctionConstants.GET_ATTRIBUTE:
+            result = evaluateGetAttributeFunction(functionParam, basePaaSTemplate, builtPaaSTemplates, instanceId);
+            return new RuntimeEvalResult(result);
+        default:
+            throw new NotSupportedException("The function <" + functionParam.getFunction() + "> is not supported.");
         }
     }
 
@@ -110,8 +109,9 @@ public class FunctionProcessor {
 
     private String evaluateGetAttributeFunction(FunctionPropertyValue functionParam, IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
             Map<String, PaaSNodeTemplate> builtPaaSTemplates, String instanceId) {
-        PaaSNodeTemplate entity = FunctionEvaluator.getPaaSEntity(basePaaSTemplate, functionParam.getParameters().get(0), builtPaaSTemplates);
-        String serviceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(ToscaUtils.getHostTemplate(entity));
+        List<PaaSNodeTemplate> entities = FunctionEvaluator.getPaaSEntities(basePaaSTemplate, functionParam.getParameters().get(0), builtPaaSTemplates);
+        // getting the top hierarchical parent
+        String serviceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(entities.get(entities.size() - 1));
         return evaluateAttributeName(functionParam.getParameters().get(1), serviceName, instanceId);
     }
 
@@ -123,10 +123,10 @@ public class FunctionProcessor {
 
     private String evaluateAttributeName(String attributeName, String serviceName, String instanceId) {
         switch (attributeName) {
-            case IP_ADDRESS:
-                return cloudifyCommandGen.getIpCommand(serviceName, instanceId);
-            default:
-                return cloudifyCommandGen.getAttributeCommand(attributeName, serviceName, instanceId);
+        case IP_ADDRESS:
+            return cloudifyCommandGen.getIpCommand(serviceName, instanceId);
+        default:
+            return cloudifyCommandGen.getAttributeCommand(attributeName, serviceName, instanceId);
         }
     }
 
