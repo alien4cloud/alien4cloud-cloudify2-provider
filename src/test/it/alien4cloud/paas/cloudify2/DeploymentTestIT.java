@@ -62,7 +62,7 @@ public class DeploymentTestIT extends GenericTestCase {
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "comp_tomcatsh", 1000L * 120);
-            assertHttpCodeEquals(cloudifyAppId, "comp_tomcatsh", "8080", new ScalarPropertyValue(""), HTTP_CODE_OK, null);
+            assertHttpCodeEquals(cloudifyAppId, "comp_tomcatsh", "8080", "", HTTP_CODE_OK, null);
 
             testEvents(cloudifyAppId, new String[] { "comp_tomcatsh", "tomcat" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
                     ToscaNodeLifecycleConstants.CONFIGURED, ToscaNodeLifecycleConstants.STARTED);
