@@ -81,24 +81,26 @@ public class RelationshipOperationTriggeringTestIT extends GenericTestCase {
 
     private void testRelationsEventsSucceeded(String application, String nodeName, Integer beginIndex, long timeoutInMillis, String... expectedEvents)
             throws Throwable {
-        testRelationsEventsStatus(application, nodeName, beginIndex, timeoutInMillis, true, true, expectedEvents);
+        testRelationsEventsStatus(application, nodeName, beginIndex, timeoutInMillis, true, true, true, expectedEvents);
     }
 
     // private void testRelationsEventsSkiped(String application, String nodeName, Integer beginIndex, long timeoutInMillis, String... expectedEvents)
     // throws Throwable {
-    // testRelationsEventsStatus(application, nodeName, beginIndex, timeoutInMillis, true, null, expectedEvents);
+    // testRelationsEventsStatus(application, nodeName, beginIndex, timeoutInMillis, true, false, null, expectedEvents);
     // }
 
-    private void testRelationsEventsStatus(String application, String nodeName, Integer beginIndex, long timeoutInMillis, Boolean executed, Boolean succeeded,
-            String... expectedEvents) throws Throwable, InterruptedException {
+    private void testRelationsEventsStatus(String application, String nodeName, Integer beginIndex, long timeoutInMillis, Boolean processed, Boolean executed,
+            Boolean succeeded, String... expectedEvents) throws Throwable, InterruptedException {
         long timeout = System.currentTimeMillis() + timeoutInMillis;
         List<RelationshipOperationEvent> relEvents;
         boolean passed = false;
         do {
             relEvents = getAndAssertRelEventsFired(application, nodeName, beginIndex, timeoutInMillis, expectedEvents);
-            passed = assertRelEvents(relEvents, executed, succeeded);
+            passed = assertRelEvents(relEvents, processed, executed, succeeded);
         } while (System.currentTimeMillis() < timeout && !passed);
-        Assert.assertTrue("Status not matched as expected! executed:" + executed + ", success:" + succeeded + ".\n\t got events: " + relEvents, passed);
+        log.info("Application: " + application + " got Relationships events : " + relEvents);
+        Assert.assertTrue("Status not matched as expected! processed: " + processed + ", executed:" + executed + ", success:" + succeeded
+                + ".\n\t got events: " + relEvents, passed);
     }
 
     private List<RelationshipOperationEvent> getAndAssertRelEventsFired(String application, String nodeName, Integer beginIndex, long timeoutInMillis,
@@ -124,22 +126,24 @@ public class RelationshipOperationTriggeringTestIT extends GenericTestCase {
                 Thread.sleep(1000L);
             }
         } while (System.currentTimeMillis() < timeout && !passed);
-        log.info("Application: " + application + " got Relationships events : " + relEvents);
         Assert.assertTrue("Missing events : " + getMissingEvents(expected, currentEvents), passed);
         return relEvents;
     }
 
-    private boolean assertRelEvents(List<RelationshipOperationEvent> events, Boolean executed, Boolean succeeded) {
+    private boolean assertRelEvents(List<RelationshipOperationEvent> events, Boolean processed, Boolean executed, Boolean succeeded) {
+        Set<Boolean> processedSet = Sets.newHashSet();
         Set<Boolean> executedSet = Sets.newHashSet();
         Set<Boolean> succeededSet = Sets.newHashSet();
         Integer higherIndex = 0;
         for (RelationshipOperationEvent event : events) {
+            processedSet.add(event.getProcessed());
             executedSet.add(event.getExecuted());
-            succeededSet.add(event.getSuccess());
+            succeededSet.add(event.getSucceeded());
             higherIndex = higherIndex < event.getEventIndex() ? event.getEventIndex() : higherIndex;
         }
 
-        boolean passed = executedSet.equals(Sets.<Boolean> newHashSet(executed)) && succeededSet.equals(Sets.<Boolean> newHashSet(succeeded));
+        boolean passed = processedSet.equals(Sets.<Boolean> newHashSet(processed)) && executedSet.equals(Sets.<Boolean> newHashSet(executed))
+                && succeededSet.equals(Sets.<Boolean> newHashSet(succeeded));
         if (passed) {
             lastRelIndex = higherIndex;
         }

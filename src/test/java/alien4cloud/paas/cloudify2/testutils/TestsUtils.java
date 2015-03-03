@@ -52,7 +52,7 @@ public class TestsUtils {
 
     static {
         remoteGitArtifacts = new HashMap<String, String[]>();
-        remoteGitArtifacts.put("tosca-normative-types-1.0.0.wd03", new String[] { "https://github.com/alien4cloud/tosca-normative-types.git", "1.0.0.wd03" });
+        remoteGitArtifacts.put("tosca-normative-types-1.0.0.wd03", new String[] { "https://github.com/alien4cloud/tosca-normative-types.git", "master" });
         remoteGitArtifacts.put("samples", new String[] { "https://github.com/alien4cloud/samples.git", "master" });
         remoteGitArtifacts.put("alien-extended-types", new String[] { "https://github.com/alien4cloud/alien4cloud-extended-types.git", "master" });
     }

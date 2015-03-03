@@ -13,6 +13,7 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.util.EntityUtils;
@@ -58,19 +59,30 @@ public class CloudifyEventsListener {
     }
 
     private String doGet(URIBuilder builder) throws URISyntaxException, IOException {
+        ResponseStatus response = doGetStatus(builder);
+        return response.response;
+    }
+
+    private ResponseStatus doGetStatus(URIBuilder builder) throws URISyntaxException, IOException {
         URI uri = builder.build();
         log.debug("Query uri {}", uri);
         HttpGet request = new HttpGet(builder.build());
+        ResponseStatus response = execRequest(request);
+        return response;
+    }
+
+    private ResponseStatus execRequest(HttpRequestBase request) throws URISyntaxException, IOException {
         HttpResponse httpResponse = httpClient.execute(request);
-        return EntityUtils.toString(httpResponse.getEntity());
+        ResponseStatus responseStatus = new ResponseStatus(httpResponse.getStatusLine().getStatusCode(), EntityUtils.toString(httpResponse.getEntity()));
+        return responseStatus;
     }
 
     private String doDelete(URIBuilder builder) throws URISyntaxException, IOException {
         URI uri = builder.build();
         log.debug("Query uri {}", uri);
         HttpDelete request = new HttpDelete(builder.build());
-        HttpResponse httpResponse = httpClient.execute(request);
-        return EntityUtils.toString(httpResponse.getEntity());
+        ResponseStatus response = execRequest(request);
+        return response.response;
     }
 
     /**
@@ -83,6 +95,11 @@ public class CloudifyEventsListener {
      */
     public String test() throws URISyntaxException, IOException {
         URIBuilder builder = new URIBuilder(endpoint.resolve("/events/test"));
+        ResponseStatus response = doGetStatus(builder);
+        if (response.status != 200) {
+            throw new IOException("Failled to connect to event endpoint" + builder.build() + ". Status is: " + response.status + "; Response is: "
+                    + response.response);
+        }
         return doGet(builder);
     }
 
@@ -155,6 +172,16 @@ public class CloudifyEventsListener {
             return events;
         }
         return null;
+    }
+
+    private class ResponseStatus {
+        private int status;
+        private String response;
+
+        ResponseStatus(int code, String response) {
+            this.status = code;
+            this.response = response;
+        }
     }
 
 }

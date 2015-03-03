@@ -150,11 +150,11 @@ public class GenericTestCase {
         testsUtils.uploadGitArchive("alien-extended-types", "alien-base-types-1.0-SNAPSHOT");
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        cloudifyURL = cloudifyURL == null ? "http://129.185.67.27:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "http://129.185.67.57:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
-        pluginConfigurationBean.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL);
+        pluginConfigurationBean.getCloudifyConnectionConfigurations().get(0).setCloudifyURL(cloudifyURL);
         pluginConfigurationBean.setSynchronousDeployment(true);
-        pluginConfigurationBean.getCloudifyConnectionConfiguration().setVersion("2.7.1");
+        pluginConfigurationBean.getCloudifyConnectionConfigurations().get(0).setVersion("2.7.1");
         cloudifyPaaSPovider.setConfiguration(pluginConfigurationBean);
         cloudifyRestClientManager = cloudifyPaaSPovider.getCloudifyRestClientManager();
         CloudResourceMatcherConfig matcherConf = new CloudResourceMatcherConfig();
@@ -183,7 +183,7 @@ public class GenericTestCase {
         log.info("In afterTest");
         try {
             undeployAllApplications();
-        } catch (RestClientException | IOException e) {
+        } catch (Exception e) {
             String msge = "";
             if (e instanceof RestClientException) {
                 msge = ((RestClientException) e).getMessageFormattedText();
@@ -192,7 +192,7 @@ public class GenericTestCase {
         }
     }
 
-    private void undeployAllApplications() throws RestClientException, IOException {
+    private void undeployAllApplications() throws Exception {
 
         RestClient restClient = cloudifyRestClientManager.getRestClient();
         if (restClient == null) {
@@ -211,7 +211,7 @@ public class GenericTestCase {
         deployedCloudifyAppIds.clear();
     }
 
-    private void dumpMachinesLogs() throws RestClientException, IOException {
+    private void dumpMachinesLogs() throws Exception {
         RestClient restClient = cloudifyRestClientManager.getRestClient();
         GetMachinesDumpFileResponse machinesDumpFile = restClient.getMachinesDumpFile(null, 0);
         Map<String, byte[]> dumpBytesPerIP = machinesDumpFile.getDumpBytesPerIP();
@@ -243,7 +243,7 @@ public class GenericTestCase {
         testsUtils.uploadGitArchive(repository, archiveDirectoryName);
     }
 
-    protected void waitForServiceToStarts(final String applicationId, final String serviceName, final long timeoutInMillis) throws RestClientException {
+    protected void waitForServiceToStarts(final String applicationId, final String serviceName, final long timeoutInMillis) throws Exception {
         CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
         DeploymentState serviceState = null;
         long startTime = System.currentTimeMillis();
@@ -265,7 +265,7 @@ public class GenericTestCase {
     }
 
     protected void assertHttpCodeEquals(String applicationId, String serviceName, String port, String path, int expectedCode, Integer timeoutInMillis)
-            throws RestClientException, IOException, InterruptedException {
+            throws Exception {
         log.info("About to check path <:" + port.concat("/").concat(path) + ">");
         CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
         ServiceInstanceDetails instanceDetails = restClient.getServiceInstanceDetails(applicationId, serviceName, 1);
@@ -348,7 +348,7 @@ public class GenericTestCase {
         return topology;
     }
 
-    protected void assertApplicationIsInstalled(String applicationId) throws RestClientException {
+    protected void assertApplicationIsInstalled(String applicationId) throws Exception {
         log.info("Asserting aplication <" + applicationId + "> installed...");
         RestClient restClient = cloudifyRestClientManager.getRestClient();
         ApplicationDescription appliDesc = restClient.getApplicationDescription(applicationId);
