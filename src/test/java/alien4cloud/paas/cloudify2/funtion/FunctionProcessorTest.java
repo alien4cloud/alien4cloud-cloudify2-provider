@@ -28,6 +28,7 @@ import alien4cloud.paas.IPaaSTemplate;
 import alien4cloud.paas.cloudify2.funtion.FunctionProcessor.IParamEvalResult;
 import alien4cloud.paas.cloudify2.testutils.TestsUtils;
 import alien4cloud.paas.function.BadUsageKeywordException;
+import alien4cloud.paas.function.FunctionEvaluator;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
@@ -104,7 +105,7 @@ public class FunctionProcessorTest {
                 .get(ToscaNodeLifecycleConstants.CONFIGURE);
         IOperationParameter param = configOp.getInputParameters().get("customHostName");
 
-        Assert.assertEquals(computePaaS.getNodeTemplate().getProperties().get("customHostName"),
+        Assert.assertEquals(FunctionEvaluator.getScalarValue(computePaaS.getNodeTemplate().getProperties().get("customHostName")),
                 evaluateParam((AbstractPropertyValue) param, computePaaS, builtPaaSNodeTemplates));
 
         // HOST keyword
@@ -112,7 +113,7 @@ public class FunctionProcessorTest {
         PaaSNodeTemplate tomcatPaaS = builtPaaSNodeTemplates.get(tomcatName);
         Operation customHelloOp = tomcatPaaS.getIndexedToscaElement().getInterfaces().get("custom").getOperations().get("helloCmd");
         param = customHelloOp.getInputParameters().get("customHostName");
-        Assert.assertEquals(computePaaS.getNodeTemplate().getProperties().get("customHostName"),
+        Assert.assertEquals(FunctionEvaluator.getScalarValue(computePaaS.getNodeTemplate().getProperties().get("customHostName")),
                 evaluateParam((AbstractPropertyValue) param, tomcatPaaS, builtPaaSNodeTemplates));
     }
 
@@ -125,19 +126,19 @@ public class FunctionProcessorTest {
         Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSTopology(topology).getAllNodes();
         PaaSNodeTemplate warPaaS = builtPaaSNodeTemplates.get(warName);
         PaaSNodeTemplate tomcatPaaS = builtPaaSNodeTemplates.get(tomcatName);
-        PaaSRelationshipTemplate hostedOnRelTemp = warPaaS.getRelationshipTemplate("hostedOnTomcat","war_1");
+        PaaSRelationshipTemplate hostedOnRelTemp = warPaaS.getRelationshipTemplate("hostedOnTomcat", "war_1");
 
         Operation configOp = hostedOnRelTemp.getIndexedToscaElement().getInterfaces().get(ToscaRelationshipLifecycleConstants.CONFIGURE).getOperations()
                 .get(ToscaRelationshipLifecycleConstants.POST_CONFIGURE_SOURCE);
 
         // test SOURCE keyword
         IOperationParameter param = configOp.getInputParameters().get("contextPath");
-        Assert.assertEquals(warPaaS.getNodeTemplate().getProperties().get("contextPath"),
+        Assert.assertEquals(FunctionEvaluator.getScalarValue(warPaaS.getNodeTemplate().getProperties().get("contextPath")),
                 evaluateParam((AbstractPropertyValue) param, hostedOnRelTemp, builtPaaSNodeTemplates));
 
         // test TARGET keyword
         param = configOp.getInputParameters().get("tomcatVersion");
-        Assert.assertEquals(tomcatPaaS.getNodeTemplate().getProperties().get("version"),
+        Assert.assertEquals(FunctionEvaluator.getScalarValue(tomcatPaaS.getNodeTemplate().getProperties().get("version")),
                 evaluateParam((AbstractPropertyValue) param, hostedOnRelTemp, builtPaaSNodeTemplates));
 
     }

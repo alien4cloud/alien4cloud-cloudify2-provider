@@ -2,17 +2,24 @@ node_templates:
   compute:
     type: tosca.nodes.Compute
     properties:
-      os_type: linux
-      os_distribution: ubuntu
-      os_version: ubuntu
+      os_type:
+        value: linux
+      os_distribution:
+        value: ubuntu
+      os_version:
+        value: ubuntu
       
   compute_2:
     type: alien.test.TestCompute
     properties:
-      os_type: linux
-      os_distribution: ubuntu
-      os_version: ubuntu
-      customHostName: testCompute2
+      os_type:
+        value: linux
+      os_distribution:
+        value: ubuntu
+      os_version:
+        value: ubuntu
+      customHostName:
+        value: testCompute2
 
 dependencies:
   - name: tosca-normative-types

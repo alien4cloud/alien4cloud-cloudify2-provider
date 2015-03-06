@@ -3,10 +3,14 @@ node_templates:
   comp_custom_cmd:
     type: alien.test.TestCompute
     properties:
-      os_type: linux
-      os_distribution: ubuntu
-      os_version: ubuntu
-      customHostName: testCompute
+      os_type:
+        value: linux
+      os_distribution:
+        value: ubuntu
+      os_version:
+        value: ubuntu
+      customHostName:
+        value: testCompute
 
 dependencies:
   - name: test-types

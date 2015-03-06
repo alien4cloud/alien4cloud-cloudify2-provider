@@ -3,13 +3,17 @@ node_templates:
   comp_storage_volumeid:
     type: tosca.nodes.Compute
     properties:
-      os_type: linux
-      os_distribution: ubuntu
-      os_version: ubuntu
+      os_type:
+        value: linux
+      os_distribution:
+        value: ubuntu
+      os_version:
+        value: ubuntu
   blockstorage:
     type: tosca.nodes.BlockStorage
     properties:
-      volume_id: 24d0fb21-cfc9-4f8f-889e-d22057e5de68
+      volume_id:
+        value: 24d0fb21-cfc9-4f8f-889e-d22057e5de68
     relationships:
       attachToServeurWeb:
         target: comp_storage_volumeid

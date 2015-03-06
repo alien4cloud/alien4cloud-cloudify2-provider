@@ -3,13 +3,17 @@ node_templates:
   comp_tomcat_war:
     type: tosca.nodes.Compute
     properties:
-      os_type: linux
-      os_distribution: ubuntu
-      os_version: ubuntu
+      os_type:
+        value: linux
+      os_distribution:
+        value: ubuntu
+      os_version:
+        value: ubuntu
   tomcat:
     type: alien.nodes.cloudify.Tomcat
     properties:
-      port: 9999
+      port:
+        value: 9999
     relationships:
       hostedOnServeurWeb:
         target: comp_tomcat_war
@@ -20,7 +24,8 @@ node_templates:
   War_1:
     type: alien.nodes.cloudify.War
     properties:
-      contextPath: war1
+      contextPath:
+        value: war1
     attributes:
       instance_count:
       url:
@@ -35,7 +40,8 @@ node_templates:
   war_2:
     type: alien.nodes.cloudify.War
     properties:
-      contextPath: war2
+      contextPath:
+        value: war2
     attributes:
       instance_count:
       url:

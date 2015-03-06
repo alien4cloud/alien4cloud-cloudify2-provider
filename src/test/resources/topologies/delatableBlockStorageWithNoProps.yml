@@ -3,9 +3,12 @@ node_templates:
   comp_storage_noprops:
     type: tosca.nodes.Compute
     properties:
-      os_type: linux
-      os_distribution: ubuntu
-      os_version: ubuntu
+      os_type:
+        value: linux
+      os_distribution:
+        value: ubuntu
+      os_version:
+        value: ubuntu
   blockstorage:
     type: alien.nodes.DeletableBlockStorage
     relationships:
