@@ -2,9 +2,12 @@ node_templates:
   comp_tomcatsh:
     type: tosca.nodes.Compute
     properties:
-      os_type: linux
-      os_distribution: ubuntu
-      os_version: ubuntu
+      os_type:
+        value: linux
+      os_distribution:
+        value: ubuntu
+      os_version:
+        value: ubuntu
   tomcat:
     type: alien.test.nodes.TomcatSh
     relationships:

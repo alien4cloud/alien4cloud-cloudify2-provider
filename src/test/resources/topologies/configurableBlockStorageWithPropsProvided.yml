@@ -3,16 +3,23 @@ node_templates:
   config_storage_props:
     type: tosca.nodes.Compute
     properties:
-      os_type: linux
-      os_distribution: ubuntu
-      os_version: ubuntu
+      os_type:
+        value: linux
+      os_distribution:
+        value: ubuntu
+      os_version:
+        value: ubuntu
   blockstorage:
     type: alien.test.nodes.ConfigurableBlockStorage
     properties:
-      volume_id: 24d0fb21-cfc9-4f8f-889e-d22057e5de68
-      device: /dev/vdb
-      location: /testMount
-      file_system: ext4
+      volume_id:
+        value: 24d0fb21-cfc9-4f8f-889e-d22057e5de68
+      device:
+        value: /dev/vdb
+      location:
+        value: /testMount
+      file_system:
+        value: ext4
     relationships:
       attachToServeurWeb:
         target: config_storage_props

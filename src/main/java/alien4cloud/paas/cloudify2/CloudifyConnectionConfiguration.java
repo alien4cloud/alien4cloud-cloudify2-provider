@@ -2,6 +2,7 @@ package alien4cloud.paas.cloudify2;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 import alien4cloud.ui.form.annotation.FormLabel;
 
 /**
@@ -9,6 +10,7 @@ import alien4cloud.ui.form.annotation.FormLabel;
  */
 @Getter
 @Setter
+@ToString
 public class CloudifyConnectionConfiguration {
     private String version = "2.7.1";
     @FormLabel("CLOUDS.DRIVER.CLOUDIFY.CONNECTION_CONFIGURATION.CLOUDIFY_URL")

@@ -6,4 +6,5 @@ public final class DeploymentPropertiesNames {
 
     public static final String STARTDETECTION_TIMEOUT_INSECOND = "startDetection_timeout_inSecond";
     public static final String DISABLE_SELF_HEALING = "disable_self_healing";
+    public static final String EVENTS_LEASE_INHOUR = "events_lease_inHour";
 }

@@ -1,10 +1,6 @@
 package alien4cloud.paas.cloudify2.generator;
 
-import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_INTERFACE_NAME;
-import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_LOCATOR_OPERATION_NAME;
-import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_START_DETECTION_OPERATION_NAME;
-import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_STOP_DETECTION_OPERATION_NAME;
-import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CUSTOM_INTERFACE_NAME;
+import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.*;
 import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.*;
 
 import java.io.IOException;
@@ -250,6 +246,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         RecipeGeneratorServiceContext context = new RecipeGeneratorServiceContext(nodeTemplates);
         context.setServiceId(setup.getId());
         context.setServicePath(servicePath);
+        context.setEventsLeaseInHour(setup.getProviderDeploymentProperties().get(DeploymentPropertiesNames.EVENTS_LEASE_INHOUR));
 
         // copy internal static resources for the service
         commandGenerator.copyInternalResources(servicePath);
@@ -361,8 +358,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         List<String> commands = Lists.newArrayList();
         // generate a check started state command for each node
         for (String nodeId : nodeIds) {
-            PaaSNodeTemplate node = context.getNodeTemplateById(nodeId);
-            commands.add(commandGenerator.getIsNodeStartedCommand(CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(node), nodeId));
+            commands.add(commandGenerator.getIsNodeStartedCommand(nodeId));
         }
         String command = commandGenerator.getMultipleGroovyCommand(AND_OPERATOR, commands.toArray(new String[0]));
 
@@ -376,7 +372,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
 
     private void generateExtendedOperationsCommand(final RecipeGeneratorServiceContext context, PaaSNodeTemplate rootNode, String operationName,
             Map<String, String> commandsMap, boolean includeNullValues) throws IOException {
-        String command = getOperationCommandFromInterface(context, rootNode, CLOUDIFY_EXTENSIONS_INTERFACE_NAME, operationName, null, null);
+        String command = getOperationCommandFromInterface(context, rootNode, CLOUDIFY_EXTENSIONS_INTERFACE_NAME, operationName, new ExecEnvMaps());
         if (command != null || includeNullValues) {
             // here we register the command itself.
             commandsMap.put(rootNode.getId(), command);
@@ -432,13 +428,12 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
 
     private void addCustomCommand(final RecipeGeneratorServiceContext context, final IPaaSTemplate<? extends IndexedArtifactToscaElement> nodeTemplate,
             String interfaceName, String uniqueName, Entry<String, Operation> entry) throws IOException {
+        ExecEnvMaps envMaps = new ExecEnvMaps();
         // add the reserved env params
-        Map<String, String> runtimeEvalResults = Maps.newHashMap();
-        runtimeEvalResults.put(NAME_VALUE_TO_PARSE_KEWORD, "args");
+        envMaps.runtimes.put(NAME_VALUE_TO_PARSE_KEWORD, "args");
 
         // prepare and get the command
-        String command = prepareAndGetCommand(context, nodeTemplate, interfaceName, entry.getKey(), runtimeEvalResults, Maps.<String, String> newHashMap(),
-                entry.getValue());
+        String command = prepareAndGetCommand(context, nodeTemplate, interfaceName, entry.getKey(), envMaps, entry.getValue());
 
         log.debug("Configuring customCommand " + uniqueName + " with value " + command);
         context.getCustomCommands().put(uniqueName, command);
@@ -474,7 +469,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             if (stateUpdateEvent.getState().equals(ToscaNodeLifecycleConstants.STARTED)) {
                 addLoppedCommandToExecutions(context.getStartDetectionCommands().get(stateUpdateEvent.getElementId()), executions);
             }
-            String command = commandGenerator.getFireEventCommand(stateUpdateEvent.getElementId(), stateUpdateEvent.getState());
+            String command = commandGenerator.getFireEventCommand(stateUpdateEvent.getElementId(), stateUpdateEvent.getState(), context.getEventsLeaseInHour());
             executions.add(command);
         } else if (workflowStep instanceof ParallelJoinStateGateway) {
             // generate wait for operations
@@ -513,7 +508,8 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         PaaSNodeTemplate paaSNodeTemplate = context.getNodeTemplateById(operationTriggerEvent.getNodeTemplateId());
         String uniqueName = CloudifyPaaSUtils.prefixWith(operationTriggerEvent.getSideOperationName(), operationTriggerEvent.getSideNodeTemplateId(),
                 operationTriggerEvent.getRelationshipId());
-        PaaSRelationshipTemplate paaSRelationshipTemplate = paaSNodeTemplate.getRelationshipTemplate(operationTriggerEvent.getRelationshipId());
+        PaaSRelationshipTemplate paaSRelationshipTemplate = paaSNodeTemplate.getRelationshipTemplate(operationTriggerEvent.getRelationshipId(),
+                operationTriggerEvent.getSourceRelationshipId());
         String sideServiceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(context.getNodeTemplateById(operationTriggerEvent.getSideNodeTemplateId()));
 
         // first add the side operation as a custom command:
@@ -527,7 +523,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
                     operationTriggerEvent.getRelationshipId());
             String command = commandGenerator.getFireRelationshipTriggerEvent(operationTriggerEvent.getNodeTemplateId(),
                     operationTriggerEvent.getRelationshipId(), operationTriggerEvent.getOperationName(), operationTriggerEvent.getSideNodeTemplateId(),
-                    sideServiceName, commandToTrigger);
+                    sideServiceName, commandToTrigger, context.getEventsLeaseInHour());
             executions.add(command);
         }
     }
@@ -535,7 +531,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
     private void addRelationshipCustomCommand(final RecipeGeneratorServiceContext context, final RelationshipTriggerEvent operationTriggerEvent,
             String uniqueName, PaaSRelationshipTemplate paaSRelationshipTemplate, String sideServiceName) throws IOException {
         if (operationTriggerEvent.getSideOperationImplementationArtifact() != null) {
-            Map<String, String> runtimeEvalParams = Maps.newHashMap();
+            ExecEnvMaps envMaps = new ExecEnvMaps();
             String serviceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(context.getNodeTemplateById(operationTriggerEvent.getNodeTemplateId()));
             // add artifacts paths of the related node (only if the two member of the relationship are hosted on the same compute)
             // FIXME: manage it via get_artifact function
@@ -543,12 +539,12 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
                 Map<String, String> copiedArtifactPathCmds = formatToAbsolutePathCmds(context.getNodeArtifactsPaths().get(
                         operationTriggerEvent.getSideNodeTemplateId()));
                 if (copiedArtifactPathCmds != null) {
-                    runtimeEvalParams.putAll(copiedArtifactPathCmds);
+                    envMaps.runtimes.putAll(copiedArtifactPathCmds);
                 }
             }
             String command = getCommandFromOperation(context, paaSRelationshipTemplate, operationTriggerEvent.getInterfaceName(),
-                    operationTriggerEvent.getSideOperationName(), operationTriggerEvent.getSideOperationImplementationArtifact(), runtimeEvalParams,
-                    Maps.<String, String> newHashMap(), operationTriggerEvent.getSideInputParameters(), "instanceId");
+                    operationTriggerEvent.getSideOperationName(), operationTriggerEvent.getSideOperationImplementationArtifact(),
+                    operationTriggerEvent.getSideInputParameters(), "instanceId", envMaps);
             this.artifactCopier.copyImplementationArtifact(context, operationTriggerEvent.getCsarPath(),
                     operationTriggerEvent.getSideOperationImplementationArtifact(), paaSRelationshipTemplate.getIndexedToscaElement());
             context.getRelationshipCustomCommands().put(uniqueName, command);
@@ -588,7 +584,8 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
 
     private void generateRelationshipOperationCall(final RecipeGeneratorServiceContext context, final OperationCallActivity operationCall,
             final List<String> executions, final PaaSNodeTemplate paaSNodeTemplate) throws IOException {
-        PaaSRelationshipTemplate paaSRelationshipTemplate = paaSNodeTemplate.getRelationshipTemplate(operationCall.getRelationshipId());
+        PaaSRelationshipTemplate paaSRelationshipTemplate = paaSNodeTemplate.getRelationshipTemplate(operationCall.getRelationshipId(),
+                operationCall.getSourceRelationshipId());
         this.artifactCopier.copyImplementationArtifact(context, operationCall.getCsarPath(), operationCall.getImplementationArtifact(),
                 paaSRelationshipTemplate.getIndexedToscaElement());
         generateOperationCallCommand(context, operationCall, executions, false);
@@ -597,24 +594,23 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
     private void generateOperationCallCommand(final RecipeGeneratorServiceContext context, final OperationCallActivity operationCall,
             final List<String> executions, final boolean isAsynchronous) throws IOException {
 
-        Map<String, String> varParamNames = Maps.newHashMap();
-        Map<String, String> stringParameters = Maps.newHashMap();
+        ExecEnvMaps envMaps = new ExecEnvMaps();
 
         IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate = context.getNodeTemplateById(operationCall.getNodeTemplateId());
         if (operationCall.getRelationshipId() != null) {
-            basePaaSTemplate = ((PaaSNodeTemplate) basePaaSTemplate).getRelationshipTemplate(operationCall.getRelationshipId());
+            basePaaSTemplate = ((PaaSNodeTemplate) basePaaSTemplate).getRelationshipTemplate(operationCall.getRelationshipId(),
+                    operationCall.getSourceRelationshipId());
         }
 
         // add artifacts paths of the node
-        // Map<String, String> copiedArtifactPath = escapeForLinuxPath(context.getNodeArtifactsPaths().get(operationCall.getNodeTemplateId()));
         Map<String, String> copiedArtifactPathCmds = formatToAbsolutePathCmds(context.getNodeArtifactsPaths().get(operationCall.getNodeTemplateId()));
         if (copiedArtifactPathCmds != null) {
-            varParamNames.putAll(copiedArtifactPathCmds);
+            envMaps.runtimes.putAll(copiedArtifactPathCmds);
         }
 
         // now call the operation script
         String command = getCommandFromOperation(context, basePaaSTemplate, operationCall.getInterfaceName(), operationCall.getOperationName(),
-                operationCall.getImplementationArtifact(), varParamNames, stringParameters, operationCall.getInputParameters(), null);
+                operationCall.getImplementationArtifact(), operationCall.getInputParameters(), null, envMaps);
 
         if (isAsynchronous) {
             final String serviceId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(operationCall.getNodeTemplateId());
@@ -631,7 +627,8 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
                 if (restartCondition != null) {
                     String trigger = contextInstanceAttrRestart + " != true || (" + restartCondition + ")";
                     // TODO: fire already started state instead
-                    String alreadyStartedCommand = commandGenerator.getFireEventCommand(operationCall.getNodeTemplateId(), ToscaNodeLifecycleConstants.STARTED);
+                    String alreadyStartedCommand = commandGenerator.getFireEventCommand(operationCall.getNodeTemplateId(), ToscaNodeLifecycleConstants.STARTED,
+                            context.getEventsLeaseInHour());
                     String elseCommand = alreadyStartedCommand;
                     asyncCommand = commandGenerator.getConditionalSnippet(trigger, asyncCommand, elseCommand);
                 } else {

@@ -3,10 +3,14 @@ node_templates:
   source_comp:
     type: alien.test.TestCompute
     properties:
-      os_type: linux
-      os_distribution: ubuntu
-      os_version: ubuntu
-      customHostName: source
+      os_type:
+        value: linux
+      os_distribution:
+        value: ubuntu
+      os_version:
+        value: ubuntu
+      customHostName:
+        value: source
     relationships:
       dependsOnTarget_comp:
         target: target_comp
@@ -18,10 +22,14 @@ node_templates:
   target_comp:
     type: alien.test.TestCompute
     properties:
-      os_type: linux
-      os_distribution: ubuntu
-      os_version: ubuntu
-      customHostName: target
+      os_type:
+        value: linux
+      os_distribution:
+        value: ubuntu
+      os_version:
+        value: ubuntu
+      customHostName:
+        value: target
         
 scaling_policies:
   source_comp:
@@ -31,7 +39,7 @@ scaling_policies:
   target_comp:
     min_instances: 1
     max_instances: 4
-    initial_instances: 1
+    initial_instances: 2
 
 dependencies:
   - name: tosca-normative-types

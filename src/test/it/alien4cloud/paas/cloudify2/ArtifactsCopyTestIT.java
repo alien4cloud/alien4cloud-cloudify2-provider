@@ -17,6 +17,7 @@ import alien4cloud.component.repository.ArtifactRepositoryConstants;
 import alien4cloud.model.components.DeploymentArtifact;
 import alien4cloud.model.topology.NodeTemplate;
 import alien4cloud.model.topology.Topology;
+import alien4cloud.paas.function.FunctionEvaluator;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 
 import com.google.common.collect.Maps;
@@ -62,7 +63,9 @@ public class ArtifactsCopyTestIT extends GenericTestCase {
         NodeTemplate war2 = topology.getNodeTemplates().get("war_2");
 
         assertHttpCodeEquals(cloudifyAppId, serviceName, DEFAULT_TOMCAT_PORT, "", HTTP_CODE_OK, null);
-        assertHttpCodeEquals(cloudifyAppId, serviceName, DEFAULT_TOMCAT_PORT, war1.getProperties().get("contextPath"), HTTP_CODE_OK, 20 * 1000);
-        assertHttpCodeEquals(cloudifyAppId, serviceName, DEFAULT_TOMCAT_PORT, war2.getProperties().get("contextPath"), HTTP_CODE_OK, 20 * 1000);
+        assertHttpCodeEquals(cloudifyAppId, serviceName, DEFAULT_TOMCAT_PORT, FunctionEvaluator.getScalarValue(war1.getProperties().get("contextPath")),
+                HTTP_CODE_OK, 20 * 1000);
+        assertHttpCodeEquals(cloudifyAppId, serviceName, DEFAULT_TOMCAT_PORT, FunctionEvaluator.getScalarValue(war2.getProperties().get("contextPath")),
+                HTTP_CODE_OK, 20 * 1000);
     }
 }

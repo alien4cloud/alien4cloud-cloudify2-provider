@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 
@@ -15,6 +16,7 @@ import alien4cloud.model.topology.Capability;
 import alien4cloud.model.topology.Requirement;
 import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.cloudify2.utils.VelocityUtil;
+import alien4cloud.paas.function.FunctionEvaluator;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
 
@@ -68,7 +70,8 @@ public class RecipePropertiesGenerator {
         }
 
         if (nodeTemplate.getNodeTemplate().getProperties() != null) {
-            for (Entry<String, String> propEntry : nodeTemplate.getNodeTemplate().getProperties().entrySet()) {
+            Map<String, String> nodeTemplateProperties = FunctionEvaluator.getScalarValues(nodeTemplate.getNodeTemplate().getProperties());
+            for (Entry<String, String> propEntry : nodeTemplateProperties.entrySet()) {
                 if (propEntry.getValue() != null) {
                     properties.put(serviceId + "." + propEntry.getKey(), propEntry.getValue());
                 }

@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -44,17 +43,15 @@ import org.cloudifysource.restclient.exceptions.RestClientException;
 import alien4cloud.dao.IGenericSearchDAO;
 import alien4cloud.exception.TechnicalException;
 import alien4cloud.model.application.DeploymentSetup;
+import alien4cloud.model.components.AbstractPropertyValue;
+import alien4cloud.model.components.IAttributeValue;
 import alien4cloud.model.components.IOperationParameter;
 import alien4cloud.model.components.IndexedNodeType;
-import alien4cloud.model.components.PropertyConstraint;
-import alien4cloud.model.components.PropertyDefinition;
-import alien4cloud.model.components.constraints.GreaterThanConstraint;
 import alien4cloud.model.topology.NodeTemplate;
 import alien4cloud.model.topology.ScalingPolicy;
 import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.IConfigurablePaaSProvider;
 import alien4cloud.paas.IPaaSCallback;
-import alien4cloud.paas.IPaaSProvider;
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.events.BlockStorageEvent;
 import alien4cloud.paas.cloudify2.events.NodeInstanceState;
@@ -65,6 +62,7 @@ import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.exception.PaaSNotYetDeployedException;
 import alien4cloud.paas.exception.PaaSTechnicalException;
+import alien4cloud.paas.exception.PluginConfigurationException;
 import alien4cloud.paas.function.FunctionEvaluator;
 import alien4cloud.paas.model.AbstractMonitorEvent;
 import alien4cloud.paas.model.DeploymentStatus;
@@ -80,14 +78,13 @@ import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
-import alien4cloud.tosca.normative.ToscaType;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 @Slf4j
-public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfigurationBean> implements IConfigurablePaaSProvider<T>, IPaaSProvider {
+public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSProvider<PluginConfigurationBean> {
 
     @Resource
     @Getter
@@ -99,8 +96,6 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
     private IGenericSearchDAO alienMonitorDao;
     @Resource
     private TopologyTreeBuilderService topologyTreeBuilderService;
-    @Getter
-    private Map<String, PropertyDefinition> deploymentPropertyMap;
 
     private static final long TIMEOUT_IN_MILLIS = 1000L * 60L * 10L; // 10 minutes
     private static final long MAX_DEPLOYMENT_TIMEOUT_MILLIS = 1000L * 60L * 5L; // 5 minutes
@@ -135,8 +130,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
      *
      */
     protected void configureDefault() {
-        log.info("Setting deployments properties");
-        setDeploymentProperties();
+        log.info("Configuring the paaS provider");
     }
 
     @Override
@@ -224,8 +218,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             if (getPluginConfigurationBean().isSynchronousDeployment()) {
                 this.waitForApplicationInstallation(restClient, deploymentId);
             }
-        } catch (RestClientException e) {
-            throw new PaaSDeploymentException("Unable to deploy application '" + deploymentId + "'.\n\t Cause: " + e.getMessageFormattedText(), e);
+        } catch (RestClientException | PluginConfigurationException e) {
+            throwPaaSDeploymentException("Unable to deploy application '" + deploymentId + "'.", e);
         }
     }
 
@@ -284,9 +278,14 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
                 String cdfyDeploymentId = uninstallApplication.getDeploymentID();
                 this.waitUndeployApplication(cdfyDeploymentId);
             }
-        } catch (RestClientException e) {
-            throw new PaaSDeploymentException("Couldn't uninstall topology '" + deploymentId + "'. Cause: " + e.getMessageFormattedText(), e);
+        } catch (RestClientException | PluginConfigurationException e) {
+            throwPaaSDeploymentException("Couldn't uninstall topology '" + deploymentId + "'.", e);
         }
+    }
+
+    private void throwPaaSDeploymentException(String message, Exception e) {
+        String cause = e instanceof RestClientException ? ((RestClientException) e).getMessageFormattedText() : e.getMessage();
+        throw new PaaSDeploymentException(message + "\n\tCause: " + cause, e);
     }
 
     private void registerDeploymentStatus(String deploymentId, DeploymentStatus status) {
@@ -297,7 +296,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         monitorEvents.add(dsMonitorEvent);
     }
 
-    private void waitUndeployApplication(String deploymentID) throws RestClientException {
+    private void waitUndeployApplication(String deploymentID) throws PluginConfigurationException, RestClientException {
         long timeout = System.currentTimeMillis() + TIMEOUT_IN_MILLIS;
         while (System.currentTimeMillis() < timeout) {
             DeploymentEvent lastEvent = cloudifyRestClientManager.getRestClient().getLastEvent(deploymentID);
@@ -358,13 +357,13 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
             // get the current number of instances
             int currentPlannedInstances = getPlannedInstancesCount(nodeTempalteEntry.getKey(), topology);
             for (int i = 1; i <= currentPlannedInstances; i++) {
-                Map<String, String> properties = nodeTempalteEntry.getValue().getProperties() == null ? null : Maps.newHashMap(nodeTempalteEntry.getValue()
-                        .getProperties());
+                Map<String, AbstractPropertyValue> properties = nodeTempalteEntry.getValue().getProperties() == null ? null : Maps.newHashMap(nodeTempalteEntry
+                        .getValue().getProperties());
                 Map<String, String> attributes = nodeTempalteEntry.getValue().getAttributes() == null ? null : Maps.newHashMap(nodeTempalteEntry.getValue()
                         .getAttributes());
                 // Map<String, String> runtimeProperties = Maps.newHashMap();
-                InstanceInformation instanceInfo = new InstanceInformation(ToscaNodeLifecycleConstants.INITIAL, InstanceStatus.PROCESSING, properties,
-                        attributes, null);
+                InstanceInformation instanceInfo = new InstanceInformation(ToscaNodeLifecycleConstants.INITIAL, InstanceStatus.PROCESSING,
+                        FunctionEvaluator.getScalarValues(properties), attributes, null);
                 nodeInstanceInfos.put(String.valueOf(i), instanceInfo);
             }
             instanceInformations.put(nodeTempalteEntry.getKey(), nodeInstanceInfos);
@@ -427,8 +426,10 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
      * @param deploymentId The id of the deployment/ applicaiton for which to retrieve instance states.
      * @param instanceInformations The current map of instance informations to fill-in with additional states.
      * @throws RestClientException In case we fail to get data from cloudify rest api.
+     * @throws PluginConfigurationException
      */
-    private void fillRuntimeInformations(String deploymentId, Map<String, Map<String, InstanceInformation>> instanceInformations) throws RestClientException {
+    private void fillRuntimeInformations(String deploymentId, Map<String, Map<String, InstanceInformation>> instanceInformations)
+            throws PluginConfigurationException, RestClientException {
         CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
         ApplicationDescription applicationDescription = restClient.getApplicationDescription(deploymentId);
 
@@ -478,23 +479,26 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         }
     }
 
-    private void parseAttributes(Map<String, Map<String, InstanceInformation>> instanceInformations, Topology topology) {
+    private void parseAttributes(Map<String, Map<String, InstanceInformation>> instanceInformations, DeploymentInfo deploymentInfo) {
+        Topology topology = deploymentInfo.topology;
         // parse attributes
-        for (Map<String, InstanceInformation> nodeInstanceInfo : instanceInformations.values()) {
-            for (Entry<String, InstanceInformation> entry : nodeInstanceInfo.entrySet()) {
-                if (entry.getValue().getAttributes() != null) {
-                    for (Entry<String, String> attributeEntry : entry.getValue().getAttributes().entrySet()) {
-                        String parsedAttribute = FunctionEvaluator.parseString(attributeEntry.getValue(), topology, instanceInformations, entry.getKey());
+        for (Entry<String, Map<String, InstanceInformation>> nodeInstanceId : instanceInformations.entrySet()) {
+
+            for (Entry<String, InstanceInformation> nodeInstanceNumber : nodeInstanceId.getValue().entrySet()) {
+
+                if (nodeInstanceNumber.getValue().getAttributes() != null) {
+                    for (Entry<String, String> attributeEntry : nodeInstanceNumber.getValue().getAttributes().entrySet()) {
+
+                        PaaSNodeTemplate nodeTemplate = deploymentInfo.paaSNodeTemplates.get(nodeInstanceId.getKey());
+                        Map<String, IAttributeValue> nodeTemplateAttributes = nodeTemplate.getIndexedToscaElement().getAttributes();
+                        String parsedAttribute = FunctionEvaluator.parseAttribute(attributeEntry.getKey(), nodeTemplateAttributes.get(attributeEntry.getKey()),
+                                topology, instanceInformations, nodeInstanceNumber.getKey(), nodeTemplate);
                         attributeEntry.setValue(parsedAttribute);
                     }
                 }
-                if (entry.getValue().getProperties() != null) {
-                    for (Entry<String, String> propertyEntry : entry.getValue().getProperties().entrySet()) {
-                        String parsedAttribute = FunctionEvaluator.parseString(propertyEntry.getValue(), topology, instanceInformations, entry.getKey());
-                        propertyEntry.setValue(parsedAttribute);
-                    }
-                }
+
             }
+
         }
     }
 
@@ -519,7 +523,7 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         try {
             fillInstanceStates(deploymentId, instanceInformations, restEventEndpoint);
             fillRuntimeInformations(deploymentId, instanceInformations);
-            parseAttributes(instanceInformations, topology);
+            parseAttributes(instanceInformations, statusByDeployments.get(deploymentId));
             return instanceInformations;
         } catch (RestClientException e) {
             log.warn("Error getting " + deploymentId + " deployment informations. \n\t Cause: " + e.getMessageFormattedText());
@@ -845,6 +849,8 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         } catch (RestClientException e) {
             callback.onFailure(new PaaSTechnicalException("Unable to execute the operation <" + operationFQN + ">.\n\t Cause: " + e.getMessageFormattedText(),
                     e));
+        } catch (PluginConfigurationException e) {
+            callback.onFailure(new PaaSTechnicalException("Unable to execute the operation <" + operationFQN + ">.\n\t Cause: " + e.getMessage(), e));
         }
 
         log.debug("Result is: \n" + operationResponse);
@@ -921,30 +927,5 @@ public abstract class AbstractCloudifyPaaSProvider<T extends PluginConfiguration
         }
         fqnBuilder.append(")");
         return fqnBuilder.toString();
-    }
-
-    private void setDeploymentProperties() throws PaaSTechnicalException {
-        if (deploymentPropertyMap != null) {
-            return;
-        }
-        deploymentPropertyMap = Maps.newHashMap();
-        // Field 1 : startDetection_timeout_inSecond as string
-        PropertyDefinition startDetectionTimeout = new PropertyDefinition();
-        startDetectionTimeout.setType(ToscaType.INTEGER.toString());
-        startDetectionTimeout.setRequired(false);
-        startDetectionTimeout.setDescription("Cloudify start detection timout in seconds for this deployment.");
-        startDetectionTimeout.setDefault("600");
-        GreaterThanConstraint detectionConstraint = new GreaterThanConstraint();
-        detectionConstraint.setGreaterThan("0");
-        startDetectionTimeout.setConstraints(Arrays.asList((PropertyConstraint) detectionConstraint));
-        deploymentPropertyMap.put(DeploymentPropertiesNames.STARTDETECTION_TIMEOUT_INSECOND, startDetectionTimeout);
-
-        // Field 2 : disable_self_healing
-        PropertyDefinition disableSelfHealing = new PropertyDefinition();
-        disableSelfHealing.setType(ToscaType.BOOLEAN.toString());
-        disableSelfHealing.setRequired(false);
-        disableSelfHealing.setDescription("Whether to disable or not the cloudify's self-healing mechanism for this deployment.");
-        disableSelfHealing.setDefault("false");
-        deploymentPropertyMap.put(DeploymentPropertiesNames.DISABLE_SELF_HEALING, disableSelfHealing);
     }
 }

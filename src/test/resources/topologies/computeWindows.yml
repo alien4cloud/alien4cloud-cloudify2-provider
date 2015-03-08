@@ -2,8 +2,10 @@ node_templates:
   computeWindows:
     type: alien.test.nodes.ComputeWindows
     properties:
-      os_type: windows
-      os_arch: x86_64
+      os_type:
+        value: windows
+      os_arch:
+        value: x86_64
 
 dependencies:
   - name: test-types

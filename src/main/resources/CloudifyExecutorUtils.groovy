@@ -10,6 +10,11 @@ public class CloudifyExecutorUtils {
     static def counter = new AtomicInteger()
     static def threadPool = Executors.newFixedThreadPool(50, { r -> return new Thread(r as Runnable, "alien-executor-" + counter.incrementAndGet()) } as ThreadFactory )
     static def call = { c -> threadPool.submit(c as Callable) }
+    
+    static List startStates = ["initial", "created", "configured", "started", "available"];
+    static List shutdownStates = ["stopped", "deleted"];
+    static def DEFAULT_LEASE = 1000 * 60 * 60
+    
 
 
     /**
@@ -19,10 +24,9 @@ public class CloudifyExecutorUtils {
      * @param argsMap
      * @return
      */
-    static def executeScript(script, Map argsMap) {
+    static def executeScript(context, script, Map argsMap) {
 
         // Execute bash script
-        def context = ServiceContextFactory.getServiceContext()
         def serviceDirectory = context.getServiceDirectory()
         println "service dir is: ${serviceDirectory}; script is: ${script}"
         def fullPathScript = "${serviceDirectory}/${script}";
@@ -100,27 +104,35 @@ public class CloudifyExecutorUtils {
         }
     }
 
-    static def fireEvent(nodeId, status) {
+    static def fireEvent(nodeId, event, lease) {
         def context = ServiceContextFactory.getServiceContext()
 
         // Fire event
         def application = context.getApplicationName()
         def instanceId = context.getInstanceId()
+        def eventResume = [
+            event: event,
+            lease: getEventLeaseInMillis(lease)
+        ]
         println "THE INSTANCE ID is <${instanceId}>"
-        CloudifyUtils.putEvent(application, nodeId, instanceId, status)
+        CloudifyUtils.putEvent(application, nodeId, instanceId, eventResume)
     }
 
-    static def fireBlockStorageEvent(nodeId, event, volumeId) {
+    static def fireBlockStorageEvent(nodeId, event, volumeId, lease) {
         def context = ServiceContextFactory.getServiceContext()
 
         // Fire event
         def application = context.getApplicationName()
         def instanceId = context.getInstanceId()
+        def eventResume = [
+            event: event,
+            lease: getEventLeaseInMillis(lease)
+        ]
         println "THE INSTANCE ID is <${instanceId}>"
-        CloudifyUtils.putBlockStorageEvent(application, nodeId, instanceId, event, volumeId)
+        CloudifyUtils.putBlockStorageEvent(application, nodeId, instanceId, eventResume, volumeId)
     }
 
-    static def fireRelationshipEvent(nodeId, relationshipId, event, associatedNodeId, associatedNodeService, command) {
+    static def fireRelationshipEvent(nodeId, relationshipId, event, associatedNodeId, associatedNodeService, command, lease) {
         def context = ServiceContextFactory.getServiceContext()
         def sourceService = null;
         def targetService = null;
@@ -128,17 +140,19 @@ public class CloudifyExecutorUtils {
         def targetId = null;
 
         switch(event) {
-            case "add_target":
-                sourceService =  associatedNodeService;
-                targetService = context.getServiceName();
-                sourceId = associatedNodeId;
-                targetId = nodeId;
-                break;
             case "add_source":
+            case "remove_source":
                 sourceService =  context.getServiceName();
                 targetService = associatedNodeService;
                 sourceId = nodeId;
                 targetId = associatedNodeId;
+                break;
+            case "add_target":
+            case "remove_target":
+                sourceService =  associatedNodeService;
+                targetService = context.getServiceName();
+                sourceId = associatedNodeId;
+                targetId = nodeId;
                 break;
             default:
                 return;
@@ -156,7 +170,8 @@ public class CloudifyExecutorUtils {
         def eventResume = [
             relationshipId: relationshipId,
             event: event,
-            commandName: command
+            commandName: command,
+            lease: getEventLeaseInMillis(lease)
         ]
         // Fire event
         def application = context.getApplicationName()
@@ -166,14 +181,18 @@ public class CloudifyExecutorUtils {
     }
 
     static def waitFor(cloudifyService, nodeId, status) {
-        CloudifyUtils.waitFor(cloudifyService, nodeId, status)
+        List validStates = getValidStates(status);
+        if(validStates!=null) {
+            CloudifyUtils.waitFor(cloudifyService, nodeId, validStates)
+        }
     }
 
 
-    static def isNodeStarted(context, cloudifyService, nodeToCheck) {
-        def lastEvent = CloudifyUtils.getLastEvent(context.getApplicationName(), cloudifyService, nodeToCheck, context.getInstanceId())
-        println "Got Last event for ${nodeToCheck}: ${lastEvent}";
-        return lastEvent == "started" || lastEvent == "available";
+    static def isNodeStarted(context, nodeToCheck) {
+        List validStates =  getValidStates("started")
+        def state = CloudifyUtils.getState(context.getApplicationName(), nodeToCheck, context.getInstanceId())
+        println "Got Last state for ${nodeToCheck}: ${state}";
+        return validStates.contains(state);
     }
 
     static def shutdown() {
@@ -181,5 +200,28 @@ public class CloudifyExecutorUtils {
         threadPool.shutdownNow();
         println "threadpool shut down!"
     }
+    
+    /**
+     * get all the states after a specific one.
+     * 
+     * For ex, if the provided state is configured, then started and available are valids. 
+     * 
+     * @param state
+     * @return
+     */
+    static private getValidStates(String state) {
+        if(startStates.contains(state) ) {
+            int index =startStates.indexOf(state); 
+            return startStates.subList(index, startStates.size())   
+        }else if(shutdownStates.contains(state)) {
+            int index = shutdownStates.indexOf(state)
+            return shutdownStates.subList(index, shutdownStates.size())
+        } 
+        return null;
+    }
+    
+    static private getEventLeaseInMillis(lease) {
+       return lease ? Math.round(lease * 60 * 60 * 1000) : DEFAULT_LEASE;
+    } 
 
 }

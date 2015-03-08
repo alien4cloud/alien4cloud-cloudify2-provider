@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -55,6 +56,8 @@ import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.exception.A4CCloudifyDriverITException;
 import alien4cloud.paas.cloudify2.testutils.TestsUtils;
 import alien4cloud.paas.exception.OperationExecutionException;
+import alien4cloud.paas.model.AbstractMonitorEvent;
+import alien4cloud.paas.model.DeploymentStatus;
 import alien4cloud.paas.model.NodeOperationExecRequest;
 import alien4cloud.paas.model.PaaSDeploymentContext;
 import alien4cloud.paas.model.PaaSNodeTemplate;
@@ -98,6 +101,7 @@ public class GenericTestCase {
     protected ArchiveUploadService archiveUploadService;
 
     @Resource(name = "cloudify-paas-provider-bean")
+    // @Resource(name = "recipe-gen-provider")
     protected CloudifyPaaSProvider cloudifyPaaSPovider;
 
     @Resource
@@ -106,6 +110,7 @@ public class GenericTestCase {
     @Resource
     protected CsarFileRepository archiveRepositry;
 
+    @Resource
     protected CloudifyRestClientManager cloudifyRestClientManager;
 
     @Resource
@@ -148,9 +153,9 @@ public class GenericTestCase {
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
         cloudifyURL = cloudifyURL == null ? "http://129.185.67.109:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
-        pluginConfigurationBean.getCloudifyConnectionConfiguration().setCloudifyURL(cloudifyURL);
+        pluginConfigurationBean.getCloudifyConnectionConfigurations().get(0).setCloudifyURL(cloudifyURL);
         pluginConfigurationBean.setSynchronousDeployment(true);
-        pluginConfigurationBean.getCloudifyConnectionConfiguration().setVersion("2.7.1");
+        pluginConfigurationBean.getCloudifyConnectionConfigurations().get(0).setVersion("2.7.1");
         cloudifyPaaSPovider.setConfiguration(pluginConfigurationBean);
         cloudifyRestClientManager = cloudifyPaaSPovider.getCloudifyRestClientManager();
         CloudResourceMatcherConfig matcherConf = new CloudResourceMatcherConfig();
@@ -179,7 +184,7 @@ public class GenericTestCase {
         log.info("In afterTest");
         try {
             undeployAllApplications();
-        } catch (RestClientException | IOException e) {
+        } catch (Exception e) {
             String msge = "";
             if (e instanceof RestClientException) {
                 msge = ((RestClientException) e).getMessageFormattedText();
@@ -188,7 +193,7 @@ public class GenericTestCase {
         }
     }
 
-    private void undeployAllApplications() throws RestClientException, IOException {
+    private void undeployAllApplications() throws Exception {
 
         RestClient restClient = cloudifyRestClientManager.getRestClient();
         if (restClient == null) {
@@ -207,7 +212,7 @@ public class GenericTestCase {
         deployedCloudifyAppIds.clear();
     }
 
-    private void dumpMachinesLogs() throws RestClientException, IOException {
+    private void dumpMachinesLogs() throws Exception {
         RestClient restClient = cloudifyRestClientManager.getRestClient();
         GetMachinesDumpFileResponse machinesDumpFile = restClient.getMachinesDumpFile(null, 0);
         Map<String, byte[]> dumpBytesPerIP = machinesDumpFile.getDumpBytesPerIP();
@@ -239,7 +244,7 @@ public class GenericTestCase {
         testsUtils.uploadGitArchive(repository, archiveDirectoryName);
     }
 
-    protected void waitForServiceToStarts(final String applicationId, final String serviceName, final long timeoutInMillis) throws RestClientException {
+    protected void waitForServiceToStarts(final String applicationId, final String serviceName, final long timeoutInMillis) throws Exception {
         CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
         DeploymentState serviceState = null;
         long startTime = System.currentTimeMillis();
@@ -261,7 +266,7 @@ public class GenericTestCase {
     }
 
     protected void assertHttpCodeEquals(String applicationId, String serviceName, String port, String path, int expectedCode, Integer timeoutInMillis)
-            throws RestClientException, IOException, InterruptedException {
+            throws Exception {
         log.info("About to check path <:" + port.concat("/").concat(path) + ">");
         CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
         ServiceInstanceDetails instanceDetails = restClient.getServiceInstanceDetails(applicationId, serviceName, 1);
@@ -309,6 +314,8 @@ public class GenericTestCase {
             setup.getCloudResourcesMapping().putAll(computesMatching);
         }
         setup.setStorageMapping(Maps.<String, StorageTemplate> newHashMap());
+        setup.setProviderDeploymentProperties(Maps.<String, String> newHashMap());
+        setup.getProviderDeploymentProperties().put(DeploymentPropertiesNames.DISABLE_SELF_HEALING, "true");
         log.info("\n\n TESTS: Deploying topology <{}>. Deployment id is <{}>. \n", topologyFileName, topology.getId());
         deployedCloudifyAppIds.add(topology.getId());
         PaaSTopologyDeploymentContext deploymentContext = new PaaSTopologyDeploymentContext();
@@ -342,7 +349,7 @@ public class GenericTestCase {
         return topology;
     }
 
-    protected void assertApplicationIsInstalled(String applicationId) throws RestClientException {
+    protected void assertApplicationIsInstalled(String applicationId) throws Exception {
         log.info("Asserting aplication <" + applicationId + "> installed...");
         RestClient restClient = cloudifyRestClientManager.getRestClient();
         ApplicationDescription appliDesc = restClient.getApplicationDescription(applicationId);
@@ -446,5 +453,53 @@ public class GenericTestCase {
         PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
         deploymentContext.setDeploymentId(cloudifyAppId);
         cloudifyPaaSPovider.executeOperation(deploymentContext, request, callback);
+    }
+
+    protected void testUndeployment(String applicationId) throws RestClientException {
+        PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
+        deploymentContext.setDeploymentId(applicationId);
+        cloudifyPaaSPovider.undeploy(deploymentContext, null);
+        assertApplicationIsUninstalled(applicationId);
+
+        Iterator<String> idsIter = deployedCloudifyAppIds.iterator();
+        while (idsIter.hasNext()) {
+            if (idsIter.next().equals(applicationId)) {
+                idsIter.remove();
+                break;
+            }
+        }
+    }
+
+    private void assertApplicationIsUninstalled(String applicationId) throws RestClientException {
+
+        // RestClient restClient = cloudifyRestClientManager.getRestClient();
+        // ApplicationDescription appliDesc = restClient.getApplicationDescription(applicationId);
+        // Assert.assertNull("Application " + applicationId + " is not undeloyed!", appliDesc);
+
+        // FIXME this is a hack, for the provider to set the status of the application to UNDEPLOYED
+        cloudifyPaaSPovider.getEventsSince(new Date(), 1, new IPaaSCallback<AbstractMonitorEvent[]>() {
+            @Override
+            public void onSuccess(AbstractMonitorEvent[] abstractMonitorEvents) {
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+            }
+        });
+        DeploymentStatus status = cloudifyPaaSPovider.getStatus(applicationId);
+        Assert.assertEquals("Application " + applicationId + " is not in UNDEPLOYED state", DeploymentStatus.UNDEPLOYED, status);
+    }
+
+    protected void scale(String nodeID, int nbToAdd, String appId, Topology topo, Integer sleepTimeSec) throws Exception {
+        int plannedInstance = topo.getScalingPolicies().get(nodeID).getInitialInstances() + nbToAdd;
+        log.info("Scaling to " + nbToAdd);
+        topo.getScalingPolicies().get(nodeID).setInitialInstances(plannedInstance);
+        alienDAO.save(topo);
+        PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
+        deploymentContext.setDeploymentId(appId);
+        cloudifyPaaSPovider.scale(deploymentContext, nodeID, nbToAdd, null);
+        if (sleepTimeSec != null) {
+            Thread.sleep(sleepTimeSec * 1000L);
+        }
     }
 }

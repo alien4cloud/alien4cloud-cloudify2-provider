@@ -3,14 +3,19 @@ node_templates:
   comp_envartest:
     type: alien.test.TestCompute
     properties:
-      os_type: linux
-      os_distribution: ubuntu
-      os_version: ubuntu
-      customHostName: testHostname
+      os_type:
+        value: linux
+      os_distribution:
+        value: ubuntu
+      os_version:
+        value: ubuntu
+      customHostName:
+        value: testHostname
   test_component:
     type: alien.test.nodes.envVarTestComponent
     properties:
-      name: testComponent
+      name:
+        value: testComponent
     relationships:
       hostedOnServeurWeb:
         target: comp_envartest

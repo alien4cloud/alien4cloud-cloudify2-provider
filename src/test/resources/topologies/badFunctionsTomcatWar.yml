@@ -3,14 +3,19 @@ node_templates:
   comp_tomcat_war:
     type: alien.test.BadTestCompute
     properties:
-      os_type: linux
-      os_distribution: ubuntu
-      os_version: ubuntu
-      customHostName: testHostname
+      os_type:
+        value: linux
+      os_distribution:
+        value: ubuntu
+      os_version:
+        value: ubuntu
+      customHostName:
+        value: testHostname
   tomcat:
     type: alien.test.nodes.TomcatSh
     properties:
-      version: 7.0.23
+      version:
+        value: 7.0.23
     relationships:
       hostedOnServeurWeb:
         target: comp_tomcat_war
@@ -21,7 +26,8 @@ node_templates:
   war_1:
     type: alien.nodes.cloudify.War
     properties:
-      contextPath: war1
+      contextPath:
+        value: war1
     relationships:
       hostedOnTomcat:
         target: tomcat
@@ -32,7 +38,8 @@ node_templates:
   war_2:
     type: alien.nodes.cloudify.War
     properties:
-      contextPath: war2
+      contextPath:
+        value: war2
     relationships:
       hostedOnTomcat:
         target: tomcat

@@ -10,12 +10,17 @@ import java.util.Map;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import alien4cloud.model.components.AbstractPropertyValue;
+import alien4cloud.model.components.ScalarPropertyValue;
 import alien4cloud.paas.exception.PaaSDeploymentException;
+import alien4cloud.paas.function.FunctionEvaluator;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.tosca.ToscaUtils;
@@ -27,6 +32,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 
 @Component
+@Slf4j
 @Scope(BeanDefinition.SCOPE_PROTOTYPE)
 public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
     private static final String INIT_STORAGE_SCRIPT_FILE_NAME = "initStorage";
@@ -88,7 +94,8 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
 
         String unmountDeleteCommand = getStorageUnmountDeleteCommand(context, blockStorageNode);
         Map<String, String> velocityProps = Maps.newHashMap();
-        velocityProps.put("stoppedEvent", commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.STOPPED));
+        velocityProps.put("stoppedEvent",
+                commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.STOPPED, context.getEventsLeaseInHour()));
         velocityProps.put(SHUTDOWN_COMMAND, unmountDeleteCommand);
         generateScriptWorkflow(context.getServicePath(), shutdownBlockStorageScriptDescriptorPath, STORAGE_SHUTDOWN_FILE_NAME, null, velocityProps);
         executions.add(commandGenerator.getGroovyCommand(STORAGE_SHUTDOWN_FILE_NAME.concat(".groovy"), null, null));
@@ -100,10 +107,17 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         // setting the storage template ID to be used when creating new volume for this application
         velocityProps.put(STORAGE_TEMPLATE_KEY, storageName);
 
-        Map<String, String> properties = blockStorageNode.getNodeTemplate().getProperties();
+        Map<String, AbstractPropertyValue> properties = blockStorageNode.getNodeTemplate().getProperties();
         String volumeIds = null;
         if (properties != null) {
-            volumeIds = properties.get(NormativeBlockStorageConstants.VOLUME_ID);
+            AbstractPropertyValue volumeIdsValue = properties.get(NormativeBlockStorageConstants.VOLUME_ID);
+            if (volumeIdsValue != null) {
+                if (volumeIdsValue instanceof ScalarPropertyValue) {
+                    volumeIds = ((ScalarPropertyValue) volumeIdsValue).getValue();
+                } else {
+                    log.warn(NormativeBlockStorageConstants.VOLUME_ID + " is not of type Scalar, it's not supported by the driver, volume will not be reused");
+                }
+            }
             verifyNoVolumeIdForDeletableStorage(blockStorageNode, volumeIds);
         }
 
@@ -124,11 +138,12 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         // startup (create, attach, format, mount)
         Map<String, String> velocityProps = Maps.newHashMap();
         // events
+        Double lease = context.getEventsLeaseInHour();
         velocityProps.put("createdEvent",
-                commandGenerator.getFireBlockStorageEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.CREATED, VOLUME_ID_KEY));
-        velocityProps.put("configuredEvent", commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.CONFIGURED));
-        velocityProps.put("startedEvent", commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.STARTED));
-        velocityProps.put("availableEvent", commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.AVAILABLE));
+                commandGenerator.getFireBlockStorageEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.CREATED, VOLUME_ID_KEY, lease));
+        velocityProps.put("configuredEvent", commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.CONFIGURED, lease));
+        velocityProps.put("startedEvent", commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.STARTED, lease));
+        velocityProps.put("availableEvent", commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.AVAILABLE, lease));
 
         String createAttachCommand = getStorageCreateAttachCommand(context, blockStorageNode);
         velocityProps.put(RecipeGeneratorConstants.CREATE_COMMAND, createAttachCommand);
@@ -142,50 +157,51 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
     }
 
     private String getStorageFormatMountCommand(RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode) throws IOException {
-        Map<String, String> varParamsMap = MapUtil.newHashMap(new String[] { DEVICE_KEY }, new String[] { DEVICE_KEY });
-
+        ExecEnvMaps envMaps = new ExecEnvMaps();
+        envMaps.runtimes.put(DEVICE_KEY, DEVICE_KEY);
         // try getting a custom script routine
         String formatMountCommand = getOperationCommandFromInterface(context, blockStorageNode, ToscaNodeLifecycleConstants.STANDARD,
-                ToscaNodeLifecycleConstants.CONFIGURE, varParamsMap, null);
+                ToscaNodeLifecycleConstants.CONFIGURE, envMaps);
 
         // if no custom management then generate the default routine
         if (StringUtils.isBlank(formatMountCommand)) {
 
             // get the fs and the mounting location (path on the file system)
-            Map<String, String> properties = blockStorageNode.getNodeTemplate().getProperties();
+            Map<String, AbstractPropertyValue> properties = blockStorageNode.getNodeTemplate().getProperties();
             String fs = DEFAULT_BLOCKSTORAGE_FS;
             String storageLocation = DEFAULT_BLOCKSTORAGE_LOCATION;
             if (properties != null) {
-                fs = StringUtils.isNotBlank(properties.get(FS_KEY)) ? properties.get(FS_KEY) : fs;
-                storageLocation = StringUtils.isNotBlank(properties.get(NormativeBlockStorageConstants.LOCATION)) ? properties
-                        .get(NormativeBlockStorageConstants.LOCATION) : storageLocation;
+                fs = StringUtils.isNotBlank(FunctionEvaluator.getScalarValue(properties.get(FS_KEY))) ? FunctionEvaluator
+                        .getScalarValue(properties.get(FS_KEY)) : fs;
+                storageLocation = StringUtils.isNotBlank(FunctionEvaluator.getScalarValue(properties.get(NormativeBlockStorageConstants.LOCATION))) ? FunctionEvaluator
+                        .getScalarValue(properties.get(NormativeBlockStorageConstants.LOCATION)) : storageLocation;
             }
-            Map<String, String> stringParamsMap = Maps.newHashMap();
-            stringParamsMap.put(FS_KEY, fs);
-            stringParamsMap.put(LOCATION_KEY, storageLocation);
+            envMaps.strings.put(FS_KEY, fs);
+            envMaps.strings.put(LOCATION_KEY, storageLocation);
 
             generateScriptWorkflow(context.getServicePath(), formatMountBlockStorageScriptDescriptorPath, DEFAULT_STORAGE_MOUNT_FILE_NAME, null, null);
-            formatMountCommand = commandGenerator.getGroovyCommand(DEFAULT_STORAGE_MOUNT_FILE_NAME.concat(".groovy"), varParamsMap, stringParamsMap);
+            formatMountCommand = commandGenerator.getGroovyCommand(DEFAULT_STORAGE_MOUNT_FILE_NAME.concat(".groovy"), envMaps.runtimes, envMaps.strings);
         }
         return formatMountCommand;
     }
 
     private String getStorageCreateAttachCommand(final RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode) throws IOException {
-        Map<String, String> varParamsMap = MapUtil.newHashMap(new String[] { VOLUME_ID_KEY, STORAGE_TEMPLATE_KEY }, new String[] {
-                CONTEXT_THIS_INSTANCE_ATTRIBUTES + "." + VOLUME_ID_KEY, CONTEXT_THIS_SERVICE_ATTRIBUTES + "." + STORAGE_TEMPLATE_KEY });
+        ExecEnvMaps envMaps = new ExecEnvMaps();
+        envMaps.runtimes.put(VOLUME_ID_KEY, CONTEXT_THIS_INSTANCE_ATTRIBUTES + "." + VOLUME_ID_KEY);
+        envMaps.runtimes.put(STORAGE_TEMPLATE_KEY, CONTEXT_THIS_SERVICE_ATTRIBUTES + "." + STORAGE_TEMPLATE_KEY);
 
         String createAttachCommand = getOperationCommandFromInterface(context, blockStorageNode, ToscaNodeLifecycleConstants.STANDARD,
-                ToscaNodeLifecycleConstants.CREATE, varParamsMap, null);
+                ToscaNodeLifecycleConstants.CREATE, envMaps);
 
         // if no custom management then generate the default routine
         if (StringUtils.isBlank(createAttachCommand)) {
-            Map<String, String> properties = blockStorageNode.getNodeTemplate().getProperties();
+            Map<String, AbstractPropertyValue> properties = blockStorageNode.getNodeTemplate().getProperties();
             String device = DEFAULT_BLOCKSTORAGE_DEVICE;
-            if (properties != null && StringUtils.isNotBlank(properties.get(NormativeBlockStorageConstants.DEVICE))) {
-                device = properties.get(NormativeBlockStorageConstants.DEVICE);
+            if (properties != null && StringUtils.isNotBlank(FunctionEvaluator.getScalarValue(properties.get(NormativeBlockStorageConstants.DEVICE)))) {
+                device = FunctionEvaluator.getScalarValue(properties.get(NormativeBlockStorageConstants.DEVICE));
             }
             generateScriptWorkflow(context.getServicePath(), createAttachBlockStorageScriptDescriptorPath, DEFAULT_STORAGE_CREATE_FILE_NAME, null, null);
-            createAttachCommand = commandGenerator.getGroovyCommand(DEFAULT_STORAGE_CREATE_FILE_NAME.concat(".groovy"), varParamsMap,
+            createAttachCommand = commandGenerator.getGroovyCommand(DEFAULT_STORAGE_CREATE_FILE_NAME.concat(".groovy"), envMaps.runtimes,
                     MapUtil.newHashMap(new String[] { DEVICE_KEY }, new String[] { device }));
         }
         return createAttachCommand;
@@ -193,13 +209,13 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
 
     private String getStorageUnmountDeleteCommand(RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode) throws IOException {
 
-        Map<String, String> varParamsMap = Maps.newHashMap();
-        varParamsMap.put(VOLUME_ID_KEY, VOLUME_ID_KEY);
-        varParamsMap.put(DEVICE_KEY, DEVICE_KEY);
+        ExecEnvMaps envMaps = new ExecEnvMaps();
+        envMaps.runtimes.put(VOLUME_ID_KEY, VOLUME_ID_KEY);
+        envMaps.runtimes.put(DEVICE_KEY, DEVICE_KEY);
 
         // try getting a custom script routine
         String unmountDeleteCommand = getOperationCommandFromInterface(context, blockStorageNode, ToscaNodeLifecycleConstants.STANDARD,
-                ToscaNodeLifecycleConstants.DELETE, varParamsMap, null);
+                ToscaNodeLifecycleConstants.DELETE, envMaps);
 
         // if no custom management then generate the default routine
         if (StringUtils.isBlank(unmountDeleteCommand)) {
@@ -211,7 +227,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
             generateScriptWorkflow(context.getServicePath(), unmountDeleteBlockStorageSCriptDescriptorPath, DEFAULT_STORAGE_UNMOUNT_FILE_NAME, null,
                     additionalProps);
 
-            unmountDeleteCommand = commandGenerator.getGroovyCommand(DEFAULT_STORAGE_UNMOUNT_FILE_NAME.concat(".groovy"), varParamsMap, null);
+            unmountDeleteCommand = commandGenerator.getGroovyCommand(DEFAULT_STORAGE_UNMOUNT_FILE_NAME.concat(".groovy"), envMaps.runtimes, null);
         }
         return unmountDeleteCommand;
     }
