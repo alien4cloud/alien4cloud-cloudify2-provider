@@ -43,7 +43,6 @@ import org.cloudifysource.restclient.exceptions.RestClientException;
 import alien4cloud.dao.IGenericSearchDAO;
 import alien4cloud.exception.TechnicalException;
 import alien4cloud.model.application.DeploymentSetup;
-import alien4cloud.model.components.AbstractPropertyValue;
 import alien4cloud.model.components.IAttributeValue;
 import alien4cloud.model.components.IOperationParameter;
 import alien4cloud.model.components.IndexedNodeType;
@@ -365,13 +364,10 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             // get the current number of instances
             int currentPlannedInstances = getPlannedInstancesCount(nodeTempalteEntry.getKey(), topology);
             for (int i = 1; i <= currentPlannedInstances; i++) {
-                Map<String, AbstractPropertyValue> properties = nodeTempalteEntry.getValue().getProperties() == null ? null : Maps.newHashMap(nodeTempalteEntry
-                        .getValue().getProperties());
                 Map<String, String> attributes = nodeTempalteEntry.getValue().getAttributes() == null ? null : Maps.newHashMap(nodeTempalteEntry.getValue()
                         .getAttributes());
                 // Map<String, String> runtimeProperties = Maps.newHashMap();
-                InstanceInformation instanceInfo = new InstanceInformation(ToscaNodeLifecycleConstants.INITIAL, InstanceStatus.PROCESSING,
-                        FunctionEvaluator.getScalarValues(properties), attributes, null);
+                InstanceInformation instanceInfo = new InstanceInformation(ToscaNodeLifecycleConstants.INITIAL, InstanceStatus.PROCESSING, attributes, null);
                 nodeInstanceInfos.put(String.valueOf(i), instanceInfo);
             }
             instanceInformations.put(nodeTempalteEntry.getKey(), nodeInstanceInfos);
@@ -411,10 +407,9 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                 InstanceInformation instanceInformation = nodeTemplateInstanceInformations.get(instanceId);
                 if (instanceInformation == null) {
                     Map<String, String> runtimeProperties = Maps.newHashMap();
-                    Map<String, String> properties = Maps.newHashMap();
                     Map<String, String> attributes = Maps.newHashMap();
-                    InstanceInformation newInstanceInformation = new InstanceInformation(instanceState.getInstanceState(), instanceStatus, properties,
-                            attributes, runtimeProperties);
+                    InstanceInformation newInstanceInformation = new InstanceInformation(instanceState.getInstanceState(), instanceStatus, attributes,
+                            runtimeProperties);
                     nodeTemplateInstanceInformations.put(String.valueOf(instanceId), newInstanceInformation);
                 } else {
                     instanceInformation.setState(instanceState.getInstanceState());
@@ -608,7 +603,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         }
 
         isMonitorEvent.setInstanceStatus(instanceInfo.getInstanceStatus());
-        isMonitorEvent.setProperties(instanceInfo.getProperties());
         isMonitorEvent.setRuntimeProperties(instanceInfo.getRuntimeProperties());
         isMonitorEvent.setAttributes(instanceInfo.getAttributes());
     }
