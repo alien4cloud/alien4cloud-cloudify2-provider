@@ -180,15 +180,22 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         if (deploymentInfo == null) {
             deploymentInfo = new DeploymentInfo();
         }
-        if (deploymentInfo.topology == null) {
-            deploymentInfo.topology = alienMonitorDao.findById(Topology.class, deploymentId);
-        }
+        checkAndFillTopology(deploymentId, deploymentInfo);
         if (deploymentInfo.topology != null) {
             deploymentInfo.deploymentStatus = status;
             statusByDeployments.put(deploymentId, deploymentInfo);
             return true;
-        } else {
-            return false;
+        }
+
+        return false;
+    }
+
+    private void checkAndFillTopology(String deploymentId, DeploymentInfo deploymentInfo) {
+        if (deploymentInfo.topology == null) {
+            deploymentInfo.topology = alienMonitorDao.findById(Topology.class, deploymentId);
+            if (deploymentInfo.topology != null) {
+                deploymentInfo.paaSNodeTemplates = topologyTreeBuilderService.buildPaaSTopology(deploymentInfo.topology).getAllNodes();
+            }
         }
     }
 
@@ -488,12 +495,14 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
                 if (nodeInstanceNumber.getValue().getAttributes() != null) {
                     for (Entry<String, String> attributeEntry : nodeInstanceNumber.getValue().getAttributes().entrySet()) {
-
                         PaaSNodeTemplate nodeTemplate = deploymentInfo.paaSNodeTemplates.get(nodeInstanceId.getKey());
                         Map<String, IAttributeValue> nodeTemplateAttributes = nodeTemplate.getIndexedToscaElement().getAttributes();
-                        String parsedAttribute = FunctionEvaluator.parseAttribute(attributeEntry.getKey(), nodeTemplateAttributes.get(attributeEntry.getKey()),
-                                topology, instanceInformations, nodeInstanceNumber.getKey(), nodeTemplate);
-                        attributeEntry.setValue(parsedAttribute);
+                        IAttributeValue attributeValue = nodeTemplateAttributes.get(attributeEntry.getKey());
+                        if (attributeValue != null) {
+                            String parsedAttribute = FunctionEvaluator.parseAttribute(attributeEntry.getKey(), attributeValue, topology, instanceInformations,
+                                    nodeInstanceNumber.getKey(), nodeTemplate, deploymentInfo.paaSNodeTemplates);
+                            attributeEntry.setValue(parsedAttribute);
+                        }
                     }
                 }
 

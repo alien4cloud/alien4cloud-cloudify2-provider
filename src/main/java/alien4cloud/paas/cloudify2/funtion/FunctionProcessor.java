@@ -107,11 +107,13 @@ public class FunctionProcessor {
         }
     }
 
+    @SuppressWarnings("rawtypes")
     private String evaluateGetAttributeFunction(FunctionPropertyValue functionParam, IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
             Map<String, PaaSNodeTemplate> builtPaaSTemplates, String instanceId) {
-        List<PaaSNodeTemplate> entities = FunctionEvaluator.getPaaSEntities(basePaaSTemplate, functionParam.getParameters().get(0), builtPaaSTemplates);
+        List<? extends IPaaSTemplate> paaSTemplates = FunctionEvaluator.getPaaSTemplatesFromKeyword(basePaaSTemplate, functionParam.getParameters().get(0),
+                builtPaaSTemplates);
         // getting the top hierarchical parent
-        String serviceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(entities.get(entities.size() - 1));
+        String serviceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate((PaaSNodeTemplate) paaSTemplates.get(paaSTemplates.size() - 1));
         return evaluateAttributeName(functionParam.getParameters().get(1), serviceName, instanceId);
     }
 
