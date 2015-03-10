@@ -52,6 +52,7 @@ import alien4cloud.model.topology.ScalingPolicy;
 import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.IConfigurablePaaSProvider;
 import alien4cloud.paas.IPaaSCallback;
+import alien4cloud.paas.ITemplateManagedPaaSProvider;
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.events.BlockStorageEvent;
 import alien4cloud.paas.cloudify2.events.NodeInstanceState;
@@ -84,7 +85,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 @Slf4j
-public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSProvider<PluginConfigurationBean> {
+public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSProvider<PluginConfigurationBean>, ITemplateManagedPaaSProvider {
 
     @Resource
     @Getter
