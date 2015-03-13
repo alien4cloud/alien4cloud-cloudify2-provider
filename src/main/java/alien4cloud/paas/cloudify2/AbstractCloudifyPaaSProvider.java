@@ -43,7 +43,6 @@ import org.cloudifysource.restclient.exceptions.RestClientException;
 import alien4cloud.dao.IGenericSearchDAO;
 import alien4cloud.exception.TechnicalException;
 import alien4cloud.model.application.DeploymentSetup;
-import alien4cloud.model.components.AbstractPropertyValue;
 import alien4cloud.model.components.IAttributeValue;
 import alien4cloud.model.components.IOperationParameter;
 import alien4cloud.model.components.IndexedNodeType;
@@ -52,6 +51,7 @@ import alien4cloud.model.topology.ScalingPolicy;
 import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.IConfigurablePaaSProvider;
 import alien4cloud.paas.IPaaSCallback;
+import alien4cloud.paas.ITemplateManagedPaaSProvider;
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.events.BlockStorageEvent;
 import alien4cloud.paas.cloudify2.events.NodeInstanceState;
@@ -84,7 +84,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 @Slf4j
-public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSProvider<PluginConfigurationBean> {
+public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSProvider<PluginConfigurationBean>, ITemplateManagedPaaSProvider {
 
     @Resource
     @Getter
@@ -180,15 +180,22 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         if (deploymentInfo == null) {
             deploymentInfo = new DeploymentInfo();
         }
-        if (deploymentInfo.topology == null) {
-            deploymentInfo.topology = alienMonitorDao.findById(Topology.class, deploymentId);
-        }
+        checkAndFillTopology(deploymentId, deploymentInfo);
         if (deploymentInfo.topology != null) {
             deploymentInfo.deploymentStatus = status;
             statusByDeployments.put(deploymentId, deploymentInfo);
             return true;
-        } else {
-            return false;
+        }
+
+        return false;
+    }
+
+    private void checkAndFillTopology(String deploymentId, DeploymentInfo deploymentInfo) {
+        if (deploymentInfo.topology == null) {
+            deploymentInfo.topology = alienMonitorDao.findById(Topology.class, deploymentId);
+            if (deploymentInfo.topology != null) {
+                deploymentInfo.paaSNodeTemplates = topologyTreeBuilderService.buildPaaSTopology(deploymentInfo.topology).getAllNodes();
+            }
         }
     }
 
@@ -357,13 +364,10 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             // get the current number of instances
             int currentPlannedInstances = getPlannedInstancesCount(nodeTempalteEntry.getKey(), topology);
             for (int i = 1; i <= currentPlannedInstances; i++) {
-                Map<String, AbstractPropertyValue> properties = nodeTempalteEntry.getValue().getProperties() == null ? null : Maps.newHashMap(nodeTempalteEntry
-                        .getValue().getProperties());
                 Map<String, String> attributes = nodeTempalteEntry.getValue().getAttributes() == null ? null : Maps.newHashMap(nodeTempalteEntry.getValue()
                         .getAttributes());
                 // Map<String, String> runtimeProperties = Maps.newHashMap();
-                InstanceInformation instanceInfo = new InstanceInformation(ToscaNodeLifecycleConstants.INITIAL, InstanceStatus.PROCESSING,
-                        FunctionEvaluator.getScalarValues(properties), attributes, null);
+                InstanceInformation instanceInfo = new InstanceInformation(ToscaNodeLifecycleConstants.INITIAL, InstanceStatus.PROCESSING, attributes, null);
                 nodeInstanceInfos.put(String.valueOf(i), instanceInfo);
             }
             instanceInformations.put(nodeTempalteEntry.getKey(), nodeInstanceInfos);
@@ -403,10 +407,9 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                 InstanceInformation instanceInformation = nodeTemplateInstanceInformations.get(instanceId);
                 if (instanceInformation == null) {
                     Map<String, String> runtimeProperties = Maps.newHashMap();
-                    Map<String, String> properties = Maps.newHashMap();
                     Map<String, String> attributes = Maps.newHashMap();
-                    InstanceInformation newInstanceInformation = new InstanceInformation(instanceState.getInstanceState(), instanceStatus, properties,
-                            attributes, runtimeProperties);
+                    InstanceInformation newInstanceInformation = new InstanceInformation(instanceState.getInstanceState(), instanceStatus, attributes,
+                            runtimeProperties);
                     nodeTemplateInstanceInformations.put(String.valueOf(instanceId), newInstanceInformation);
                 } else {
                     instanceInformation.setState(instanceState.getInstanceState());
@@ -488,12 +491,14 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
                 if (nodeInstanceNumber.getValue().getAttributes() != null) {
                     for (Entry<String, String> attributeEntry : nodeInstanceNumber.getValue().getAttributes().entrySet()) {
-
                         PaaSNodeTemplate nodeTemplate = deploymentInfo.paaSNodeTemplates.get(nodeInstanceId.getKey());
                         Map<String, IAttributeValue> nodeTemplateAttributes = nodeTemplate.getIndexedToscaElement().getAttributes();
-                        String parsedAttribute = FunctionEvaluator.parseAttribute(attributeEntry.getKey(), nodeTemplateAttributes.get(attributeEntry.getKey()),
-                                topology, instanceInformations, nodeInstanceNumber.getKey(), nodeTemplate);
-                        attributeEntry.setValue(parsedAttribute);
+                        IAttributeValue attributeValue = nodeTemplateAttributes.get(attributeEntry.getKey());
+                        if (attributeValue != null) {
+                            String parsedAttribute = FunctionEvaluator.parseAttribute(attributeEntry.getKey(), attributeValue, topology, instanceInformations,
+                                    nodeInstanceNumber.getKey(), nodeTemplate, deploymentInfo.paaSNodeTemplates);
+                            attributeEntry.setValue(parsedAttribute);
+                        }
                     }
                 }
 
@@ -598,7 +603,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         }
 
         isMonitorEvent.setInstanceStatus(instanceInfo.getInstanceStatus());
-        isMonitorEvent.setProperties(instanceInfo.getProperties());
         isMonitorEvent.setRuntimeProperties(instanceInfo.getRuntimeProperties());
         isMonitorEvent.setAttributes(instanceInfo.getAttributes());
     }

@@ -76,8 +76,8 @@ public class PaaSResourceMatcher {
             for (Map.Entry<CloudImageFlavor, String> flavorEntry : flavorsMapping.entrySet()) {
                 String generatedPaaSResourceId = paaSComputeTemplates.get(new CloudifyComputeTemplate(cloudImageEntry.getValue(), flavorEntry.getValue()));
                 if (generatedPaaSResourceId != null) {
-                    alienTemplateToCloudifyTemplateMapping.put(new ComputeTemplate(cloudImageEntry.getKey().getId(), flavorEntry.getKey().getId()),
-                            generatedPaaSResourceId);
+                    alienTemplateToCloudifyTemplateMapping.put(new ComputeTemplate(cloudImageEntry.getKey().getId(), flavorEntry.getKey().getId(),
+                            generatedPaaSResourceId), generatedPaaSResourceId);
                 }
             }
         }

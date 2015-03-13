@@ -15,7 +15,6 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
-import alien4cloud.model.components.ScalarPropertyValue;
 import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.PaaSDeploymentException;
