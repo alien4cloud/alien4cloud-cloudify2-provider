@@ -310,7 +310,7 @@ public class GenericTestCase {
             for (String string : computesId) {
                 ComputeTemplate computeTemplate = new ComputeTemplate(ALIEN_LINUX_IMAGE, ALIEN_FLAVOR);
                 computeTemplate.setDescription(TEMPLATE_ID);
-                setup.getCloudResourcesMapping().put(string, new ComputeTemplate(ALIEN_LINUX_IMAGE, ALIEN_FLAVOR));
+                setup.getCloudResourcesMapping().put(string, computeTemplate);
             }
         }
         if (computesMatching != null) {
