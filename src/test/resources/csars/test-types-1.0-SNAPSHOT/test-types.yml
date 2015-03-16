@@ -21,6 +21,10 @@ node_types:
           inputs:
             customHostName: { get_property: [SELF, customHostName]}
           implementation: scripts/setHostname.sh
+        stop:
+          inputs:
+            MY_IP: { get_attribute: [SELF, ip_address] }
+          implementation: scripts/testCompute_stop.groovy
       custom:
         helloCmd:
           input:
@@ -129,27 +133,51 @@ relationship_types:
     valid_targets: [ alien.test.TestCompute ]
     interfaces:
       configure:
+        post_configure_source:
+          inputs:
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
+            TARGET_IP: { get_attribute: [TARGET, ip_address] }
+          implementation: relationshipScripts/pre_post_configure_testEnv.groovy
+        post_configure_target:
+          inputs:
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
+            TARGET_IP: { get_attribute: [TARGET, ip_address] }
+          implementation: relationshipScripts/pre_post_configure_testEnv.groovy          
         add_target: 
           inputs:
             MY_HOSTNAME: { get_property: [TARGET, customHostName] }
             SOURCE_HOSTNAME: { get_property: [SOURCE, customHostName] }
             MY_IP: { get_attribute: [TARGET, ip_address] }
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
           implementation: relationshipScripts/target_testEnv.sh
         add_source: 
           inputs:
             MY_HOSTNAME: { get_property: [SOURCE, customHostName] }
             TARGET_HOSTNAME: { get_property: [TARGET, customHostName] }
             MY_IP: { get_attribute: [SOURCE, ip_address] }
+            TARGET_IP: { get_attribute: [TARGET, ip_address] }
           implementation: relationshipScripts/source_testEnv.groovy
         remove_target: 
           inputs:
             MY_HOSTNAME: { get_property: [TARGET, customHostName] }
             SOURCE_HOSTNAME: { get_property: [SOURCE, customHostName] }
             MY_IP: { get_attribute: [TARGET, ip_address] }
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
           implementation: relationshipScripts/target_testEnv.sh
         remove_source: 
           inputs:
             MY_HOSTNAME: { get_property: [SOURCE, customHostName] }
             TARGET_HOSTNAME: { get_property: [TARGET, customHostName] }
             MY_IP: { get_attribute: [SOURCE, ip_address] }
-          implementation: relationshipScripts/source_testEnv.groovy         
+            TARGET_IP: { get_attribute: [TARGET, ip_address] }
+          implementation: relationshipScripts/source_testEnv.groovy       
+   
+  alien.test.relationships.DependsOnGetIpTest:
+    derived_from: tosca.relationships.DependsOn
+    interfaces:
+      configure:
+        post_configure_source:
+          inputs:
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
+          implementation: relationshipScripts/registerLBNode.groovy
+      

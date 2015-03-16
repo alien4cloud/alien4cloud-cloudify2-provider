@@ -15,6 +15,7 @@ import alien4cloud.model.components.IOperationParameter;
 import alien4cloud.model.components.IndexedToscaElement;
 import alien4cloud.model.components.ScalarPropertyValue;
 import alien4cloud.paas.IPaaSTemplate;
+import alien4cloud.paas.cloudify2.generator.AlienExtentedConstants;
 import alien4cloud.paas.cloudify2.generator.CommandGenerator;
 import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.exception.NotSupportedException;
@@ -33,8 +34,6 @@ public class FunctionProcessor {
 
     @Resource
     private CommandGenerator cloudifyCommandGen;
-
-    private static final String IP_ADDRESS = "ip_address";
 
     /**
      * Evaluate a parameter defined as a function.
@@ -67,7 +66,7 @@ public class FunctionProcessor {
         String result = null;
         switch (functionParam.getFunction()) {
         case ToscaFunctionConstants.GET_PROPERTY:
-            result = FunctionEvaluator.evaluateGetPropertyFuntion(functionParam, basePaaSTemplate, builtPaaSTemplates); // process getProperty
+            result = FunctionEvaluator.evaluateGetPropertyFuntion(functionParam, basePaaSTemplate, builtPaaSTemplates);
             return new StringEvalResult(result);
         case ToscaFunctionConstants.GET_ATTRIBUTE:
             result = evaluateGetAttributeFunction(functionParam, basePaaSTemplate, builtPaaSTemplates, instanceId);
@@ -125,7 +124,7 @@ public class FunctionProcessor {
 
     private String evaluateAttributeName(String attributeName, String serviceName, String instanceId) {
         switch (attributeName) {
-        case IP_ADDRESS:
+        case AlienExtentedConstants.IP_ADDRESS:
             return cloudifyCommandGen.getIpCommand(serviceName, instanceId);
         default:
             return cloudifyCommandGen.getAttributeCommand(attributeName, serviceName, instanceId);

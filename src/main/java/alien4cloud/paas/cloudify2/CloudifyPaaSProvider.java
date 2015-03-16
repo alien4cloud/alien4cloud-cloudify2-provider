@@ -37,7 +37,7 @@ public class CloudifyPaaSProvider extends AbstractCloudifyPaaSProvider {
         try {
             this.templates = this.cloudifyRestClientManager.getRestClient().getCloudifyComputeTemplates();
         } catch (RestClientException e) {
-            throw new PluginConfigurationException("Unable to retrieve compute templates from cloudify");
+            throw new PluginConfigurationException("Unable to retrieve compute templates from cloudify: " + e.getMessageFormattedText(), e);
         }
         configureDefault();
     }
