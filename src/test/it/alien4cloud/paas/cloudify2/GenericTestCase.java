@@ -96,7 +96,8 @@ public class GenericTestCase {
     public static final String ALIEN_STORAGE = "alienStorage";
     public static final String ALIEN_STORAGE_DEVICE = "/dev/vdb";
     public static final String IAAS_BLOCK_STORAGE_ID = "SMALL_BLOCK";
-    public static final String TEMPLATE_ID = "MEDIUM_LINUX";
+    public static final String TEMPLATE_ID = "SMALL_LINUX";
+    // public static final String TEMPLATE_ID = "MANAGER_TEMPLATE";
 
     @Resource
     protected ArchiveUploadService archiveUploadService;
