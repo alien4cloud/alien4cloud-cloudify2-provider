@@ -96,6 +96,7 @@ public class GenericTestCase {
     public static final String ALIEN_STORAGE = "alienStorage";
     public static final String ALIEN_STORAGE_DEVICE = "/dev/vdb";
     public static final String IAAS_BLOCK_STORAGE_ID = "SMALL_BLOCK";
+    public static final String TEMPLATE_ID = "MEDIUM_LINUX";
 
     @Resource
     protected ArchiveUploadService archiveUploadService;
@@ -151,7 +152,7 @@ public class GenericTestCase {
         testsUtils.uploadGitArchive("alien-extended-types", "alien-base-types-1.0-SNAPSHOT");
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        cloudifyURL = cloudifyURL == null ? "http://129.185.67.109:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "http://129.185.67.57:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.getCloudifyConnectionConfigurations().get(0).setCloudifyURL(cloudifyURL);
         pluginConfigurationBean.setSynchronousDeployment(true);
@@ -307,7 +308,9 @@ public class GenericTestCase {
         setup.setCloudResourcesMapping(Maps.<String, ComputeTemplate> newHashMap());
         if (computesId != null) {
             for (String string : computesId) {
-                setup.getCloudResourcesMapping().put(string, new ComputeTemplate(ALIEN_LINUX_IMAGE, ALIEN_FLAVOR));
+                ComputeTemplate computeTemplate = new ComputeTemplate(ALIEN_LINUX_IMAGE, ALIEN_FLAVOR);
+                computeTemplate.setDescription(TEMPLATE_ID);
+                setup.getCloudResourcesMapping().put(string, computeTemplate);
             }
         }
         if (computesMatching != null) {
