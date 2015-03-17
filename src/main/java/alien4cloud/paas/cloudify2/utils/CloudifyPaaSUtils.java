@@ -25,7 +25,7 @@ public class CloudifyPaaSUtils {
      *
      */
     public static String cfyServiceNameFromNodeTemplate(final PaaSNodeTemplate paaSNodeTemplate) {
-        return serviceIdFromNodeTemplateId(ToscaUtils.getHostTemplate(paaSNodeTemplate).getId());
+        return serviceIdFromNodeTemplateId(ToscaUtils.getMandatoryHostTemplate(paaSNodeTemplate).getId());
     }
 
     /**
