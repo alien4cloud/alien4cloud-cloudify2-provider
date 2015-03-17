@@ -109,11 +109,11 @@ public class FunctionProcessor {
     @SuppressWarnings("rawtypes")
     private String evaluateGetAttributeFunction(FunctionPropertyValue functionParam, IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
             Map<String, PaaSNodeTemplate> builtPaaSTemplates, String instanceId) {
-        List<? extends IPaaSTemplate> paaSTemplates = FunctionEvaluator.getPaaSTemplatesFromKeyword(basePaaSTemplate, functionParam.getParameters().get(0),
+        List<? extends IPaaSTemplate> paaSTemplates = FunctionEvaluator.getPaaSTemplatesFromKeyword(basePaaSTemplate, functionParam.getTemplateName(),
                 builtPaaSTemplates);
         // getting the top hierarchical parent
         String serviceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate((PaaSNodeTemplate) paaSTemplates.get(paaSTemplates.size() - 1));
-        return evaluateAttributeName(functionParam.getParameters().get(1), serviceName, instanceId);
+        return evaluateAttributeName(functionParam.getPropertyOrAttributeName(), serviceName, instanceId);
     }
 
     /* consider doing this in the tosca yaml parser */

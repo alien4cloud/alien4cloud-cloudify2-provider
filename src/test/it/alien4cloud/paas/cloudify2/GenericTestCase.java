@@ -158,6 +158,7 @@ public class GenericTestCase {
         pluginConfigurationBean.getCloudifyConnectionConfigurations().get(0).setCloudifyURL(cloudifyURL);
         pluginConfigurationBean.setSynchronousDeployment(true);
         pluginConfigurationBean.getCloudifyConnectionConfigurations().get(0).setVersion("2.7.1");
+        pluginConfigurationBean.setConnectionTimeOutInSeconds(5);
         cloudifyPaaSPovider.setConfiguration(pluginConfigurationBean);
         cloudifyRestClientManager = cloudifyPaaSPovider.getCloudifyRestClientManager();
         CloudResourceMatcherConfig matcherConf = new CloudResourceMatcherConfig();
