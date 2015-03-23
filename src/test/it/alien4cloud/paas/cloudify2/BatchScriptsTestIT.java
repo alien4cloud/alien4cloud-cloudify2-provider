@@ -35,7 +35,7 @@ public class BatchScriptsTestIT extends GenericTestCase {
 
     @Test
     @Ignore
-    public void computeWithBatchScriptsTest() throws Exception {
+    public void computeWithBatchScriptsTest() throws Throwable {
         log.info("\n\n >> Executing Test computeWithBatchScriptsTest \n");
 
         this.uploadGitArchive("samples", "tomcat-war");

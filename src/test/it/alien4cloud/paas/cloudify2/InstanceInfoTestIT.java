@@ -24,7 +24,7 @@ public class InstanceInfoTestIT extends GenericTestCase {
     }
 
     @Test
-    public void testScaleAndGetInstancesInformations() throws Exception {
+    public void testScaleAndGetInstancesInformations() throws Throwable {
         log.info("\n\n >> Executing Test testScaleAndGetInstancesInformations \n");
         String cloudifyAppId = null;
         this.uploadGitArchive("samples", "tomcat-war");

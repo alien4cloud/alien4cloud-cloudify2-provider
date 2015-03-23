@@ -2,7 +2,6 @@ package alien4cloud.paas.cloudify2;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.IOException;
 import java.util.Map;
 
 import javax.annotation.Resource;
@@ -14,7 +13,6 @@ import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
 import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.PaaSDeploymentException;
@@ -22,10 +20,8 @@ import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
-import alien4cloud.tosca.parser.ParsingException;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
+import com.google.common.collect.Lists;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("classpath:application-context-testit.xml")
@@ -42,14 +38,13 @@ public class DeploymentTestIT extends GenericTestCase {
     }
 
     @Test(expected = PaaSDeploymentException.class)
-    public void deployATopologyWhenNoComputeAreDefinedShouldFail() throws JsonParseException, JsonMappingException, ParsingException,
-            CSARVersionAlreadyExistsException, IOException {
+    public void deployATopologyWhenNoComputeAreDefinedShouldFail() throws Throwable {
         log.info("\n\n >> Executing Test deployATopologyWhenNoComputeAreDefinedShouldFail \n");
         deployTopology("noCompute", null, null);
     }
 
     @Test
-    public void topologyWithShScriptsTests() throws Exception {
+    public void topologyWithShScriptsTests() throws Throwable {
         log.info("\n\n >> Executing Test topologyWithShScriptsTests \n");
 
         String cloudifyAppId = null;
@@ -75,7 +70,7 @@ public class DeploymentTestIT extends GenericTestCase {
     }
 
     @Test(expected = PaaSAlreadyDeployedException.class)
-    public void applicationAlreadyDeployedTest() throws Exception {
+    public void applicationAlreadyDeployedTest() throws Throwable {
         log.info("\n\n >> Executing Test applicationAlreadyDeployedTest \n");
 
         this.uploadGitArchive("samples", "tomcat-war");
@@ -101,9 +96,8 @@ public class DeploymentTestIT extends GenericTestCase {
         final String cloudifyURL = cloudifyPaaSPovider.getCloudifyRestClientManager().getCloudifyURL().toString();
 
         PluginConfigurationBean pluginConfigurationBean2 = anotherCloudifyPaaSPovider.getPluginConfigurationBean();
-        pluginConfigurationBean2.getCloudifyConnectionConfigurations().get(0).setCloudifyURL(cloudifyURL2);
-        pluginConfigurationBean2.setSynchronousDeployment(true);
-        pluginConfigurationBean2.getCloudifyConnectionConfigurations().get(0).setVersion("2.7.1");
+        pluginConfigurationBean2.setCloudifyURLs(Lists.newArrayList(cloudifyURL2));
+        pluginConfigurationBean2.setVersion("2.7.1");
         try {
             anotherCloudifyPaaSPovider.setConfiguration(pluginConfigurationBean2);
         } catch (Exception e) {

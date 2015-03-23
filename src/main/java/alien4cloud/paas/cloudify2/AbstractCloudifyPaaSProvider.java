@@ -22,14 +22,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.cloudifysource.dsl.internal.CloudifyConstants;
 import org.cloudifysource.dsl.internal.CloudifyConstants.DeploymentState;
 import org.cloudifysource.dsl.internal.CloudifyConstants.USMState;
 import org.cloudifysource.dsl.rest.request.InstallApplicationRequest;
 import org.cloudifysource.dsl.rest.request.InvokeCustomCommandRequest;
 import org.cloudifysource.dsl.rest.request.SetServiceInstancesRequest;
 import org.cloudifysource.dsl.rest.response.ApplicationDescription;
-import org.cloudifysource.dsl.rest.response.DeploymentEvent;
 import org.cloudifysource.dsl.rest.response.InstanceDescription;
 import org.cloudifysource.dsl.rest.response.InvokeInstanceCommandResponse;
 import org.cloudifysource.dsl.rest.response.InvokeServiceCommandResponse;
@@ -222,44 +220,9 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             request.setSelfHealing(selfHealing);
 
             restClient.installApplication(deploymentId, request);
-            if (getPluginConfigurationBean().isSynchronousDeployment()) {
-                this.waitForApplicationInstallation(restClient, deploymentId);
-            }
         } catch (RestClientException | PluginConfigurationException e) {
             throwPaaSDeploymentException("Unable to deploy application '" + deploymentId + "'.", e);
         }
-    }
-
-    private void waitForApplicationInstallation(RestClient restClient, String applicationName) throws PaaSDeploymentException {
-        ApplicationDescription applicationDescription = null;
-        DeploymentState currentDeploymentState = null;
-
-        long timeout = System.currentTimeMillis() + TIMEOUT_IN_MILLIS;
-        try {
-            while (System.currentTimeMillis() < timeout) {
-                applicationDescription = restClient.getApplicationDescription(applicationName);
-                currentDeploymentState = applicationDescription.getApplicationState();
-
-                switch (currentDeploymentState) {
-                case STARTED:
-                    log.info(String.format("Deployment of application '%s' is finished with success", applicationName));
-                    return;
-                case FAILED:
-                    throw new PaaSDeploymentException(String.format("Failed deploying application '%s'", applicationName));
-                default:
-                    try {
-                        Thread.sleep(DEFAULT_SLEEP_TIME);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        log.warn("Waiting to retrieve application '" + applicationName + "' state interrupted... ", e);
-                    }
-                }
-            }
-        } catch (RestClientException e) {
-            throw new PaaSDeploymentException("Failed checking application deployment.\n\t Cause: " + e.getMessageFormattedText(), e);
-        }
-
-        throw new PaaSDeploymentException("Application '" + applicationName + "' fails to reach started state in time.");
     }
 
     @Override
@@ -279,12 +242,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             RestClient restClient = cloudifyRestClientManager.getRestClient();
             UninstallApplicationResponse uninstallApplication = restClient.uninstallApplication(deploymentId, (int) TIMEOUT_IN_MILLIS);
 
-            // if synchronous mode, wait for the real end of undeployment
-            if (getPluginConfigurationBean().isSynchronousDeployment()) {
-                log.info("Synchronous deployment. Waiting for deployment <" + deploymentId + "> to be totally undeployed");
-                String cdfyDeploymentId = uninstallApplication.getDeploymentID();
-                this.waitUndeployApplication(cdfyDeploymentId);
-            }
         } catch (RestClientException | PluginConfigurationException e) {
             throwPaaSDeploymentException("Couldn't uninstall topology '" + deploymentId + "'.", e);
         }
@@ -301,25 +258,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         dsMonitorEvent.setDeploymentStatus(status);
         dsMonitorEvent.setDate(new Date().getTime());
         monitorEvents.add(dsMonitorEvent);
-    }
-
-    private void waitUndeployApplication(String deploymentID) throws PluginConfigurationException, RestClientException {
-        long timeout = System.currentTimeMillis() + TIMEOUT_IN_MILLIS;
-        while (System.currentTimeMillis() < timeout) {
-            DeploymentEvent lastEvent = cloudifyRestClientManager.getRestClient().getLastEvent(deploymentID);
-            String description = lastEvent.getDescription();
-            if (description != null && description.contains(CloudifyConstants.UNDEPLOYED_SUCCESSFULLY_EVENT)) {
-                return;
-            }
-            try {
-                Thread.sleep(DEFAULT_SLEEP_TIME);
-            } catch (InterruptedException e) {
-                log.warn("Waiting undeployment interrupted (deploymenID=" + deploymentID + ")");
-                Thread.currentThread().interrupt();
-            }
-        }
-
-        log.warn("Application '" + deploymentID + "' fails to undeployed in time. You may do it manually.");
     }
 
     @Override
