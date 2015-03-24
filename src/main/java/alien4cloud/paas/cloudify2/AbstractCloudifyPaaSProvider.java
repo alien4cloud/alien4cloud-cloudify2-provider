@@ -33,7 +33,6 @@ import org.cloudifysource.dsl.rest.response.InvokeInstanceCommandResponse;
 import org.cloudifysource.dsl.rest.response.InvokeServiceCommandResponse;
 import org.cloudifysource.dsl.rest.response.ServiceDescription;
 import org.cloudifysource.dsl.rest.response.ServiceInstanceDetails;
-import org.cloudifysource.dsl.rest.response.UninstallApplicationResponse;
 import org.cloudifysource.dsl.rest.response.UploadResponse;
 import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
@@ -240,7 +239,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
             // trigger undeplyment cloudify side
             RestClient restClient = cloudifyRestClientManager.getRestClient();
-            UninstallApplicationResponse uninstallApplication = restClient.uninstallApplication(deploymentId, (int) TIMEOUT_IN_MILLIS);
+            restClient.uninstallApplication(deploymentId, (int) TIMEOUT_IN_MILLIS);
 
         } catch (RestClientException | PluginConfigurationException e) {
             throwPaaSDeploymentException("Couldn't uninstall topology '" + deploymentId + "'.", e);

@@ -469,12 +469,12 @@ public class GenericTestCase {
         cloudifyPaaSPovider.executeOperation(deploymentContext, request, callback);
     }
 
-    protected void testUndeployment(String applicationId) throws RestClientException {
+    protected void testUndeployment(String applicationId) throws Throwable {
         PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
         deploymentContext.setDeploymentId(applicationId);
         cloudifyPaaSPovider.undeploy(deploymentContext, null);
+        waitUndeployApplication(applicationId);
         assertApplicationIsUninstalled(applicationId);
-
         Iterator<String> idsIter = deployedCloudifyAppIds.iterator();
         while (idsIter.hasNext()) {
             if (idsIter.next().equals(applicationId)) {
