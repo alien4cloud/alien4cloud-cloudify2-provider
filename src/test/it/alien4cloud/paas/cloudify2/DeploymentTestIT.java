@@ -99,6 +99,7 @@ public class DeploymentTestIT extends GenericTestCase {
         PluginConfigurationBean pluginConfigurationBean2 = anotherCloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean2.setCloudifyURLs(Lists.newArrayList(cloudifyURL2));
         pluginConfigurationBean2.setVersion("2.7.1");
+        pluginConfigurationBean2.setConnectionTimeOutInSeconds(5);
         try {
             anotherCloudifyPaaSPovider.setConfiguration(pluginConfigurationBean2);
         } catch (Exception e) {

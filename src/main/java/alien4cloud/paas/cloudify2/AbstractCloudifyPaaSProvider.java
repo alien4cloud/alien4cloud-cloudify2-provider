@@ -222,7 +222,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             request.setApplcationFileUploadKey(uploadResponse.getUploadKey());
             request.setApplicationName(deploymentId);
             request.setSelfHealing(selfHealing);
-
             restClient.installApplication(deploymentId, request);
         } catch (RestClientIOException e) {
             throw new PaaSDeploymentIOException("IO exception while trying to reach cloudify. \n\tCause:" + e.getMessageFormattedText(), e);
@@ -664,7 +663,8 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     private synchronized void cleanupUnknownApplicationsStatuses(CloudifyEventsListener listener, List<String> appUnknownStatuses) throws URISyntaxException,
             IOException {
         for (String appUnknownStatus : appUnknownStatuses) {
-            if (DeploymentStatus.DEPLOYMENT_IN_PROGRESS.equals(statusByDeployments.get(appUnknownStatus).deploymentStatus)) {
+            if (DeploymentStatus.DEPLOYMENT_IN_PROGRESS.equals(statusByDeployments.get(appUnknownStatus).deploymentStatus)
+                    || DeploymentStatus.UNKNOWN.equals(statusByDeployments.get(appUnknownStatus).deploymentStatus)) {
                 DeploymentInfo deploymentInfo = statusByDeployments.get(appUnknownStatus);
                 if (deploymentInfo.deploymentDate + MAX_DEPLOYMENT_TIMEOUT_MILLIS < new Date().getTime()) {
                     log.info("Deployment has timed out... setting as undeployed...");
