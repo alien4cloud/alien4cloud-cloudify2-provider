@@ -8,6 +8,7 @@ import javax.annotation.Resource;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
@@ -64,7 +65,7 @@ public class DeploymentTestIT extends GenericTestCase {
             testUndeployment(cloudifyAppId);
 
         } catch (Exception e) {
-            log.error("Test Failed", e);
+            log.error("Test Failed: " + (e instanceof RestClientException ? ((RestClientException) e).getMessageFormattedText() : e.getMessage()), e);
             throw e;
         }
     }

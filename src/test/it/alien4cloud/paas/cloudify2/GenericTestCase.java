@@ -22,10 +22,8 @@ import javax.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.io.FileUtils;
-import org.cloudifysource.dsl.internal.CloudifyConstants;
 import org.cloudifysource.dsl.internal.CloudifyConstants.DeploymentState;
 import org.cloudifysource.dsl.rest.response.ApplicationDescription;
-import org.cloudifysource.dsl.rest.response.DeploymentEvent;
 import org.cloudifysource.dsl.rest.response.GetMachinesDumpFileResponse;
 import org.cloudifysource.dsl.rest.response.ServiceDescription;
 import org.cloudifysource.dsl.rest.response.ServiceInstanceDetails;
@@ -117,7 +115,6 @@ public class GenericTestCase {
     @Resource
     protected ElasticSearchDAO alienDAO;
 
-    @Resource
     protected CsarFileRepository archiveRepositry;
 
     @Resource
@@ -161,7 +158,7 @@ public class GenericTestCase {
         testsUtils.uploadGitArchive("alien-extended-types", "alien-base-types-1.0-SNAPSHOT");
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        cloudifyURL = cloudifyURL == null ? "http://129.185.67.108:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "http://129.185.67.107:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.setCloudifyURLs(Lists.newArrayList(cloudifyURL));
         pluginConfigurationBean.setVersion("2.7.1");
@@ -473,7 +470,7 @@ public class GenericTestCase {
         PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
         deploymentContext.setDeploymentId(applicationId);
         cloudifyPaaSPovider.undeploy(deploymentContext, null);
-        waitUndeployApplication(applicationId);
+        waitUndeployApplication(this.cloudifyRestClientManager.getRestClient(), applicationId);
         assertApplicationIsUninstalled(applicationId);
         Iterator<String> idsIter = deployedCloudifyAppIds.iterator();
         while (idsIter.hasNext()) {
@@ -549,16 +546,27 @@ public class GenericTestCase {
         throw new PaaSDeploymentException("Application '" + applicationName + "' fails to reach started state in time.");
     }
 
-    private void waitUndeployApplication(String deploymentID) throws Throwable {
+    private void waitUndeployApplication(CloudifyRestClient restClient, String deploymentID) {
         long timeout = System.currentTimeMillis() + TIMEOUT_IN_MILLIS;
         while (System.currentTimeMillis() < timeout) {
-            DeploymentEvent lastEvent = cloudifyRestClientManager.getRestClient().getLastEvent(deploymentID);
-            String description = lastEvent.getDescription();
-            if (description != null && description.contains(CloudifyConstants.UNDEPLOYED_SUCCESSFULLY_EVENT)) {
-                return;
-            }
+            boolean exists = false;
             try {
-                Thread.sleep(DEFAULT_SLEEP_TIME);
+                List<ApplicationDescription> apps = restClient.getApplicationDescriptionsList();
+                for (ApplicationDescription applicationDescription : apps) {
+                    if (applicationDescription.getApplicationName().equalsIgnoreCase(deploymentID)) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (exists) {
+                    Thread.sleep(DEFAULT_SLEEP_TIME);
+                } else {
+                    return;
+                }
+
+            } catch (RestClientException e) {
+                log.warn("", e);
+                return;
             } catch (InterruptedException e) {
                 log.warn("Waiting undeployment interrupted (deploymenID=" + deploymentID + ")");
                 Thread.currentThread().interrupt();

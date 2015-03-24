@@ -36,6 +36,7 @@ import org.cloudifysource.dsl.rest.response.ServiceInstanceDetails;
 import org.cloudifysource.dsl.rest.response.UploadResponse;
 import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
+import org.cloudifysource.restclient.exceptions.RestClientIOException;
 
 import alien4cloud.dao.IGenericSearchDAO;
 import alien4cloud.exception.TechnicalException;
@@ -57,6 +58,7 @@ import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.exception.OperationExecutionException;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.PaaSDeploymentException;
+import alien4cloud.paas.exception.PaaSDeploymentIOException;
 import alien4cloud.paas.exception.PaaSNotYetDeployedException;
 import alien4cloud.paas.exception.PaaSTechnicalException;
 import alien4cloud.paas.exception.PluginConfigurationException;
@@ -96,7 +98,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
     private static final long TIMEOUT_IN_MILLIS = 1000L * 60L * 10L; // 10 minutes
     private static final long MAX_DEPLOYMENT_TIMEOUT_MILLIS = 1000L * 60L * 5L; // 5 minutes
-    private static final long DEFAULT_SLEEP_TIME = 5000L;
     private static final boolean DEFAULT_SELF_HEALING = true;
 
     private static final String INVOCATION_INSTANCE_ID_KEY = "Invocation_Instance_ID";
@@ -151,6 +152,10 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             log.info("Deploying application from recipe at <{}>", cfyZipPath);
             this.deployOnCloudify(deploymentId, cfyZipPath, getSelHealingProperty(deploymentSetup));
             registerDeploymentStatus(deploymentId, DeploymentStatus.DEPLOYMENT_IN_PROGRESS);
+        } catch (PaaSDeploymentIOException e) {
+            log.warn("IO exception while trying to reach cloudify. Status will move to unknown.", e);
+            updateStatusAndRegisterEvent(deploymentId, DeploymentStatus.UNKNOWN);
+            throw e;
         } catch (Exception e) {
             log.error("Deployment failed. Status will move to undeployed.", e);
             updateStatusAndRegisterEvent(deploymentId, DeploymentStatus.UNDEPLOYED);
@@ -219,6 +224,8 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             request.setSelfHealing(selfHealing);
 
             restClient.installApplication(deploymentId, request);
+        } catch (RestClientIOException e) {
+            throw new PaaSDeploymentIOException("IO exception while trying to reach cloudify. \n\tCause:" + e.getMessageFormattedText(), e);
         } catch (RestClientException | PluginConfigurationException e) {
             throwPaaSDeploymentException("Unable to deploy application '" + deploymentId + "'.", e);
         }
