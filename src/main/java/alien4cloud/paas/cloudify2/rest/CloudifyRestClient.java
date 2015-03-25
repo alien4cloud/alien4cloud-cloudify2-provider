@@ -1,4 +1,4 @@
-package alien4cloud.paas.cloudify2;
+package alien4cloud.paas.cloudify2.rest;
 
 import java.net.URL;
 import java.util.Map;
@@ -12,6 +12,7 @@ import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.codehaus.jackson.type.TypeReference;
 
+import alien4cloud.paas.cloudify2.CloudifyComputeTemplate;
 import alien4cloud.utils.MapUtil;
 
 import com.google.common.collect.Maps;
@@ -27,6 +28,7 @@ public class CloudifyRestClient extends RestClient {
     public CloudifyRestClient(URL url, String username, String password, String apiVersion) throws RestClientException {
         super(url, username, password, apiVersion);
         versionedDeploymentControllerUrl = apiVersion + DEPLOYMENT_CONTROLLER_URL;
+
     }
 
     public ServiceInstanceDetails getServiceInstanceDetails(final String appName, final String serviceName, final Integer instanceId)
@@ -56,5 +58,18 @@ public class CloudifyRestClient extends RestClient {
             }
         }
         return computeTemplates;
+    }
+
+    public void testLogin() throws RestClientException {
+        String url = "/service/testlogin";
+        executor.get(url, new TypeReference<Response<Object>>() {
+        });
+    }
+
+    public void test(boolean testLogin) throws RestClientException {
+        this.connect();
+        if (testLogin) {
+            this.testLogin();
+        }
     }
 }

@@ -14,6 +14,7 @@ import org.junit.Assert;
 
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.events.BlockStorageEvent;
+import alien4cloud.paas.cloudify2.rest.CloudifyEventsListener;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 
 import com.google.common.collect.Sets;

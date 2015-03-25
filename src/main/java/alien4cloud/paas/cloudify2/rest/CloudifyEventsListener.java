@@ -1,4 +1,4 @@
-package alien4cloud.paas.cloudify2;
+package alien4cloud.paas.cloudify2.rest;
 
 import java.io.IOException;
 import java.net.URI;
