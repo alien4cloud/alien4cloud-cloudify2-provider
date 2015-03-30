@@ -14,4 +14,8 @@ public final class AlienExtentedConstants {
     public static final String SHELL_ARTIFACT_TYPE = "tosca.artifacts.ShellScript";
     public static final String GROOVY_ARTIFACT_TYPE = "tosca.artifacts.GroovyScript";
     public static final String BATCH_ARTIFACT_TYPE = "alien.artifacts.BatchScript";
+
+    // attributes
+    public static final String IP_ADDRESS = "ip_address";
+
 }

@@ -16,14 +16,23 @@ public class CloudifyUtils {
   }
   
   @Synchronized
-  static def putRelationshipOperationEvent(application, service, instanceId, eventResume, source, target) {
-      manager.putRelationshipOperationEvent(application, service, instanceId, eventResume, source, target);
+  static def putRelationshipOperationEvent(application, nodeResume, eventResume, source, target) {
+      manager.putRelationshipOperationEvent(application, nodeResume, eventResume, source, target);
   }
 
   static def waitFor(cloudifyService, serviceToWait, List states) {
     def context = ServiceContextFactory.getServiceContext()
-    def dbService = context.waitForService(cloudifyService, 60, TimeUnit.MINUTES)
-    def dbInstances = dbService.waitForInstances(dbService.numberOfPlannedInstances, 60, TimeUnit.MINUTES)
+
+    println "[CloudifyUtils] Cloudify waitFor ${serviceToWait}"
+    def endTime = java.lang.System.currentTimeMillis() + 3600L * 1000L
+    def dbInstances = null
+    while( java.lang.System.currentTimeMillis() < endTime && dbInstances == null) {
+      def dbService = context.waitForService(cloudifyService, 1, TimeUnit.MINUTES)
+      if(dbService!=null) {
+        dbInstances = dbService.waitForInstances(dbService.numberOfPlannedInstances, 1, TimeUnit.MINUTES)
+      }
+    }
+    println "[CloudifyUtils] Cloudify got service ${serviceToWait}"
 
     dbInstances.each() { instance ->
       manager.waitFor(context.getApplicationName(), serviceToWait, instance.getInstanceId(), states)

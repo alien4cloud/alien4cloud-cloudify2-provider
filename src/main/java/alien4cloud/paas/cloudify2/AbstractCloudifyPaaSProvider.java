@@ -22,28 +22,25 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.cloudifysource.dsl.internal.CloudifyConstants;
 import org.cloudifysource.dsl.internal.CloudifyConstants.DeploymentState;
 import org.cloudifysource.dsl.internal.CloudifyConstants.USMState;
 import org.cloudifysource.dsl.rest.request.InstallApplicationRequest;
 import org.cloudifysource.dsl.rest.request.InvokeCustomCommandRequest;
 import org.cloudifysource.dsl.rest.request.SetServiceInstancesRequest;
 import org.cloudifysource.dsl.rest.response.ApplicationDescription;
-import org.cloudifysource.dsl.rest.response.DeploymentEvent;
 import org.cloudifysource.dsl.rest.response.InstanceDescription;
 import org.cloudifysource.dsl.rest.response.InvokeInstanceCommandResponse;
 import org.cloudifysource.dsl.rest.response.InvokeServiceCommandResponse;
 import org.cloudifysource.dsl.rest.response.ServiceDescription;
 import org.cloudifysource.dsl.rest.response.ServiceInstanceDetails;
-import org.cloudifysource.dsl.rest.response.UninstallApplicationResponse;
 import org.cloudifysource.dsl.rest.response.UploadResponse;
 import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
+import org.cloudifysource.restclient.exceptions.RestClientIOException;
 
 import alien4cloud.dao.IGenericSearchDAO;
 import alien4cloud.exception.TechnicalException;
 import alien4cloud.model.application.DeploymentSetup;
-import alien4cloud.model.components.AbstractPropertyValue;
 import alien4cloud.model.components.IAttributeValue;
 import alien4cloud.model.components.IOperationParameter;
 import alien4cloud.model.components.IndexedNodeType;
@@ -52,6 +49,7 @@ import alien4cloud.model.topology.ScalingPolicy;
 import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.IConfigurablePaaSProvider;
 import alien4cloud.paas.IPaaSCallback;
+import alien4cloud.paas.ITemplateManagedPaaSProvider;
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.events.BlockStorageEvent;
 import alien4cloud.paas.cloudify2.events.NodeInstanceState;
@@ -60,6 +58,7 @@ import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.exception.OperationExecutionException;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.PaaSDeploymentException;
+import alien4cloud.paas.exception.PaaSDeploymentIOException;
 import alien4cloud.paas.exception.PaaSNotYetDeployedException;
 import alien4cloud.paas.exception.PaaSTechnicalException;
 import alien4cloud.paas.exception.PluginConfigurationException;
@@ -84,7 +83,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 @Slf4j
-public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSProvider<PluginConfigurationBean> {
+public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSProvider<PluginConfigurationBean>, ITemplateManagedPaaSProvider {
 
     @Resource
     @Getter
@@ -99,7 +98,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
     private static final long TIMEOUT_IN_MILLIS = 1000L * 60L * 10L; // 10 minutes
     private static final long MAX_DEPLOYMENT_TIMEOUT_MILLIS = 1000L * 60L * 5L; // 5 minutes
-    private static final long DEFAULT_SLEEP_TIME = 5000L;
     private static final boolean DEFAULT_SELF_HEALING = true;
 
     private static final String INVOCATION_INSTANCE_ID_KEY = "Invocation_Instance_ID";
@@ -154,6 +152,10 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             log.info("Deploying application from recipe at <{}>", cfyZipPath);
             this.deployOnCloudify(deploymentId, cfyZipPath, getSelHealingProperty(deploymentSetup));
             registerDeploymentStatus(deploymentId, DeploymentStatus.DEPLOYMENT_IN_PROGRESS);
+        } catch (PaaSDeploymentIOException e) {
+            log.warn("IO exception while trying to reach cloudify. Status will move to unknown.", e);
+            updateStatusAndRegisterEvent(deploymentId, DeploymentStatus.UNKNOWN);
+            throw e;
         } catch (Exception e) {
             log.error("Deployment failed. Status will move to undeployed.", e);
             updateStatusAndRegisterEvent(deploymentId, DeploymentStatus.UNDEPLOYED);
@@ -180,15 +182,22 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         if (deploymentInfo == null) {
             deploymentInfo = new DeploymentInfo();
         }
-        if (deploymentInfo.topology == null) {
-            deploymentInfo.topology = alienMonitorDao.findById(Topology.class, deploymentId);
-        }
+        checkAndFillTopology(deploymentId, deploymentInfo);
         if (deploymentInfo.topology != null) {
             deploymentInfo.deploymentStatus = status;
             statusByDeployments.put(deploymentId, deploymentInfo);
             return true;
-        } else {
-            return false;
+        }
+
+        return false;
+    }
+
+    private void checkAndFillTopology(String deploymentId, DeploymentInfo deploymentInfo) {
+        if (deploymentInfo.topology == null) {
+            deploymentInfo.topology = alienMonitorDao.findById(Topology.class, deploymentId);
+            if (deploymentInfo.topology != null) {
+                deploymentInfo.paaSNodeTemplates = topologyTreeBuilderService.buildPaaSTopology(deploymentInfo.topology).getAllNodes();
+            }
         }
     }
 
@@ -213,46 +222,12 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             request.setApplcationFileUploadKey(uploadResponse.getUploadKey());
             request.setApplicationName(deploymentId);
             request.setSelfHealing(selfHealing);
-
             restClient.installApplication(deploymentId, request);
-            if (getPluginConfigurationBean().isSynchronousDeployment()) {
-                this.waitForApplicationInstallation(restClient, deploymentId);
-            }
+        } catch (RestClientIOException e) {
+            throw new PaaSDeploymentIOException("IO exception while trying to reach cloudify. \n\tCause:" + e.getMessageFormattedText(), e);
         } catch (RestClientException | PluginConfigurationException e) {
             throwPaaSDeploymentException("Unable to deploy application '" + deploymentId + "'.", e);
         }
-    }
-
-    private void waitForApplicationInstallation(RestClient restClient, String applicationName) throws PaaSDeploymentException {
-        ApplicationDescription applicationDescription = null;
-        DeploymentState currentDeploymentState = null;
-
-        long timeout = System.currentTimeMillis() + TIMEOUT_IN_MILLIS;
-        try {
-            while (System.currentTimeMillis() < timeout) {
-                applicationDescription = restClient.getApplicationDescription(applicationName);
-                currentDeploymentState = applicationDescription.getApplicationState();
-
-                switch (currentDeploymentState) {
-                case STARTED:
-                    log.info(String.format("Deployment of application '%s' is finished with success", applicationName));
-                    return;
-                case FAILED:
-                    throw new PaaSDeploymentException(String.format("Failed deploying application '%s'", applicationName));
-                default:
-                    try {
-                        Thread.sleep(DEFAULT_SLEEP_TIME);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        log.warn("Waiting to retrieve application '" + applicationName + "' state interrupted... ", e);
-                    }
-                }
-            }
-        } catch (RestClientException e) {
-            throw new PaaSDeploymentException("Failed checking application deployment.\n\t Cause: " + e.getMessageFormattedText(), e);
-        }
-
-        throw new PaaSDeploymentException("Application '" + applicationName + "' fails to reach started state in time.");
     }
 
     @Override
@@ -270,14 +245,8 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
             // trigger undeplyment cloudify side
             RestClient restClient = cloudifyRestClientManager.getRestClient();
-            UninstallApplicationResponse uninstallApplication = restClient.uninstallApplication(deploymentId, (int) TIMEOUT_IN_MILLIS);
+            restClient.uninstallApplication(deploymentId, (int) TIMEOUT_IN_MILLIS);
 
-            // if synchronous mode, wait for the real end of undeployment
-            if (getPluginConfigurationBean().isSynchronousDeployment()) {
-                log.info("Synchronous deployment. Waiting for deployment <" + deploymentId + "> to be totally undeployed");
-                String cdfyDeploymentId = uninstallApplication.getDeploymentID();
-                this.waitUndeployApplication(cdfyDeploymentId);
-            }
         } catch (RestClientException | PluginConfigurationException e) {
             throwPaaSDeploymentException("Couldn't uninstall topology '" + deploymentId + "'.", e);
         }
@@ -294,25 +263,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         dsMonitorEvent.setDeploymentStatus(status);
         dsMonitorEvent.setDate(new Date().getTime());
         monitorEvents.add(dsMonitorEvent);
-    }
-
-    private void waitUndeployApplication(String deploymentID) throws PluginConfigurationException, RestClientException {
-        long timeout = System.currentTimeMillis() + TIMEOUT_IN_MILLIS;
-        while (System.currentTimeMillis() < timeout) {
-            DeploymentEvent lastEvent = cloudifyRestClientManager.getRestClient().getLastEvent(deploymentID);
-            String description = lastEvent.getDescription();
-            if (description != null && description.contains(CloudifyConstants.UNDEPLOYED_SUCCESSFULLY_EVENT)) {
-                return;
-            }
-            try {
-                Thread.sleep(DEFAULT_SLEEP_TIME);
-            } catch (InterruptedException e) {
-                log.warn("Waiting undeployment interrupted (deploymenID=" + deploymentID + ")");
-                Thread.currentThread().interrupt();
-            }
-        }
-
-        log.warn("Application '" + deploymentID + "' fails to undeployed in time. You may do it manually.");
     }
 
     @Override
@@ -357,13 +307,10 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             // get the current number of instances
             int currentPlannedInstances = getPlannedInstancesCount(nodeTempalteEntry.getKey(), topology);
             for (int i = 1; i <= currentPlannedInstances; i++) {
-                Map<String, AbstractPropertyValue> properties = nodeTempalteEntry.getValue().getProperties() == null ? null : Maps.newHashMap(nodeTempalteEntry
-                        .getValue().getProperties());
                 Map<String, String> attributes = nodeTempalteEntry.getValue().getAttributes() == null ? null : Maps.newHashMap(nodeTempalteEntry.getValue()
                         .getAttributes());
                 // Map<String, String> runtimeProperties = Maps.newHashMap();
-                InstanceInformation instanceInfo = new InstanceInformation(ToscaNodeLifecycleConstants.INITIAL, InstanceStatus.PROCESSING,
-                        FunctionEvaluator.getScalarValues(properties), attributes, null);
+                InstanceInformation instanceInfo = new InstanceInformation(ToscaNodeLifecycleConstants.INITIAL, InstanceStatus.PROCESSING, attributes, null);
                 nodeInstanceInfos.put(String.valueOf(i), instanceInfo);
             }
             instanceInformations.put(nodeTempalteEntry.getKey(), nodeInstanceInfos);
@@ -403,10 +350,9 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                 InstanceInformation instanceInformation = nodeTemplateInstanceInformations.get(instanceId);
                 if (instanceInformation == null) {
                     Map<String, String> runtimeProperties = Maps.newHashMap();
-                    Map<String, String> properties = Maps.newHashMap();
                     Map<String, String> attributes = Maps.newHashMap();
-                    InstanceInformation newInstanceInformation = new InstanceInformation(instanceState.getInstanceState(), instanceStatus, properties,
-                            attributes, runtimeProperties);
+                    InstanceInformation newInstanceInformation = new InstanceInformation(instanceState.getInstanceState(), instanceStatus, attributes,
+                            runtimeProperties);
                     nodeTemplateInstanceInformations.put(String.valueOf(instanceId), newInstanceInformation);
                 } else {
                     instanceInformation.setState(instanceState.getInstanceState());
@@ -488,12 +434,14 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
                 if (nodeInstanceNumber.getValue().getAttributes() != null) {
                     for (Entry<String, String> attributeEntry : nodeInstanceNumber.getValue().getAttributes().entrySet()) {
-
                         PaaSNodeTemplate nodeTemplate = deploymentInfo.paaSNodeTemplates.get(nodeInstanceId.getKey());
                         Map<String, IAttributeValue> nodeTemplateAttributes = nodeTemplate.getIndexedToscaElement().getAttributes();
-                        String parsedAttribute = FunctionEvaluator.parseAttribute(attributeEntry.getKey(), nodeTemplateAttributes.get(attributeEntry.getKey()),
-                                topology, instanceInformations, nodeInstanceNumber.getKey(), nodeTemplate);
-                        attributeEntry.setValue(parsedAttribute);
+                        IAttributeValue attributeValue = nodeTemplateAttributes.get(attributeEntry.getKey());
+                        if (attributeValue != null) {
+                            String parsedAttribute = FunctionEvaluator.parseAttribute(attributeEntry.getKey(), attributeValue, topology, instanceInformations,
+                                    nodeInstanceNumber.getKey(), nodeTemplate, deploymentInfo.paaSNodeTemplates);
+                            attributeEntry.setValue(parsedAttribute);
+                        }
                     }
                 }
 
@@ -598,7 +546,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         }
 
         isMonitorEvent.setInstanceStatus(instanceInfo.getInstanceStatus());
-        isMonitorEvent.setProperties(instanceInfo.getProperties());
         isMonitorEvent.setRuntimeProperties(instanceInfo.getRuntimeProperties());
         isMonitorEvent.setAttributes(instanceInfo.getAttributes());
     }
@@ -716,7 +663,8 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     private synchronized void cleanupUnknownApplicationsStatuses(CloudifyEventsListener listener, List<String> appUnknownStatuses) throws URISyntaxException,
             IOException {
         for (String appUnknownStatus : appUnknownStatuses) {
-            if (DeploymentStatus.DEPLOYMENT_IN_PROGRESS.equals(statusByDeployments.get(appUnknownStatus).deploymentStatus)) {
+            if (DeploymentStatus.DEPLOYMENT_IN_PROGRESS.equals(statusByDeployments.get(appUnknownStatus).deploymentStatus)
+                    || DeploymentStatus.UNKNOWN.equals(statusByDeployments.get(appUnknownStatus).deploymentStatus)) {
                 DeploymentInfo deploymentInfo = statusByDeployments.get(appUnknownStatus);
                 if (deploymentInfo.deploymentDate + MAX_DEPLOYMENT_TIMEOUT_MILLIS < new Date().getTime()) {
                     log.info("Deployment has timed out... setting as undeployed...");

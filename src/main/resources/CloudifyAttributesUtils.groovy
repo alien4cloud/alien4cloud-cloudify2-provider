@@ -4,8 +4,6 @@ import groovy.lang.Binding
 import groovy.transform.Synchronized
 import org.cloudifysource.dsl.context.ServiceInstance
 
-import org.cloudifysource.utilitydomain.context.ServiceContextFactory
-
 public class CloudifyAttributesUtils {
 
     public static IP_ADDR = "ip_address"
@@ -13,13 +11,14 @@ public class CloudifyAttributesUtils {
     public static def ATTR_SEPARATOR = ","
 
     static def getAttribute(context, cloudifyService, instanceId, attributeName) {
+        def parsedInstanceId = instanceId? instanceId as int : null
         println "CloudifyGetAttributesUtils.getAttribute: getting attribute <attr: ${attributeName}> < service: ${cloudifyService}> <instanceId: ${instanceId}>"
         def attr = null;
         if(attributeName != null && cloudifyService != null) {
             def serviceAttributes = context.attributes[cloudifyService];
             if( serviceAttributes != null) {
-                 def instanceAttributes = serviceAttributes.instances[instanceId?:context.instanceId];
-                 attr = !instanceAttributes ?: instanceAttributes[attributeName];
+                 def instanceAttributes = serviceAttributes.instances[parsedInstanceId?:context.instanceId];
+                 attr = !instanceAttributes ? null : instanceAttributes[attributeName];
             }
         }
         println "CloudifyGetAttributesUtils.getAttribute: Got [${attr}]"
@@ -30,21 +29,28 @@ public class CloudifyAttributesUtils {
      * Get the Ip of an instance
      */
     static def getIp(context, String cloudifyService, instanceId) {
-        println "CloudifyGetAttributesUtils.getIp: retrieving the Ip address < service: ${cloudifyService}> <instanceId: ${instanceId}>"
-        if(! cloudifyService ) {
-            println "CloudifyGetAttributesUtils.getIp: no service name provided. Will return the current instance private Ip"
+        def parsedInstanceId = instanceId? instanceId as int : null
+        println "CloudifyGetAttributesUtils.getIp: retrieving the Ip address < service: ${cloudifyService}> <instanceId: ${parsedInstanceId}>"
+        if(!cloudifyService // no service name provided, or
+            ||(cloudifyService == context.serviceName //current service name provided, and
+                && (instanceId == null || instanceId == context.instanceId) //current or null instance id provided
+               )) {
+            println "CloudifyGetAttributesUtils.getIp: Returning the current instance private Ip: ${context.getPrivateAddress()}"
             return context.getPrivateAddress();
         }
 
-        def service = context.waitForService(cloudifyService, 60, TimeUnit.MINUTES)
-        def instances = service.waitForInstances(service.numberOfPlannedInstances, 60, TimeUnit.MINUTES)
-        if(! instanceId ) {
-            println "CloudifyGetAttributesUtils.getIp: no instanceId provided. Will use the current instanceId, or will take the first instance."
-            instanceId = context.instanceId
+        def requestedInstance = null
+        def ip = null
+        def service = context.waitForService(cloudifyService, 10, TimeUnit.MINUTES)
+        def instances = service.waitForInstances(service.numberOfPlannedInstances, 10, TimeUnit.MINUTES)
+        requestedInstance = instances.find{ it.instanceId == parsedInstanceId } as ServiceInstance
+        
+        if(!requestedInstance) {
+            println "CloudifyGetAttributesUtils.getIp: Cannot find an instance of < service: ${cloudifyService}> with the id <${parsedInstanceId}>. will take the first instance of service <${cloudifyService}>> found "
+            requestedInstance = service.waitForInstances(1, 10, TimeUnit.MINUTES)[0] as ServiceInstance
         }
-        def requestedInstance = instances.find{ it.instanceId == instanceId } as ServiceInstance
-        def ip = ! requestedInstance ?: requestedInstance.getHostAddress()
-        println "CloudifyGetAttributesUtils.getIp: got [${ip}]"
+        ip = requestedInstance ? requestedInstance.getHostAddress() : null
+        println "CloudifyGetAttributesUtils.getIp: Got for ${cloudifyService}[${parsedInstanceId}]: ${ip}"
         return ip
     }
 

@@ -31,10 +31,12 @@ node_templates:
     relationships:
       hostedOnTomcat:
         target: tomcat
-        type: alien.test.bad.relationships.cloudify.WarHostedOnTomcat
+        type: alien.test.functions.relationships.cloudify.WarHostedOnTomcat
         requirement_name: host
         requirement_type: alien4cloud.capabilities.WarHosting
         targeted_capability_name: war_host
+        properties:
+          relName: war_1_hostedOnTomcat_relname
   war_2:
     type: alien.nodes.cloudify.War
     properties:
@@ -43,10 +45,12 @@ node_templates:
     relationships:
       hostedOnTomcat:
         target: tomcat
-        type: alien.test.bad.relationships.cloudify.WarHostedOnTomcat
+        type: alien.test.functions.relationships.cloudify.WarHostedOnTomcat
         requirement_name: host
         requirement_type: alien4cloud.capabilities.WarHosting
         targeted_capability_name: war_host
+        properties:
+          relName: war_2_hostedOnTomcat_relname        
 
 dependencies:
   - name: tosca-normative-types

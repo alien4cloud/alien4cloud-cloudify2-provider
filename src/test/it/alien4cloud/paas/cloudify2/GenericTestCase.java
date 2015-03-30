@@ -56,6 +56,7 @@ import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.exception.A4CCloudifyDriverITException;
 import alien4cloud.paas.cloudify2.testutils.TestsUtils;
 import alien4cloud.paas.exception.OperationExecutionException;
+import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.model.AbstractMonitorEvent;
 import alien4cloud.paas.model.DeploymentStatus;
 import alien4cloud.paas.model.NodeOperationExecRequest;
@@ -79,6 +80,10 @@ public class GenericTestCase {
 
     protected static final int HTTP_CODE_OK = 200;
 
+    protected static final long DEFAULT_SLEEP_TIME = 5000L;
+
+    private static final long TIMEOUT_IN_MILLIS = 1000L * 60L * 10L; // 10 minutes
+
     protected static final String DEFAULT_TOMCAT_PORT = "8080";
 
     protected static final String ALIEN_WINDOWS_IMAGE = "alienWindowsImage";
@@ -88,6 +93,7 @@ public class GenericTestCase {
     protected static final String ALIEN_FLAVOR = "alienFlavor";
 
     public static final String IAAS_IMAGE_ID = "RegionOne/2b4475df-b6d6-49b7-a062-a3a20d45ab7c";
+    public static final String IAAS_WIN_IMAGE_ID = "RegionOne/16b1bb77-b0df-4a4a-adf1-b81fb30ab1f7";
 
     public static final String EXTENDED_TYPES_REPO = "alien-extended-types";
 
@@ -96,6 +102,8 @@ public class GenericTestCase {
     public static final String ALIEN_STORAGE = "alienStorage";
     public static final String ALIEN_STORAGE_DEVICE = "/dev/vdb";
     public static final String IAAS_BLOCK_STORAGE_ID = "SMALL_BLOCK";
+    public static final String TEMPLATE_ID = "SMALL_LINUX";
+    // public static final String TEMPLATE_ID = "MANAGER_TEMPLATE";
 
     @Resource
     protected ArchiveUploadService archiveUploadService;
@@ -107,7 +115,6 @@ public class GenericTestCase {
     @Resource
     protected ElasticSearchDAO alienDAO;
 
-    @Resource
     protected CsarFileRepository archiveRepositry;
 
     @Resource
@@ -151,11 +158,11 @@ public class GenericTestCase {
         testsUtils.uploadGitArchive("alien-extended-types", "alien-base-types-1.0-SNAPSHOT");
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        cloudifyURL = cloudifyURL == null ? "http://129.185.67.109:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "http://129.185.67.107:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
-        pluginConfigurationBean.getCloudifyConnectionConfigurations().get(0).setCloudifyURL(cloudifyURL);
-        pluginConfigurationBean.setSynchronousDeployment(true);
-        pluginConfigurationBean.getCloudifyConnectionConfigurations().get(0).setVersion("2.7.1");
+        pluginConfigurationBean.setCloudifyURLs(Lists.newArrayList(cloudifyURL));
+        pluginConfigurationBean.setVersion("2.7.1");
+        pluginConfigurationBean.setConnectionTimeOutInSeconds(5);
         cloudifyPaaSPovider.setConfiguration(pluginConfigurationBean);
         cloudifyRestClientManager = cloudifyPaaSPovider.getCloudifyRestClientManager();
         CloudResourceMatcherConfig matcherConf = new CloudResourceMatcherConfig();
@@ -166,7 +173,7 @@ public class GenericTestCase {
         imageMapping.put(cloudImage, IAAS_IMAGE_ID);
         cloudImage = new CloudImage();
         cloudImage.setId(ALIEN_WINDOWS_IMAGE);
-        imageMapping.put(cloudImage, IAAS_IMAGE_ID);
+        imageMapping.put(cloudImage, IAAS_WIN_IMAGE_ID);
         matcherConf.setImageMapping(imageMapping);
 
         Map<CloudImageFlavor, String> flavorMapping = Maps.newHashMap();
@@ -174,7 +181,7 @@ public class GenericTestCase {
         matcherConf.setFlavorMapping(flavorMapping);
 
         Map<StorageTemplate, String> storageMapping = Maps.newHashMap();
-        storageMapping.put(new StorageTemplate(ALIEN_STORAGE, 1L, ALIEN_STORAGE_DEVICE), IAAS_BLOCK_STORAGE_ID);
+        storageMapping.put(new StorageTemplate(ALIEN_STORAGE, 1L, ALIEN_STORAGE_DEVICE, null), IAAS_BLOCK_STORAGE_ID);
         matcherConf.setStorageMapping(storageMapping);
         cloudifyPaaSPovider.updateMatcherConfig(matcherConf);
     }
@@ -296,18 +303,20 @@ public class GenericTestCase {
         return huc.getResponseCode();
     }
 
-    protected String deployTopology(String topologyFileName, String[] computesId, Map<String, ComputeTemplate> computesMatching) throws IOException,
-            JsonParseException, JsonMappingException, CSARVersionAlreadyExistsException, ParsingException {
+    protected String deployTopology(String topologyFileName, String[] computesId, Map<String, ComputeTemplate> computesMatching) throws Throwable {
         Topology topology = this.createAlienApplication(topologyFileName, topologyFileName);
         return deployTopology(computesId, topology, topologyFileName, computesMatching);
     }
 
-    protected String deployTopology(String[] computesId, Topology topology, String topologyFileName, Map<String, ComputeTemplate> computesMatching) {
+    protected String deployTopology(String[] computesId, Topology topology, String topologyFileName, Map<String, ComputeTemplate> computesMatching)
+            throws Throwable {
         DeploymentSetup setup = new DeploymentSetup();
         setup.setCloudResourcesMapping(Maps.<String, ComputeTemplate> newHashMap());
         if (computesId != null) {
             for (String string : computesId) {
-                setup.getCloudResourcesMapping().put(string, new ComputeTemplate(ALIEN_LINUX_IMAGE, ALIEN_FLAVOR));
+                ComputeTemplate computeTemplate = new ComputeTemplate(ALIEN_LINUX_IMAGE, ALIEN_FLAVOR);
+                computeTemplate.setDescription(TEMPLATE_ID);
+                setup.getCloudResourcesMapping().put(string, computeTemplate);
             }
         }
         if (computesMatching != null) {
@@ -327,9 +336,11 @@ public class GenericTestCase {
         PaaSTopology paaSTopology = topologyTreeBuilderService.buildPaaSTopology(nodes);
         deploymentContext.setPaaSTopology(paaSTopology);
         for (PaaSNodeTemplate volume : paaSTopology.getVolumes()) {
-            setup.getStorageMapping().put(volume.getId(), new StorageTemplate(ALIEN_STORAGE, 1L, ALIEN_STORAGE_DEVICE));
+            setup.getStorageMapping().put(volume.getId(), new StorageTemplate(ALIEN_STORAGE, 1L, ALIEN_STORAGE_DEVICE, null));
         }
         cloudifyPaaSPovider.deploy(deploymentContext, null);
+
+        waitForApplicationInstallation(this.cloudifyRestClientManager.getRestClient(), topology.getId());
         return topology.getId();
     }
 
@@ -455,12 +466,12 @@ public class GenericTestCase {
         cloudifyPaaSPovider.executeOperation(deploymentContext, request, callback);
     }
 
-    protected void testUndeployment(String applicationId) throws RestClientException {
+    protected void testUndeployment(String applicationId) throws Throwable {
         PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
         deploymentContext.setDeploymentId(applicationId);
         cloudifyPaaSPovider.undeploy(deploymentContext, null);
+        waitUndeployApplication(this.cloudifyRestClientManager.getRestClient(), applicationId);
         assertApplicationIsUninstalled(applicationId);
-
         Iterator<String> idsIter = deployedCloudifyAppIds.iterator();
         while (idsIter.hasNext()) {
             if (idsIter.next().equals(applicationId)) {
@@ -501,5 +512,67 @@ public class GenericTestCase {
         if (sleepTimeSec != null) {
             Thread.sleep(sleepTimeSec * 1000L);
         }
+    }
+
+    private void waitForApplicationInstallation(RestClient restClient, String applicationName) throws PaaSDeploymentException {
+        ApplicationDescription applicationDescription = null;
+        DeploymentState currentDeploymentState = null;
+
+        long timeout = System.currentTimeMillis() + TIMEOUT_IN_MILLIS;
+        try {
+            while (System.currentTimeMillis() < timeout) {
+                applicationDescription = restClient.getApplicationDescription(applicationName);
+                currentDeploymentState = applicationDescription.getApplicationState();
+
+                switch (currentDeploymentState) {
+                case STARTED:
+                    log.info(String.format("Deployment of application '%s' is finished with success", applicationName));
+                    return;
+                case FAILED:
+                    throw new PaaSDeploymentException(String.format("Failed deploying application '%s'", applicationName));
+                default:
+                    try {
+                        Thread.sleep(DEFAULT_SLEEP_TIME);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        log.warn("Waiting to retrieve application '" + applicationName + "' state interrupted... ", e);
+                    }
+                }
+            }
+        } catch (RestClientException e) {
+            throw new PaaSDeploymentException("Failed checking application deployment.\n\t Cause: " + e.getMessageFormattedText(), e);
+        }
+
+        throw new PaaSDeploymentException("Application '" + applicationName + "' fails to reach started state in time.");
+    }
+
+    private void waitUndeployApplication(CloudifyRestClient restClient, String deploymentID) {
+        long timeout = System.currentTimeMillis() + TIMEOUT_IN_MILLIS;
+        while (System.currentTimeMillis() < timeout) {
+            boolean exists = false;
+            try {
+                List<ApplicationDescription> apps = restClient.getApplicationDescriptionsList();
+                for (ApplicationDescription applicationDescription : apps) {
+                    if (applicationDescription.getApplicationName().equalsIgnoreCase(deploymentID)) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (exists) {
+                    Thread.sleep(DEFAULT_SLEEP_TIME);
+                } else {
+                    return;
+                }
+
+            } catch (RestClientException e) {
+                log.warn("", e);
+                return;
+            } catch (InterruptedException e) {
+                log.warn("Waiting undeployment interrupted (deploymenID=" + deploymentID + ")");
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        log.warn("Application '" + deploymentID + "' fails to undeployed in time. You may do it manually.");
     }
 }

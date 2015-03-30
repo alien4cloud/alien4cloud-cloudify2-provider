@@ -24,7 +24,7 @@ public class InstanceInfoTestIT extends GenericTestCase {
     }
 
     @Test
-    public void testScaleAndGetInstancesInformations() throws Exception {
+    public void testScaleAndGetInstancesInformations() throws Throwable {
         log.info("\n\n >> Executing Test testScaleAndGetInstancesInformations \n");
         String cloudifyAppId = null;
         this.uploadGitArchive("samples", "tomcat-war");
@@ -52,7 +52,6 @@ public class InstanceInfoTestIT extends GenericTestCase {
                 sb.append("\t").append(map.getKey()).append(":\n");
                 sb.append("\t\tstatus=").append(map.getValue().getState()).append("\n");
                 sb.append("\t\tplanStatus=").append(map.getValue().getInstanceStatus()).append("\n");
-                sb.append("\t\tproperties=").append(map.getValue().getProperties()).append("\n");
                 sb.append("\t\tattributes=").append(map.getValue().getAttributes()).append("\n");
                 sb.append("\t\truntimeInfo=").append(map.getValue().getRuntimeProperties()).append("\n");
             }

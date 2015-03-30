@@ -37,7 +37,7 @@ public class CloudifyExecutorUtils {
 
         String[] environment = new EnvironmentBuilder().buildShOrBatchEnvironment(argsMap);
 
-        println "Executing file ${serviceDirectory}/${script}.\n environment is: ${script}"
+        println "Executing file ${serviceDirectory}/${script}.\n environment is: ${environment}"
         def scriptProcess = "${serviceDirectory}/${script}".execute(environment, null)
         scriptProcess.consumeProcessOutput(System.out, System.out)
 
@@ -166,18 +166,23 @@ public class CloudifyExecutorUtils {
             name: targetId,
             service:  targetService
         ];
-
         def eventResume = [
             relationshipId: relationshipId,
             event: event,
             commandName: command,
             lease: getEventLeaseInMillis(lease)
         ]
+        def nodeResume = [
+            id : nodeId,
+            instanceId: context.getInstanceId(),
+            ip_address: context.getPrivateAddress()
+        ]
+        
         // Fire event
         def application = context.getApplicationName()
-        def instanceId = context.getInstanceId()
-        println "THE INSTANCE ID is <${instanceId}>"
-        CloudifyUtils.putRelationshipOperationEvent(application, nodeId, instanceId, eventResume, source, target)
+        def ip_address = context.getPrivateAddress()
+        println "THE INSTANCE ID is <${nodeResume.instanceId}>"
+        CloudifyUtils.putRelationshipOperationEvent(application, nodeResume, eventResume, source, target)
     }
 
     static def waitFor(cloudifyService, nodeId, status) {

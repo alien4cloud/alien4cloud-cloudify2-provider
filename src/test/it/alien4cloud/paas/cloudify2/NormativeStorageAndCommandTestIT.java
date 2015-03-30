@@ -27,7 +27,7 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
     }
 
     @Test
-    public void customCommandTest() throws Exception {
+    public void customCommandTest() throws Throwable {
         log.info("\n\n >> Executing Test customCommandTest \n");
         String cloudifyAppId = null;
         this.uploadGitArchive("samples", "tomcat-war");

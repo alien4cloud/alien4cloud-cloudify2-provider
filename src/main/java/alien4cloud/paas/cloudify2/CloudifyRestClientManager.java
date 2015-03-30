@@ -5,7 +5,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.LinkedList;
-import java.util.List;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -37,7 +36,7 @@ public class CloudifyRestClientManager {
     private CloudifyRestClient restClient;
     private URI restEventEndpoint;
 
-    private LinkedList<CloudifyConnectionConfiguration> connectionConfigs = new LinkedList<>();
+    private LinkedList<String> providedURLs = new LinkedList<>();
 
     /**
      * Get the cloudify rest client.
@@ -46,8 +45,8 @@ public class CloudifyRestClientManager {
      * @throws PluginConfigurationException In case of an error while creating the cloudify rest client.
      */
     public CloudifyRestClient getRestClient() throws PluginConfigurationException {
-        if (restClient == null || !test()) {
-            tryCloudifyConfigurations();
+        if (!test()) {
+            tryCloudifyURLs();
         }
         return restClient;
     }
@@ -55,30 +54,29 @@ public class CloudifyRestClientManager {
     /**
      * Set the configuration of the cloudify connection.
      *
-     * @param cloudifyConnectionConfigurations A list of configuration elements of the cloudify configuration.
+     * @param configuration A list of configuration elements of the cloudify configuration.
      * @param timeout TODO
      * @throws PluginConfigurationException In case the connection configuration is not correct.
      */
-    public void setCloudifyConnectionConfiguration(List<CloudifyConnectionConfiguration> cloudifyConnectionConfigurations, Integer timeout)
-            throws PluginConfigurationException {
-        this.connectionConfigs = Lists.newLinkedList(cloudifyConnectionConfigurations);
-        this.timeout = timeout != null ? Math.abs(timeout) : this.timeout;
-        tryCloudifyConfigurations();
+    public void setCloudifyConnectionConfiguration(PluginConfigurationBean configuration) throws PluginConfigurationException {
+        this.providedURLs = Lists.newLinkedList(configuration.getCloudifyURLs());
+        this.username = configuration.getUsername();
+        this.password = configuration.getPassword();
+        this.version = configuration.getVersion();
+        this.timeout = configuration.getConnectionTimeOutInSeconds() != null ? Math.abs(configuration.getConnectionTimeOutInSeconds()) : this.timeout;
+        tryCloudifyURLs();
     }
 
-    private boolean setCloudifyConnectionConfiguration(CloudifyConnectionConfiguration cloudifyConnectionConfiguration) throws PluginConfigurationException {
-        log.info("Trying to set Cloudify manager REST API url to <" + cloudifyConnectionConfiguration.getCloudifyURL() + ">");
+    private boolean tryCloudifyURL(String cloudifyURLString) throws PluginConfigurationException {
+        log.info("Trying to set Cloudify manager REST API url to <" + cloudifyURLString + ">");
         this.restClient = null;
         this.restEventEndpoint = null;
         try {
-            this.cloudifyURL = new URL(cloudifyConnectionConfiguration.getCloudifyURL());
-            this.username = cloudifyConnectionConfiguration.getUsername();
-            this.password = cloudifyConnectionConfiguration.getPassword();
-            this.version = cloudifyConnectionConfiguration.getVersion();
+            this.cloudifyURL = new URL(cloudifyURLString);
             this.restClient = new CloudifyRestClient(cloudifyURL, username, password, version);
             this.restClient.connect();
             // check that the events module can be reached too.
-            this.restEventEndpoint = new URI(String.format("http://%s:8081", cloudifyURL.getHost()));
+            setEventRestEndPoint();
             CloudifyEventsListener cloudifyEventsListener = new CloudifyEventsListener(this.restEventEndpoint);
             // check connection
             log.info("Testing events module endpoint " + this.restEventEndpoint + "... ");
@@ -87,15 +85,19 @@ public class CloudifyRestClientManager {
             return true;
         } catch (RestClientException | URISyntaxException | IOException e) {
             String cause = e instanceof RestClientException ? ((RestClientException) e).getMessageFormattedText() : e.getMessage();
-            log.warn("Failed to set cloudify connexion to " + cloudifyConnectionConfiguration + ".\n\tCause: " + cause);
+            log.warn("Failed to set Cloudify manager REST API url to " + cloudifyURLString + ".\n\tCause: " + cause);
             log.debug("", e);
             return false;
         }
     }
 
+    private synchronized void setEventRestEndPoint() throws URISyntaxException {
+        this.restEventEndpoint = new URI(String.format("http://%s:8081", cloudifyURL.getHost()));
+    }
+
     /**
      *
-     * try configurations for cloudify connexion.
+     * try cloudify urls connexion.
      * Repeat the try a certain number of time before failing.
      * Put the first valid configuration ontop of the list.
      *
@@ -103,16 +105,16 @@ public class CloudifyRestClientManager {
      * @throws PluginConfigurationException
      * @throws InterruptedException
      */
-    private synchronized void tryCloudifyConfigurations() throws PluginConfigurationException {
+    private synchronized void tryCloudifyURLs() throws PluginConfigurationException {
         Integer repeat_count = Math.round(this.timeout / REPEAT_INTERVAL_SECONDS) - 1;
         do {
             // LinkedList<CloudifyConnectionConfiguration> copyList = new LinkedList<>(connectionConfigs);
-            for (int i = 0; i < connectionConfigs.size(); i++) {
-                CloudifyConnectionConfiguration config = connectionConfigs.get(i);
-                if (setCloudifyConnectionConfiguration(config)) {
+            for (int i = 0; i < providedURLs.size(); i++) {
+                String cloudifyUrlToTry = providedURLs.get(i);
+                if (tryCloudifyURL(cloudifyUrlToTry)) {
                     if (i > 0) {
-                        connectionConfigs.remove(i);
-                        connectionConfigs.push(config);
+                        providedURLs.remove(i);
+                        providedURLs.push(cloudifyUrlToTry);
                     }
                     return;
                 }
@@ -139,7 +141,7 @@ public class CloudifyRestClientManager {
     public URI getRestEventEndpoint() {
         if (!test()) {
             try {
-                tryCloudifyConfigurations();
+                tryCloudifyURLs();
             } catch (PluginConfigurationException e) {
                 return null;
             }
@@ -148,8 +150,15 @@ public class CloudifyRestClientManager {
     }
 
     public boolean test() {
+        if (restClient == null) {
+            return false;
+        }
+
         try {
             restClient.connect();
+            if (restEventEndpoint == null) {
+                setEventRestEndPoint();
+            }
             CloudifyEventsListener cloudifyEventsListener = new CloudifyEventsListener(this.restEventEndpoint);
             cloudifyEventsListener.test();
             return true;

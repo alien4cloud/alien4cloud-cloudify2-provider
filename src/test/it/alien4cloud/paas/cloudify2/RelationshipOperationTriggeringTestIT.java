@@ -54,11 +54,11 @@ public class RelationshipOperationTriggeringTestIT extends GenericTestCase {
         testRelationsEventsSucceeded(cloudifyAppId, null, lastRelIndex, 10000L, ToscaRelationshipLifecycleConstants.ADD_SOURCE,
                 ToscaRelationshipLifecycleConstants.ADD_TARGET);
 
-        scale("target_comp", -1, cloudifyAppId, topo, 10);
+        scale("source_comp", -1, cloudifyAppId, topo, 10);
 
-        testEvents(cloudifyAppId, new String[] { "target_comp" }, 30000L, ToscaNodeLifecycleConstants.DELETED);
+        testEvents(cloudifyAppId, new String[] { "source_comp" }, 30000L, ToscaNodeLifecycleConstants.DELETED);
 
-        testRelationsEventsSucceeded(cloudifyAppId, null, lastRelIndex, 20000L, ToscaRelationshipLifecycleConstants.REMOVE_TARGET);
+        testRelationsEventsSucceeded(cloudifyAppId, null, lastRelIndex, 20000L, ToscaRelationshipLifecycleConstants.REMOVE_SOURCE);
 
         testUndeployment(cloudifyAppId);
 

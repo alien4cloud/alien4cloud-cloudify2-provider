@@ -134,11 +134,11 @@ public class GigaSpacesEventsManager {
         return gotState
     }
     
-    def putRelationshipOperationEvent(def application, def service, def instanceId, def eventResume, def source, def target) {
-        println ">>> putRelationshipOperationEvent application=${application} service=${service} instanceId=${instanceId} event=${eventResume}\n"+
+    def putRelationshipOperationEvent(def application, def nodeResume, def eventResume, def source, def target) {
+        println ">>> putRelationshipOperationEvent application=${application} service=${nodeResume.id} instanceId=${nodeResume.instanceId} event=${eventResume}\n"+
                 "source=${source} target=${target}"
         SpaceDocument document = new SpaceDocument("alien4cloud.paas.cloudify2.events.RelationshipOperationEvent");
-        fillEventDocument(application, service, instanceId, eventResume.event, document);
+        fillEventDocument(application, nodeResume.id, nodeResume.instanceId, eventResume.event, document);
         
         document.setProperty("processed", false as Boolean);
         document.setProperty("relationshipId", eventResume.relationshipId as String);
@@ -147,6 +147,7 @@ public class GigaSpacesEventsManager {
         document.setProperty("target", target.name as String);
         document.setProperty("targetService", target.service as String);
         document.setProperty("commandName", eventResume.commandName as String);
+        document.setProperty("ipAddress", nodeResume.ip_address as String);
         
         gigaSpace.write(document, eventResume.lease)
     }

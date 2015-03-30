@@ -116,19 +116,23 @@ abstract class AbstractCloudifyScriptGenerator {
     private void addRelationshipEnvVars(String operationName, Map<String, IOperationParameter> inputParameters, PaaSRelationshipTemplate basePaaSTemplate,
             Map<String, PaaSNodeTemplate> builtPaaSTemplates, String instanceId, ExecEnvMaps envMaps) throws IOException {
 
-        // funtionProcessor.processParameters(inputParameters, envMaps.strings, envMaps.runtimes, basePaaSTemplate, builtPaaSTemplates, instanceId);
-
         Map<String, String> sourceAttributes = Maps.newHashMap();
         Map<String, String> targetAttributes = Maps.newHashMap();
-        String sourceInstanceId = getProperInstanceIdForRelEnvsBuilding(operationName, ToscaFunctionConstants.SOURCE, instanceId);
-        String targetInstanceId = getProperInstanceIdForRelEnvsBuilding(operationName, ToscaFunctionConstants.TARGET, instanceId);
+
+        // for some cases we need to use a value provided in the velocity template.
+        // for example for relationship add_source, the source ip_address and instanceId are var provided in the velocity script.
+        // The target ip_address and instanceId will remain unchanged and handled by the default routine
+        String sourceInstanceId = getProperValueForRelEnvsBuilding(operationName, ToscaFunctionConstants.SOURCE, instanceId);
+        String sourceIpAddrVar = getProperValueForRelEnvsBuilding(operationName, ToscaFunctionConstants.SOURCE, "ip_address");
         String sourceId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(basePaaSTemplate.getSource());
+        String targetInstanceId = getProperValueForRelEnvsBuilding(operationName, ToscaFunctionConstants.TARGET, instanceId);
+        String targetIpAddrVar = getProperValueForRelEnvsBuilding(operationName, ToscaFunctionConstants.TARGET, "ip_address");
         String targetId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(basePaaSTemplate.getRelationshipTemplate().getTarget());
         String sourceServiceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(builtPaaSTemplates.get(basePaaSTemplate.getSource()));
         String targetServiceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(builtPaaSTemplates.get(basePaaSTemplate.getRelationshipTemplate()
                 .getTarget()));
 
-        // separate target's from source's attributes
+        // separate parameters using TARGET and SOURCE keywords before processing them
         if (inputParameters != null) {
             Map<String, IOperationParameter> sourceAttrParams = Maps.newHashMap();
             Map<String, IOperationParameter> targetAttrParams = Maps.newHashMap();
@@ -137,12 +141,12 @@ abstract class AbstractCloudifyScriptGenerator {
                 if (!paramEntry.getValue().isDefinition()) {
                     if (FunctionEvaluator.isGetAttribute((FunctionPropertyValue) paramEntry.getValue())) {
                         FunctionPropertyValue param = (FunctionPropertyValue) paramEntry.getValue();
-                        if (ToscaFunctionConstants.TARGET.equals(FunctionEvaluator.getEntityName(param))) {
+                        if (ToscaFunctionConstants.TARGET.equals(param.getTemplateName())) {
                             targetAttrParams.put(paramEntry.getKey(), param);
-                            targetAttributes.put(paramEntry.getKey(), FunctionEvaluator.getElementName(param));
-                        } else if (ToscaFunctionConstants.SOURCE.equals(FunctionEvaluator.getEntityName(param))) {
+                            targetAttributes.put(paramEntry.getKey(), param.getPropertyOrAttributeName());
+                        } else if (ToscaFunctionConstants.SOURCE.equals(param.getTemplateName())) {
                             sourceAttrParams.put(paramEntry.getKey(), param);
-                            sourceAttributes.put(paramEntry.getKey(), FunctionEvaluator.getElementName(param));
+                            sourceAttributes.put(paramEntry.getKey(), param.getPropertyOrAttributeName());
                         }
                     } else {
                         simpleParams.put(paramEntry.getKey(), paramEntry.getValue());
@@ -154,6 +158,11 @@ abstract class AbstractCloudifyScriptGenerator {
             funtionProcessor.processParameters(simpleParams, envMaps.strings, envMaps.runtimes, basePaaSTemplate, builtPaaSTemplates, null);
             funtionProcessor.processParameters(sourceAttrParams, envMaps.strings, envMaps.runtimes, basePaaSTemplate, builtPaaSTemplates, sourceInstanceId);
             funtionProcessor.processParameters(targetAttrParams, envMaps.strings, envMaps.runtimes, basePaaSTemplate, builtPaaSTemplates, targetInstanceId);
+
+            // override ip attributes' way of getting if needed
+            overrideIpAttributesIfNeeded(sourceAttributes, envMaps.runtimes, sourceIpAddrVar);
+            overrideIpAttributesIfNeeded(targetAttributes, envMaps.runtimes, targetIpAddrVar);
+
         }
 
         // custom alien env vars
@@ -171,16 +180,26 @@ abstract class AbstractCloudifyScriptGenerator {
                 ToscaFunctionConstants.TARGET, targetId, targetServiceName, targetInstanceId, targetAttributes));
     }
 
-    private String getProperInstanceIdForRelEnvsBuilding(String operationName, String member, String instanceId) {
+    private void overrideIpAttributesIfNeeded(Map<String, String> attributes, Map<String, String> evaluated, String overrideValue) {
+        if (overrideValue != null) {
+            for (Entry<String, String> attrEntry : attributes.entrySet()) {
+                if (attrEntry.getValue().equals(AlienExtentedConstants.IP_ADDRESS) && evaluated.containsKey(attrEntry.getKey())) {
+                    evaluated.put(attrEntry.getKey(), overrideValue);
+                }
+            }
+        }
+    }
+
+    private String getProperValueForRelEnvsBuilding(String operationName, String member, String defaultValue) {
         switch (operationName) {
-            case ToscaRelationshipLifecycleConstants.ADD_TARGET:
-            case ToscaRelationshipLifecycleConstants.REMOVE_TARGET:
-                return member.equals(ToscaFunctionConstants.SOURCE) ? null : instanceId;
-            case ToscaRelationshipLifecycleConstants.ADD_SOURCE:
-            case ToscaRelationshipLifecycleConstants.REMOVE_SOURCE:
-                return member.equals(ToscaFunctionConstants.TARGET) ? null : instanceId;
-            default:
-                return instanceId;
+        case ToscaRelationshipLifecycleConstants.ADD_TARGET:
+        case ToscaRelationshipLifecycleConstants.REMOVE_TARGET:
+            return member.equals(ToscaFunctionConstants.SOURCE) ? null : defaultValue;
+        case ToscaRelationshipLifecycleConstants.ADD_SOURCE:
+        case ToscaRelationshipLifecycleConstants.REMOVE_SOURCE:
+            return member.equals(ToscaFunctionConstants.TARGET) ? null : defaultValue;
+        default:
+            return null;
         }
     }
 
@@ -201,17 +220,17 @@ abstract class AbstractCloudifyScriptGenerator {
         if (envKeys != null) {
             for (String envKey : envKeys) {
                 switch (envKey) {
-                    case SELF:
-                        envMaps.strings.put(envKey, nodeTemplate.getId());
-                        break;
-                    case HOST:
-                        envMaps.strings.put(envKey, nodeTemplate.getParent() == null ? null : nodeTemplate.getParent().getId());
-                        break;
-                    case SERVICE_NAME:
-                        envMaps.strings.put(envKey, CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(nodeTemplate));
-                        break;
-                    default:
-                        break;
+                case SELF:
+                    envMaps.strings.put(envKey, nodeTemplate.getId());
+                    break;
+                case HOST:
+                    envMaps.strings.put(envKey, nodeTemplate.getParent() == null ? null : nodeTemplate.getParent().getId());
+                    break;
+                case SERVICE_NAME:
+                    envMaps.strings.put(envKey, CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(nodeTemplate));
+                    break;
+                default:
+                    break;
                 }
             }
         }

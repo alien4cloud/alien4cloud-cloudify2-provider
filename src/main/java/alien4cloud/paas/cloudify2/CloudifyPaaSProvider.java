@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import alien4cloud.model.cloud.CloudResourceMatcherConfig;
 import alien4cloud.model.cloud.CloudResourceType;
 import alien4cloud.paas.exception.PluginConfigurationException;
+import alien4cloud.paas.model.PaaSComputeTemplate;
 
 import com.google.common.collect.Sets;
 
@@ -31,12 +32,11 @@ public class CloudifyPaaSProvider extends AbstractCloudifyPaaSProvider {
     public void setConfiguration(PluginConfigurationBean configuration) throws PluginConfigurationException {
         this.configurationBean = configuration;
         // tryCloudifyConfigurations(configuration.getCloudifyConnectionConfiguration());
-        this.cloudifyRestClientManager.setCloudifyConnectionConfiguration(configuration.getCloudifyConnectionConfigurations(),
-                configuration.getConnectionTimeOutInSeconds());
+        this.cloudifyRestClientManager.setCloudifyConnectionConfiguration(configuration);
         try {
             this.templates = this.cloudifyRestClientManager.getRestClient().getCloudifyComputeTemplates();
         } catch (RestClientException e) {
-            throw new PluginConfigurationException("Unable to retrieve compute templates from cloudify");
+            throw new PluginConfigurationException("Unable to retrieve compute templates from cloudify: " + e.getMessageFormattedText(), e);
         }
         configureDefault();
     }
@@ -52,20 +52,20 @@ public class CloudifyPaaSProvider extends AbstractCloudifyPaaSProvider {
             return null;
         }
         switch (resourceType) {
-            case IMAGE:
-                Set<String> imageIds = Sets.newHashSet();
-                for (CloudifyComputeTemplate template : templates.values()) {
-                    imageIds.add(template.getImageId());
-                }
-                return imageIds.toArray(new String[imageIds.size()]);
-            case FLAVOR:
-                Set<String> flavorIds = Sets.newHashSet();
-                for (CloudifyComputeTemplate template : templates.values()) {
-                    flavorIds.add(template.getHardwareId());
-                }
-                return flavorIds.toArray(new String[flavorIds.size()]);
-            default:
-                return null;
+        case IMAGE:
+            Set<String> imageIds = Sets.newHashSet();
+            for (CloudifyComputeTemplate template : templates.values()) {
+                imageIds.add(template.getImageId());
+            }
+            return imageIds.toArray(new String[imageIds.size()]);
+        case FLAVOR:
+            Set<String> flavorIds = Sets.newHashSet();
+            for (CloudifyComputeTemplate template : templates.values()) {
+                flavorIds.add(template.getHardwareId());
+            }
+            return flavorIds.toArray(new String[flavorIds.size()]);
+        default:
+            return null;
         }
     }
 
@@ -75,17 +75,27 @@ public class CloudifyPaaSProvider extends AbstractCloudifyPaaSProvider {
             return null;
         }
         switch (resourceType) {
-            case IMAGE:
-                Set<String> flavorIds = Sets.newHashSet();
-                for (CloudifyComputeTemplate template : templates.values()) {
-                    if (imageId.equals(template.getImageId())) {
-                        flavorIds.add(template.getHardwareId());
-                    }
+        case IMAGE:
+            Set<String> flavorIds = Sets.newHashSet();
+            for (CloudifyComputeTemplate template : templates.values()) {
+                if (imageId.equals(template.getImageId())) {
+                    flavorIds.add(template.getHardwareId());
                 }
-                return flavorIds.toArray(new String[flavorIds.size()]);
-            default:
-                return null;
+            }
+            return flavorIds.toArray(new String[flavorIds.size()]);
+        default:
+            return null;
         }
     }
 
+    @Override
+    public PaaSComputeTemplate[] getAvailablePaaSComputeTemplates() {
+        PaaSComputeTemplate[] paaSComputeTemplates = new PaaSComputeTemplate[this.templates.size()];
+        int i = 0;
+        for (Map.Entry<String, CloudifyComputeTemplate> templateEntry : this.templates.entrySet()) {
+            paaSComputeTemplates[i++] = new PaaSComputeTemplate(templateEntry.getValue().getImageId(), templateEntry.getValue().getHardwareId(),
+                    templateEntry.getKey());
+        }
+        return paaSComputeTemplates;
+    }
 }

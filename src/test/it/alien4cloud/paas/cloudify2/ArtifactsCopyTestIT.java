@@ -34,7 +34,7 @@ public class ArtifactsCopyTestIT extends GenericTestCase {
     }
 
     @Test
-    public void testOverridingArtifacts() throws Exception {
+    public void testOverridingArtifacts() throws Throwable {
 
         log.info("\n\n >> Executing Test testOverridingArtifacts \n");
 
