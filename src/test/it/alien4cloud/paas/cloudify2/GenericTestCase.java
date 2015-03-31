@@ -464,7 +464,7 @@ public class GenericTestCase {
             request.setInstanceId(instanceId.toString());
         }
         request.setParameters(params);
-        PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
+        PaaSTopologyDeploymentContext deploymentContext = new PaaSTopologyDeploymentContext();
         deploymentContext.setDeploymentId(cloudifyAppId);
         cloudifyPaaSPovider.executeOperation(deploymentContext, request, callback);
     }

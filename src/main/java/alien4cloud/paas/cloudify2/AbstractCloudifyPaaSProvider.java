@@ -772,7 +772,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     }
 
     @Override
-    public void executeOperation(PaaSDeploymentContext deploymentContext, NodeOperationExecRequest request, IPaaSCallback<Map<String, String>> callback)
+    public void executeOperation(PaaSTopologyDeploymentContext deploymentContext, NodeOperationExecRequest request, IPaaSCallback<Map<String, String>> callback)
             throws OperationExecutionException {
         String deploymentId = deploymentContext.getDeploymentId();
         Map<String, String> operationResponse = Maps.newHashMap();
