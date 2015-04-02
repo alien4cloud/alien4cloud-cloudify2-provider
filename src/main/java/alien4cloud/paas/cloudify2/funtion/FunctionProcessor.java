@@ -66,7 +66,7 @@ public class FunctionProcessor {
         String result = null;
         switch (functionParam.getFunction()) {
         case ToscaFunctionConstants.GET_PROPERTY:
-            result = FunctionEvaluator.evaluateGetPropertyFuntion(functionParam, basePaaSTemplate, builtPaaSTemplates);
+            result = FunctionEvaluator.evaluateGetPropertyFunction(functionParam, basePaaSTemplate, builtPaaSTemplates);
             return new StringEvalResult(result);
         case ToscaFunctionConstants.GET_ATTRIBUTE:
             result = evaluateGetAttributeFunction(functionParam, basePaaSTemplate, builtPaaSTemplates, instanceId);
