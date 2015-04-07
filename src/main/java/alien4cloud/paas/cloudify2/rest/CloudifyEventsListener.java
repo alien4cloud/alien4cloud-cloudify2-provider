@@ -20,24 +20,21 @@ import org.apache.http.util.EntityUtils;
 
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.events.NodeInstanceState;
-import alien4cloud.paas.cloudify2.events.RelationshipOperationEvent;
+import alien4cloud.paas.cloudify2.exception.PaaSEventException;
 import alien4cloud.rest.utils.JsonUtil;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
 
 @Slf4j
 public class CloudifyEventsListener {
 
     private static final String GET_EVENTS_END_POINT = "/events/getEvents";
 
-    private static final String GET_REL_EVENTS_END_POINT = "/events/getRelEvents";
-
     private static final String SERVICE_KEY = "service";
 
     private static final String APPLICATION_KEY = "application";
-
-    private int currentEventIndex = 0;
 
     private DefaultHttpClient httpClient;
     private final URI endpoint;
@@ -58,9 +55,18 @@ public class CloudifyEventsListener {
         this.httpClient = new DefaultHttpClient();
     }
 
-    private String doGet(URIBuilder builder) throws URISyntaxException, IOException {
+    private String doGet(URIBuilder builder, boolean failOnError) throws URISyntaxException, IOException {
         ResponseStatus response = doGetStatus(builder);
-        return response.response;
+        if (response.status == 200) {
+            return response.response;
+        }
+        log.debug("Failed to execute" + builder.build() + ". Status is: " + response.status + "\n\tResponse is: " + response.response);
+        if (failOnError) {
+            throw new PaaSEventException("Failed to execute " + builder.build() + ". Status is: " + response.status);
+        } else {
+            log.warn("Failed to execute " + builder.build() + ". Status is: " + response.status);
+            return null;
+        }
     }
 
     private ResponseStatus doGetStatus(URIBuilder builder) throws URISyntaxException, IOException {
@@ -97,28 +103,18 @@ public class CloudifyEventsListener {
         URIBuilder builder = new URIBuilder(endpoint.resolve("/events/test"));
         ResponseStatus response = doGetStatus(builder);
         if (response.status != 200) {
-            throw new IOException("Failled to connect to event endpoint" + builder.build() + ". Status is: " + response.status + "; Response is: "
+            throw new IOException("Failed to connect to event endpoint" + builder.build() + ". Status is: " + response.status + "; Response is: "
                     + response.response);
         }
-        return doGet(builder);
+        return response.response;
     }
 
     public List<AlienEvent> getEvents() throws IOException, URISyntaxException {
         URIBuilder builder = new URIBuilder(endpoint.resolve(GET_EVENTS_END_POINT)).addParameter(APPLICATION_KEY, application)
                 .addParameter(SERVICE_KEY, service).addParameter("lastIndex", "0");
 
-        String response = doGet(builder);
+        String response = doGet(builder, true);
         return new ObjectMapper().readValue(response, new TypeReference<List<AlienEvent>>() {
-        });
-        // return JsonUtil.toList(response, AlienEvent.class);
-    }
-
-    public List<RelationshipOperationEvent> getRelEvents() throws IOException, URISyntaxException {
-        URIBuilder builder = new URIBuilder(endpoint.resolve(GET_REL_EVENTS_END_POINT)).addParameter(APPLICATION_KEY, application)
-                .addParameter(SERVICE_KEY, service).addParameter("lastIndex", "0");
-
-        String response = doGet(builder);
-        return new ObjectMapper().readValue(response, new TypeReference<List<RelationshipOperationEvent>>() {
         });
         // return JsonUtil.toList(response, AlienEvent.class);
     }
@@ -129,49 +125,26 @@ public class CloudifyEventsListener {
         URIBuilder builder = new URIBuilder(endpoint.resolve("/events/getEventsSince")).addParameter("dateAsLong", Long.toString(dateAsLong)).addParameter(
                 "maxEvents", Integer.toString(maxEvents));
 
-        String response = this.doGet(builder);
-        return new ObjectMapper().readValue(response, new TypeReference<List<AlienEvent>>() {
-        });
-        // return JsonUtil.toList(response, AlienEvent.class);
+        String response = this.doGet(builder, false);
+
+        if (StringUtils.isNotBlank(response)) {
+            return new ObjectMapper().readValue(response, new TypeReference<List<AlienEvent>>() {
+            });
+        } else {
+            return Lists.<AlienEvent> newArrayList();
+        }
     }
 
     public List<NodeInstanceState> getNodeInstanceStates(String topologyId) throws URISyntaxException, IOException {
         URIBuilder builder = new URIBuilder(endpoint.resolve("/events/getInstanceStates")).addParameter(APPLICATION_KEY, topologyId);
 
-        String response = this.doGet(builder);
-        return JsonUtil.toList(response, NodeInstanceState.class);
+        String response = this.doGet(builder, false);
+        return StringUtils.isNotBlank(response) ? JsonUtil.toList(response, NodeInstanceState.class) : Lists.<NodeInstanceState> newArrayList();
     }
 
     public void deleteNodeInstanceStates(String topologyId) throws URISyntaxException, IOException {
         URIBuilder builder = new URIBuilder(endpoint.resolve("/events/deleteInstanceStates")).addParameter(APPLICATION_KEY, topologyId);
         this.doDelete(builder);
-    }
-
-    public List<AlienEvent> getNextEvents() throws URISyntaxException, IOException {
-        URIBuilder builder = new URIBuilder(endpoint.resolve(GET_EVENTS_END_POINT)).addParameter(APPLICATION_KEY, application)
-                .addParameter(SERVICE_KEY, service).addParameter("lastIndex", Integer.toString(this.currentEventIndex + 1));
-
-        final String response = this.doGet(builder);
-        List<AlienEvent> events = new ObjectMapper().readValue(response, new TypeReference<List<AlienEvent>>() {
-        });
-        if (events != null && !events.isEmpty()) {
-            this.currentEventIndex = events.get(events.size() - 1).getEventIndex();
-        }
-
-        return events;
-    }
-
-    public AlienEvent getLatestEvent(String application, String service, String instanceId) throws URISyntaxException, IOException {
-        URIBuilder builder = new URIBuilder(endpoint.resolve("/events/getLatestEvent")).addParameter(APPLICATION_KEY, application)
-                .addParameter(SERVICE_KEY, service).addParameter("instanceId", instanceId);
-
-        final String response = this.doGet(builder);
-        if (StringUtils.isNotEmpty(response)) {
-            AlienEvent events = new ObjectMapper().readValue(response, new TypeReference<AlienEvent>() {
-            });
-            return events;
-        }
-        return null;
     }
 
     private class ResponseStatus {
@@ -183,5 +156,4 @@ public class CloudifyEventsListener {
             this.response = response;
         }
     }
-
 }
