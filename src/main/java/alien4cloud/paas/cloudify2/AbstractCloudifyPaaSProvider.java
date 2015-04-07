@@ -518,20 +518,19 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         return event;
     }
 
-    private List<AbstractMonitorEvent> generateDeleteEvents(String deploymentId, InstanceDeploymentInfo existing, InstanceDeploymentInfo current) {
+    private void generateDeleteEvents(String deploymentId, InstanceDeploymentInfo existing, InstanceDeploymentInfo current,
+            List<AbstractMonitorEvent> deleteEvents) {
         // Generate delete events
-        List<AbstractMonitorEvent> events = Lists.newArrayList();
         if (existing != null) {
             for (Map.Entry<String, Map<String, InstanceInformation>> existingNodeInfo : existing.instanceInformations.entrySet()) {
                 for (Map.Entry<String, InstanceInformation> existingInstanceInfo : existingNodeInfo.getValue().entrySet()) {
                     if (current == null || current.instanceInformations == null || !current.instanceInformations.containsKey(existingNodeInfo.getKey())
                             || !current.instanceInformations.get(existingNodeInfo.getKey()).containsKey(existingInstanceInfo.getKey())) {
-                        events.add(generateInstanceStateRemovedEvent(deploymentId, existingNodeInfo.getKey(), existingInstanceInfo.getKey()));
+                        deleteEvents.add(generateInstanceStateRemovedEvent(deploymentId, existingNodeInfo.getKey(), existingInstanceInfo.getKey()));
                     }
                 }
             }
         }
-        return events;
     }
 
     private void generateInstanceStateEvent(PaaSInstanceStateMonitorEvent monitorEvent, InstanceDeploymentInfo current, String nodeId, String instanceId) {
@@ -624,20 +623,21 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     }
 
     private void processEvents(List<AbstractMonitorEvent> events, List<AlienEvent> instanceEvents, Set<String> processedDeployments) {
+        List<AbstractMonitorEvent> deleteEvents = Lists.newArrayList();
         for (AlienEvent alienEvent : instanceEvents) {
             if (!statusByDeployments.containsKey(alienEvent.getApplicationName())) {
                 continue;
             }
             InstanceDeploymentInfo currentInstanceDeploymentInfo;
-            List<AbstractMonitorEvent> deletedEvents = null;
+
             if (processedDeployments.add(alienEvent.getApplicationName())) {
                 currentInstanceDeploymentInfo = new InstanceDeploymentInfo();
                 DeploymentInfo deploymentInfo = statusByDeployments.get(alienEvent.getApplicationName());
                 // application is undeployed but we can still get events as polling them is Async
                 currentInstanceDeploymentInfo.instanceInformations = getInstancesInformation(alienEvent.getApplicationName(), deploymentInfo.topology);
 
-                deletedEvents = generateDeleteEvents(alienEvent.getApplicationName(), instanceStatusByDeployments.get(alienEvent.getApplicationName()),
-                        currentInstanceDeploymentInfo);
+                generateDeleteEvents(alienEvent.getApplicationName(), instanceStatusByDeployments.get(alienEvent.getApplicationName()),
+                        currentInstanceDeploymentInfo, deleteEvents);
                 instanceStatusByDeployments.put(alienEvent.getApplicationName(), currentInstanceDeploymentInfo);
             } else {
                 currentInstanceDeploymentInfo = instanceStatusByDeployments.get(alienEvent.getApplicationName());
@@ -656,13 +656,11 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             monitorEvent.setInstanceState(alienEvent.getEvent());
 
             generateInstanceStateEvent(monitorEvent, currentInstanceDeploymentInfo, alienEvent.getServiceName(), alienEvent.getInstanceId());
-
             events.add(monitorEvent);
+        }
 
-            if (deletedEvents != null && deletedEvents.size() > 0) {
-                events.addAll(deletedEvents);
-            }
-
+        if (deleteEvents != null && deleteEvents.size() > 0) {
+            events.addAll(deleteEvents);
         }
     }
 
