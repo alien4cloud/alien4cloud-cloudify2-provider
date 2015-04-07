@@ -349,7 +349,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                 instanceStatus = InstanceStatus.SUCCESS;
             }
 
-            if (!ToscaNodeLifecycleConstants.STOPPED.equals(instanceState.getInstanceState())) {
+            if (!(ToscaNodeLifecycleConstants.DELETED.equals(instanceState.getInstanceState()))) {
                 InstanceInformation instanceInformation = nodeTemplateInstanceInformations.get(instanceId);
                 if (instanceInformation == null) {
                     Map<String, String> runtimeProperties = Maps.newHashMap();
@@ -519,8 +519,8 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     }
 
     private List<AbstractMonitorEvent> generateDeleteEvents(String deploymentId, InstanceDeploymentInfo existing, InstanceDeploymentInfo current) {
-        List<AbstractMonitorEvent> events = Lists.newArrayList();
         // Generate delete events
+        List<AbstractMonitorEvent> events = Lists.newArrayList();
         if (existing != null) {
             for (Map.Entry<String, Map<String, InstanceInformation>> existingNodeInfo : existing.instanceInformations.entrySet()) {
                 for (Map.Entry<String, InstanceInformation> existingInstanceInfo : existingNodeInfo.getValue().entrySet()) {
@@ -534,7 +534,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         return events;
     }
 
-    private void generateInstanceStateEvent(PaaSInstanceStateMonitorEvent isMonitorEvent, InstanceDeploymentInfo current, String nodeId, String instanceId) {
+    private void generateInstanceStateEvent(PaaSInstanceStateMonitorEvent monitorEvent, InstanceDeploymentInfo current, String nodeId, String instanceId) {
         // Generate instance state change events
         if (current == null || current.instanceInformations == null) {
             return;
@@ -548,9 +548,9 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             return;
         }
 
-        isMonitorEvent.setInstanceStatus(instanceInfo.getInstanceStatus());
-        isMonitorEvent.setRuntimeProperties(instanceInfo.getRuntimeProperties());
-        isMonitorEvent.setAttributes(instanceInfo.getAttributes());
+        monitorEvent.setInstanceStatus(instanceInfo.getInstanceStatus());
+        monitorEvent.setRuntimeProperties(instanceInfo.getRuntimeProperties());
+        monitorEvent.setAttributes(instanceInfo.getAttributes());
     }
 
     @Override
@@ -629,12 +629,14 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                 continue;
             }
             InstanceDeploymentInfo currentInstanceDeploymentInfo;
+            List<AbstractMonitorEvent> deletedEvents = null;
             if (processedDeployments.add(alienEvent.getApplicationName())) {
                 currentInstanceDeploymentInfo = new InstanceDeploymentInfo();
                 DeploymentInfo deploymentInfo = statusByDeployments.get(alienEvent.getApplicationName());
                 // application is undeployed but we can still get events as polling them is Async
                 currentInstanceDeploymentInfo.instanceInformations = getInstancesInformation(alienEvent.getApplicationName(), deploymentInfo.topology);
-                generateDeleteEvents(alienEvent.getApplicationName(), instanceStatusByDeployments.get(alienEvent.getApplicationName()),
+
+                deletedEvents = generateDeleteEvents(alienEvent.getApplicationName(), instanceStatusByDeployments.get(alienEvent.getApplicationName()),
                         currentInstanceDeploymentInfo);
                 instanceStatusByDeployments.put(alienEvent.getApplicationName(), currentInstanceDeploymentInfo);
             } else {
@@ -656,6 +658,11 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             generateInstanceStateEvent(monitorEvent, currentInstanceDeploymentInfo, alienEvent.getServiceName(), alienEvent.getInstanceId());
 
             events.add(monitorEvent);
+
+            if (deletedEvents != null && deletedEvents.size() > 0) {
+                events.addAll(deletedEvents);
+            }
+
         }
     }
 
