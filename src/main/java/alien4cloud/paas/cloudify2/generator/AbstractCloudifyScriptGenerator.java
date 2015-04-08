@@ -60,8 +60,6 @@ abstract class AbstractCloudifyScriptGenerator {
     @Resource
     protected CommandGenerator commandGenerator;
     @Resource
-    private RecipePropertiesGenerator recipePropertiesGenerator;
-    @Resource
     private ApplicationContext applicationContext;
 
     private static final String MAP_TO_ADD_KEYWORD = "MAP_TO_ADD_";
@@ -262,11 +260,6 @@ abstract class AbstractCloudifyScriptGenerator {
             path = Paths.get(uri);
         }
         return path;
-    }
-
-    protected void generatePropertiesFile(RecipeGeneratorServiceContext context, PaaSNodeTemplate serviceRootTemplate) throws IOException {
-        Path descriptorPath = loadResourceFromClasspath("classpath:velocity/ServiceProperties.vm");
-        recipePropertiesGenerator.generatePropertiesFile(context, serviceRootTemplate, descriptorPath);
     }
 
     @AllArgsConstructor
