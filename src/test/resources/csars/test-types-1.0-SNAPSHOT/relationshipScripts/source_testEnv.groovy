@@ -1,12 +1,15 @@
 import java.util.concurrent.TimeUnit
+import org.apache.commons.validator.routines.InetAddressValidator;
+
+def ipValidator = InetAddressValidator.getInstance();
 
 assert MY_HOSTNAME : "Empty env var MY_HOSTNAME"
 println "MY_HOSTNAME : ${MY_HOSTNAME}"
 assert TARGET_HOSTNAME : "Empty env var TARGET_HOSTNAME"
 println "TARGET_HOSTNAME : ${TARGET_HOSTNAME}"
-assert MY_IP && MY_IP != "true": "Empty or not valid env var MY_IP"
+assert MY_IP && ipValidator.isValidInet4Address(MY_IP): "Empty or not valid env var MY_IP"
 println "MY_IP : ${MY_IP}"
-assert TARGET_IP && TARGET_IP != "true": "Empty or not valid env var TARGET_IP"
+assert TARGET_IP && ipValidator.isValidInet4Address(TARGET_IP): "Empty or not valid env var TARGET_IP"
 println "TARGET_IP : ${TARGET_IP}"
 assert SOURCE : "Empty env var SOURCE"
 println "SOURCE : ${SOURCE}"
@@ -31,7 +34,7 @@ println "Nb of sources is ${nbSource}: ${sourcesArray}"
 
 sourcesArray.each{
   def name = it+"_MY_IP"
-  assert binding.getVariable(name) : "Empty env var ${name}"
+  assert binding.getVariable(name) && ipValidator.isValidInet4Address(binding.getVariable(name)): "Empty or malformed env var ${name}"
   println "${name} : ${binding.getVariable(name)}"
 }
 
@@ -39,4 +42,4 @@ def targetsArray = TARGETS.split(",")
 def nbTarget = targetsArray.length;
 println "Nb of targets is ${nbTarget}: ${targetsArray}"
 
-return SOURCE +"...."+TARGET
+return SOURCE +"(${MY_IP})...."+TARGET+"(${TARGET_IP})"
