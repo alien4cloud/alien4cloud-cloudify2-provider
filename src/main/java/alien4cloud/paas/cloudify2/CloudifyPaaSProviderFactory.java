@@ -91,5 +91,13 @@ public class CloudifyPaaSProviderFactory implements IConfigurablePaaSProviderFac
         leaseConstraint.setGreaterThan("0");
         eventsLease.setConstraints(Arrays.asList((PropertyConstraint) leaseConstraint));
         deploymentPropertyMap.put(DeploymentPropertiesNames.EVENTS_LEASE_INHOUR, eventsLease);
+
+        // Field 4 : deletable_blockstorage (enables
+        PropertyDefinition deletableBlockStorage = new PropertyDefinition();
+        deletableBlockStorage.setType(ToscaType.BOOLEAN.toString());
+        deletableBlockStorage.setRequired(false);
+        deletableBlockStorage.setDescription("Indicates that all deployment related blockstorage are deletable.");
+        deletableBlockStorage.setDefault("false");
+        deploymentPropertyMap.put(DeploymentPropertiesNames.DELETABLE_BLOCKSTORAGE, deletableBlockStorage);
     }
 }
