@@ -28,8 +28,6 @@ public class RecipeGeneratorServiceContext {
     private String serviceId;
     /** Path of the directory for the service recipe. */
     private Path servicePath;
-    /** Path of the generated properties file. */
-    private Path propertiesFilePath;
     /** Set of types (nodes and relationships) that are used in the recipe. */
     private final Set<String> recipeTypes = Sets.newHashSet();
     /** Maps nodeId -> script of the start detection commands that we have to aggregate to generate a good start detection for cloudify. */

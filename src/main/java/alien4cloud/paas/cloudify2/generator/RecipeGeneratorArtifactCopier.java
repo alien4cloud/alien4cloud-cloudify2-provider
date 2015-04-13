@@ -104,9 +104,6 @@ public class RecipeGeneratorArtifactCopier {
             // create a folder for this node type
             Path nodeTypePath = context.getRecipeDirectoryPath(indexedToscaElement);
 
-            // copy the properties file
-            copyPropertiesFile(context.getPropertiesFilePath(), nodeTypePath.resolve(RecipePropertiesGenerator.PROPERTIES_FILE_NAME));
-
             // copy the node type artifacts to the given folder
             artifactsPaths = Maps.newHashMap();
             for (Map.Entry<String, DeploymentArtifact> artifactEntry : artifacts.entrySet()) {
@@ -153,8 +150,6 @@ public class RecipeGeneratorArtifactCopier {
             IndexedArtifactToscaElement indexedToscaElement) throws IOException {
         // get the folder for this tosca element
         Path nodeTypePath = context.getRecipeDirectoryPath(indexedToscaElement);
-        // copy the properties file
-        copyPropertiesFile(context.getPropertiesFilePath(), nodeTypePath.resolve(RecipePropertiesGenerator.PROPERTIES_FILE_NAME));
         DeploymentArtifact artifact = getDeploymentArtifact(implementationArtifact);
         copyArtifact(csarPath, nodeTypePath, artifact.getArtifactRef(), artifact, indexedToscaElement);
     }
@@ -165,13 +160,6 @@ public class RecipeGeneratorArtifactCopier {
         deploymentArtifact.setArtifactRef(implementationArtifact.getArtifactRef());
 
         return deploymentArtifact;
-    }
-
-    private void copyPropertiesFile(Path source, Path dest) throws IOException {
-        if (Files.exists(dest)) {
-            return;
-        }
-        Files.copy(source, dest);
     }
 
     private Path copyArtifact(final Path csarPath, final Path nodeTypePath, String target, final DeploymentArtifact artifact,

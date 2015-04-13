@@ -40,9 +40,7 @@
 
         <alien4cloud.version>${project.version}</alien4cloud.version>
         <a4c-cdfy2-extension.version>${project.version}</a4c-cdfy2-extension.version>
-        <cloudify.version>2.7.0-5996-RELEASE</cloudify.version>
-        <gigaspaces.version>9.7.0-10496-RELEASE</gigaspaces.version>
-
+        <cloudify.version>2.7.1-SNAPSHOT</cloudify.version>
 
         <spring.version>4.1.4.RELEASE</spring.version>
         <lombok.version>0.12.0</lombok.version>
@@ -74,30 +72,8 @@
             <artifactId>alien4cloud-cloudify-events-model</artifactId>
             <version>${a4c-cdfy2-extension.version}</version>
         </dependency>
-
-        <!-- gigaSpaces -->
-        <dependency>
-            <groupId>com.gigaspaces</groupId>
-            <artifactId>gs-runtime</artifactId>
-            <version>${gigaspaces.version}</version>
-            <exclusions>
-                <exclusion>
-                    <artifactId>tools</artifactId>
-                    <groupId>com.sun</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>slf4j-api</artifactId>
-                    <groupId>org.slf4j</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
+        
         <!-- cloudify -->
-        <dependency>
-            <groupId>org.cloudifysource</groupId>
-            <artifactId>domain</artifactId>
-            <version>${cloudify.version}</version>
-        </dependency>
         <dependency>
             <groupId>org.cloudifysource</groupId>
             <artifactId>dsl</artifactId>
@@ -108,11 +84,6 @@
             <artifactId>rest-client</artifactId>
             <version>${cloudify.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.cloudifysource</groupId>
-            <artifactId>version</artifactId>
-            <version>${cloudify.version}</version>
-        </dependency>
 
         <!-- others -->
         <dependency>
@@ -120,11 +91,6 @@
             <artifactId>lombok</artifactId>
             <version>${lombok.version}</version>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.codehaus.groovy</groupId>
-            <artifactId>groovy-all</artifactId>
-            <version>1.8.6</version>
         </dependency>
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
@@ -155,16 +121,6 @@
             <artifactId>spring-test</artifactId>
             <version>${spring.version}</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.neo4j</groupId>
-            <artifactId>neo4j-cypher-compiler-2.1</artifactId>
-            <version>2.1.2</version>
-        </dependency>
-        <dependency>
-            <groupId>org.hornetq</groupId>
-            <artifactId>hornetq-server</artifactId>
-            <version>2.4.1.Final</version>
         </dependency>
     </dependencies>
 
