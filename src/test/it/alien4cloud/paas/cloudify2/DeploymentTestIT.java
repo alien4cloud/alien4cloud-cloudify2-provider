@@ -14,7 +14,6 @@ import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import alien4cloud.model.deployment.Deployment;
 import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.exception.PaaSAlreadyDeployedException;
 import alien4cloud.paas.exception.PaaSDeploymentException;
@@ -83,9 +82,8 @@ public class DeploymentTestIT extends GenericTestCase {
         PaaSTopologyDeploymentContext deploymentContext = new PaaSTopologyDeploymentContext();
         deploymentContext.setDeploymentSetup(null);
         deploymentContext.setTopology(topo);
-        Deployment deployment = new Deployment();
-        deployment.setPaasId(cloudifyAppId);
-        deploymentContext.setDeployment(deployment);
+        deploymentContext.setRecipeId("lol");
+        deploymentContext.setDeploymentId(cloudifyAppId);
         Map<String, PaaSNodeTemplate> nodes = topologyTreeBuilderService.buildPaaSNodeTemplate(topo);
         deploymentContext.setPaaSTopology(topologyTreeBuilderService.buildPaaSTopology(nodes));
         cloudifyPaaSPovider.deploy(deploymentContext, null);

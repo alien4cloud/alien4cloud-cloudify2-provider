@@ -1,6 +1,8 @@
 package alien4cloud.paas.cloudify2.generator;
 
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.*;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.CONTEXT_THIS_INSTANCE_ATTRIBUTES;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.CONTEXT_THIS_SERVICE_ATTRIBUTES;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SHUTDOWN_COMMAND;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -220,9 +222,9 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         // if no custom management then generate the default routine
         if (StringUtils.isBlank(unmountDeleteCommand)) {
 
+            // getting deletable BStorage from context (deployment properties)
             Map<String, String> additionalProps = Maps.newHashMap();
-            additionalProps.put("deletable",
-                    String.valueOf(ToscaUtils.isFromType(AlienCustomTypes.DELETABLE_BLOCKSTORAGE_TYPE, blockStorageNode.getIndexedToscaElement())));
+            additionalProps.put("deletable", Boolean.toString(context.isDeletableBlockStorage()));
 
             generateScriptWorkflow(context.getServicePath(), unmountDeleteBlockStorageSCriptDescriptorPath, DEFAULT_STORAGE_UNMOUNT_FILE_NAME, null,
                     additionalProps);

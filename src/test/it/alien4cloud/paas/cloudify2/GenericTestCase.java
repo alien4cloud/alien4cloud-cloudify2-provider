@@ -333,6 +333,8 @@ public class GenericTestCase {
         PaaSTopologyDeploymentContext deploymentContext = new PaaSTopologyDeploymentContext();
         deploymentContext.setDeploymentSetup(setup);
         deploymentContext.setTopology(topology);
+        deploymentContext.setRecipeId(topologyFileName);
+        deploymentContext.setDeploymentId(topology.getId());
         Map<String, PaaSNodeTemplate> nodes = topologyTreeBuilderService.buildPaaSNodeTemplate(topology);
         PaaSTopology paaSTopology = topologyTreeBuilderService.buildPaaSTopology(nodes);
         deploymentContext.setPaaSTopology(paaSTopology);
@@ -463,17 +465,13 @@ public class GenericTestCase {
         }
         request.setParameters(params);
         PaaSTopologyDeploymentContext deploymentContext = new PaaSTopologyDeploymentContext();
-        Deployment deployment = new Deployment();
-        deployment.setPaasId(cloudifyAppId);
-        deploymentContext.setDeployment(deployment);
+        deploymentContext.setDeploymentId(cloudifyAppId);
         cloudifyPaaSPovider.executeOperation(deploymentContext, request, callback);
     }
 
     protected void testUndeployment(String applicationId) throws Throwable {
         PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
-        Deployment deployment = new Deployment();
-        deployment.setPaasId(applicationId);
-        deploymentContext.setDeployment(deployment);
+        deploymentContext.setDeploymentId(applicationId);
         cloudifyPaaSPovider.undeploy(deploymentContext, null);
         waitUndeployApplication(this.cloudifyRestClientManager.getRestClient(), applicationId);
         assertApplicationIsUninstalled(applicationId);
@@ -512,9 +510,7 @@ public class GenericTestCase {
         topo.getScalingPolicies().get(nodeID).setInitialInstances(plannedInstance);
         alienDAO.save(topo);
         PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
-        Deployment deployment = new Deployment();
-        deployment.setPaasId(appId);
-        deploymentContext.setDeployment(deployment);
+        deploymentContext.setDeploymentId(appId);
         cloudifyPaaSPovider.scale(deploymentContext, nodeID, nbToAdd, null);
         if (sleepTimeSec != null) {
             Thread.sleep(sleepTimeSec * 1000L);
