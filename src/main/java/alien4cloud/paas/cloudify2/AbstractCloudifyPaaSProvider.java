@@ -276,6 +276,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
             ServiceDescription serviceDescription = restClient.getServiceDescription(deploymentId, serviceId);
             int plannedInstances = serviceDescription.getPlannedInstances() + instances;
+            statusByDeployments.get(deploymentId).topology.getScalingPolicies().get(nodeTemplateId).setInitialInstances(plannedInstances);
             log.info("Change number of instance of {}.{} from {} to {} ", deploymentId, serviceId, serviceDescription.getPlannedInstances(), plannedInstances);
             SetServiceInstancesRequest request = new SetServiceInstancesRequest();
             request.setCount(plannedInstances);
@@ -509,30 +510,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         monitorEvents.offer(messageMonitorEvent);
     }
 
-    private PaaSInstanceStateMonitorEvent generateInstanceStateRemovedEvent(String deploymentId, String nodeId, String instanceId) {
-        PaaSInstanceStateMonitorEvent event = new PaaSInstanceStateMonitorEvent();
-        event.setInstanceId(instanceId);
-        event.setNodeTemplateId(nodeId);
-        event.setDate(new Date().getTime());
-        event.setDeploymentId(deploymentId);
-        return event;
-    }
-
-    private void generateDeleteEvents(String deploymentId, InstanceDeploymentInfo existing, InstanceDeploymentInfo current,
-            List<AbstractMonitorEvent> deleteEvents) {
-        // Generate delete events
-        if (existing != null) {
-            for (Map.Entry<String, Map<String, InstanceInformation>> existingNodeInfo : existing.instanceInformations.entrySet()) {
-                for (Map.Entry<String, InstanceInformation> existingInstanceInfo : existingNodeInfo.getValue().entrySet()) {
-                    if (current == null || current.instanceInformations == null || !current.instanceInformations.containsKey(existingNodeInfo.getKey())
-                            || !current.instanceInformations.get(existingNodeInfo.getKey()).containsKey(existingInstanceInfo.getKey())) {
-                        deleteEvents.add(generateInstanceStateRemovedEvent(deploymentId, existingNodeInfo.getKey(), existingInstanceInfo.getKey()));
-                    }
-                }
-            }
-        }
-    }
-
     private void generateInstanceStateEvent(PaaSInstanceStateMonitorEvent monitorEvent, InstanceDeploymentInfo current, String nodeId, String instanceId) {
         // Generate instance state change events
         if (current == null || current.instanceInformations == null) {
@@ -623,7 +600,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     }
 
     private void processEvents(List<AbstractMonitorEvent> events, List<AlienEvent> instanceEvents, Set<String> processedDeployments) {
-        List<AbstractMonitorEvent> deleteEvents = Lists.newArrayList();
+
         for (AlienEvent alienEvent : instanceEvents) {
             if (!statusByDeployments.containsKey(alienEvent.getApplicationName())) {
                 continue;
@@ -635,9 +612,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                 DeploymentInfo deploymentInfo = statusByDeployments.get(alienEvent.getApplicationName());
                 // application is undeployed but we can still get events as polling them is Async
                 currentInstanceDeploymentInfo.instanceInformations = getInstancesInformation(alienEvent.getApplicationName(), deploymentInfo.topology);
-
-                generateDeleteEvents(alienEvent.getApplicationName(), instanceStatusByDeployments.get(alienEvent.getApplicationName()),
-                        currentInstanceDeploymentInfo, deleteEvents);
                 instanceStatusByDeployments.put(alienEvent.getApplicationName(), currentInstanceDeploymentInfo);
             } else {
                 currentInstanceDeploymentInfo = instanceStatusByDeployments.get(alienEvent.getApplicationName());
@@ -659,9 +633,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             events.add(monitorEvent);
         }
 
-        if (deleteEvents != null && deleteEvents.size() > 0) {
-            events.addAll(deleteEvents);
-        }
     }
 
     private boolean isUndeploymentTriggered(DeploymentStatus status) {
