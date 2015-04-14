@@ -102,11 +102,6 @@ public class CloudifyPaaSProvider extends AbstractCloudifyPaaSProvider {
     }
 
     @Override
-    public void switchInstanceMaintenanceMode(PaaSDeploymentContext arg0, String arg1, String arg2, boolean arg3) {
-        throw new NotImplementedException("This feature is not yet implemented on this plugin");
-    }
-
-    @Override
     public void switchMaintenanceMode(PaaSDeploymentContext arg0, boolean arg1) {
         throw new NotImplementedException("This feature is not yet implemented on this plugin");
     }

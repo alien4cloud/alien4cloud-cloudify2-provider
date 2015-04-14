@@ -157,15 +157,19 @@ public class GenericTestCase {
     public void before() throws Throwable {
         log.info("In beforeTest");
         testsUtils.cleanESFiles(IndiceClassesToClean);
-        testsUtils.uploadGitArchive("tosca-normative-types-1.0.0.wd03", "");
-        testsUtils.uploadGitArchive("alien-extended-types", "alien-base-types-1.0-SNAPSHOT");
+
+        ClassLoader classLoader = this.getClass().getClassLoader();
+        URL resource = classLoader.getResource("org/apache/http/message/BasicLineFormatter.class");
+        System.out.println(resource);
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        cloudifyURL = cloudifyURL == null ? "http://129.185.67.107:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "https://129.185.67.67:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.setCloudifyURLs(Lists.newArrayList(cloudifyURL));
         pluginConfigurationBean.setVersion("2.7.1");
         pluginConfigurationBean.setConnectionTimeOutInSeconds(5);
+        pluginConfigurationBean.setUsername("Superuser");
+        pluginConfigurationBean.setPassword("Superuser");
         cloudifyPaaSPovider.setConfiguration(pluginConfigurationBean);
         cloudifyRestClientManager = cloudifyPaaSPovider.getCloudifyRestClientManager();
         CloudResourceMatcherConfig matcherConf = new CloudResourceMatcherConfig();
@@ -187,6 +191,10 @@ public class GenericTestCase {
         storageMapping.put(new StorageTemplate(ALIEN_STORAGE, 1L, ALIEN_STORAGE_DEVICE, null), IAAS_BLOCK_STORAGE_ID);
         matcherConf.setStorageMapping(storageMapping);
         cloudifyPaaSPovider.updateMatcherConfig(matcherConf);
+
+        // upload archives
+        testsUtils.uploadGitArchive("tosca-normative-types-1.0.0.wd03", "");
+        testsUtils.uploadGitArchive("alien-extended-types", "alien-base-types-1.0-SNAPSHOT");
     }
 
     @After
@@ -517,13 +525,27 @@ public class GenericTestCase {
         }
     }
 
+    private void getEentSince(Date date) {
+        cloudifyPaaSPovider.getEventsSince(date, 100, new IPaaSCallback<AbstractMonitorEvent[]>() {
+            @Override
+            public void onSuccess(AbstractMonitorEvent[] abstractMonitorEvents) {
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+            }
+        });
+    }
+
     private void waitForApplicationInstallation(RestClient restClient, String applicationName) throws PaaSDeploymentException {
         ApplicationDescription applicationDescription = null;
         DeploymentState currentDeploymentState = null;
-
+        Date pollingDate = new Date();
         long timeout = System.currentTimeMillis() + TIMEOUT_IN_MILLIS;
         try {
             while (System.currentTimeMillis() < timeout) {
+                getEentSince(pollingDate);
+                pollingDate = new Date();
                 applicationDescription = restClient.getApplicationDescription(applicationName);
                 currentDeploymentState = applicationDescription.getApplicationState();
 
