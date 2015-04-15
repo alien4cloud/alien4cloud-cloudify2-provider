@@ -34,6 +34,7 @@ public class GenericStorageTestCase extends GenericTestCase {
                 Set<String> currentEvents = new HashSet<>();
                 for (AlienEvent alienEvent : allServiceEvents) {
                     currentEvents.add(alienEvent.getEvent());
+                    log.info("Current event <{}>", alienEvent.getEvent());
                     if (alienEvent.getEvent().equalsIgnoreCase(ToscaNodeLifecycleConstants.CREATED)) {
                         assertTrue("Event is supposed to be a BlockStorageEvent instance", alienEvent instanceof BlockStorageEvent);
                         Assert.assertNotNull(((BlockStorageEvent) alienEvent).getVolumeId());
@@ -44,6 +45,12 @@ public class GenericStorageTestCase extends GenericTestCase {
                         currentEvents.containsAll(Sets.newHashSet(expectedEvents)));
             }
         }
-
     }
+
+    protected void assertBlockStorageEventFired(String applicationName, String bstorageTemplateName, String... expectedEvents) throws Throwable {
+        // Note : cloudifyAppId == applicationName
+        // TODO : currently, after blockstorage shutdown script, the emited event is "STOPPED" instead of DELETED (enhance this to emit a DELETED)
+        testEvents(applicationName, new String[] { bstorageTemplateName }, 5000L, expectedEvents);
+    }
+
 }

@@ -45,7 +45,7 @@ public class RelationshipOperationTriggeringTestIT extends GenericTestCase {
         this.uploadGitArchive("samples", "tomcat-war");
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         String[] computesId = new String[] { "source_comp", "target_comp" };
-        String cloudifyAppId = deployTopology("relshipTrigeringTest", computesId, null);
+        String cloudifyAppId = deployTopology("relshipTrigeringTest", computesId, null, null);
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
         this.assertApplicationIsInstalled(cloudifyAppId);
         testEvents(cloudifyAppId, new String[] { "source_comp", "target_comp" }, 30000L, ToscaNodeLifecycleConstants.CREATED,

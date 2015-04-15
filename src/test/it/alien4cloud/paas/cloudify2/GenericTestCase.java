@@ -314,15 +314,18 @@ public class GenericTestCase {
         return huc.getResponseCode();
     }
 
-    protected String deployTopology(String topologyFileName, String[] computesId, Map<String, ComputeTemplate> computesMatching) throws Throwable {
+    protected String deployTopology(String topologyFileName, String[] computesId, Map<String, ComputeTemplate> computesMatching,
+            Map<String, String> providerDeploymentProperties) throws Throwable {
         Topology topology = this.createAlienApplication(topologyFileName, topologyFileName);
-        return deployTopology(computesId, topology, topologyFileName, computesMatching);
+        return deployTopology(computesId, topology, topologyFileName, computesMatching, providerDeploymentProperties);
     }
 
-    protected String deployTopology(String[] computesId, Topology topology, String topologyFileName, Map<String, ComputeTemplate> computesMatching)
-            throws Throwable {
+    protected String deployTopology(String[] computesId, Topology topology, String topologyFileName, Map<String, ComputeTemplate> computesMatching,
+            Map<String, String> providerDeploymentProperties) throws Throwable {
+
         DeploymentSetup setup = new DeploymentSetup();
         setup.setCloudResourcesMapping(Maps.<String, ComputeTemplate> newHashMap());
+
         if (computesId != null) {
             for (String string : computesId) {
                 ComputeTemplate computeTemplate = new ComputeTemplate(ALIEN_LINUX_IMAGE, ALIEN_FLAVOR);
@@ -334,8 +337,10 @@ public class GenericTestCase {
             setup.getCloudResourcesMapping().putAll(computesMatching);
         }
         setup.setStorageMapping(Maps.<String, StorageTemplate> newHashMap());
-        setup.setProviderDeploymentProperties(Maps.<String, String> newHashMap());
-        setup.getProviderDeploymentProperties().put(DeploymentPropertiesNames.DISABLE_SELF_HEALING, "true");
+
+        // configure provider properties
+        setup.setProviderDeploymentProperties(generateDeploymentProviderProperties(providerDeploymentProperties));
+
         log.info("\n\n TESTS: Deploying topology <{}>. Deployment id is <{}>. \n", topologyFileName, topology.getId());
         deployedCloudifyAppIds.add(topology.getId());
         PaaSTopologyDeploymentContext deploymentContext = new PaaSTopologyDeploymentContext();
@@ -351,6 +356,16 @@ public class GenericTestCase {
 
         waitForApplicationInstallation(this.cloudifyRestClientManager.getRestClient(), topology.getId());
         return topology.getId();
+    }
+
+    private Map<String, String> generateDeploymentProviderProperties(Map<String, String> properties) {
+        Map<String, String> providerProperties = Maps.<String, String> newHashMap();
+        if (properties != null) {
+            providerProperties.putAll(properties);
+        }
+        // by default for all deployment
+        providerProperties.put(DeploymentPropertiesNames.DISABLE_SELF_HEALING, "true");
+        return providerProperties;
     }
 
     protected Topology createAlienApplication(String applicationName, String topologyFileName) throws IOException, JsonParseException, JsonMappingException,
@@ -380,32 +395,28 @@ public class GenericTestCase {
     }
 
     protected void testEvents(String applicationId, String[] nodeTemplateNames, long timeoutInMillis, String... expectedEvents) throws Exception {
-        ApplicationDescription applicationDescription = cloudifyRestClientManager.getRestClient().getApplicationDescription(applicationId);
         for (String nodeName : nodeTemplateNames) {
-            this.assertFiredEvents(nodeName, new HashSet<String>(Arrays.asList(expectedEvents)), applicationDescription, timeoutInMillis);
+            this.assertFiredEvents(nodeName, new HashSet<String>(Arrays.asList(expectedEvents)), applicationId, timeoutInMillis);
         }
     }
 
-    protected void assertFiredEvents(String nodeName, Set<String> expectedEvents, ApplicationDescription applicationDescription, long timeoutInMillis)
+    protected void assertFiredEvents(String nodeName, Set<String> expectedEvents, String applicationName, long timeoutInMillis)
             throws Exception {
         Set<String> currentEvents = new HashSet<>();
         String serviceName = nodeName;
-        for (ServiceDescription service : applicationDescription.getServicesDescription()) {
-            long timeout = System.currentTimeMillis() + timeoutInMillis;
-            boolean passed = false;
-            String applicationName = service.getApplicationName();
-            CloudifyEventsListener listener = new CloudifyEventsListener(cloudifyRestClientManager.getRestEventEndpoint(), applicationName, serviceName);
-            do {
-                currentEvents.clear();
-                List<AlienEvent> allServiceEvents = listener.getEvents();
-                for (AlienEvent alienEvent : allServiceEvents) {
-                    currentEvents.add(alienEvent.getEvent());
-                }
-                passed = currentEvents.containsAll(expectedEvents);
-            } while (System.currentTimeMillis() < timeout && !passed);
-            log.info("Application: " + applicationName + "." + serviceName + " got events : " + currentEvents);
-            Assert.assertTrue("Missing events for node <" + serviceName + ">: " + getMissingEvents(expectedEvents, currentEvents), passed);
-        }
+        long timeout = System.currentTimeMillis() + timeoutInMillis;
+        boolean passed = false;
+        CloudifyEventsListener listener = new CloudifyEventsListener(cloudifyRestClientManager.getRestEventEndpoint(), applicationName, serviceName);
+        do {
+            currentEvents.clear();
+            List<AlienEvent> allServiceEvents = listener.getEvents();
+            for (AlienEvent alienEvent : allServiceEvents) {
+                currentEvents.add(alienEvent.getEvent());
+            }
+            passed = currentEvents.containsAll(expectedEvents) ;
+        } while (System.currentTimeMillis() < timeout && !passed);
+        log.info("Application: " + applicationName + "." + serviceName + " got events : " + currentEvents);
+        Assert.assertTrue("Missing events for node <" + serviceName + ">: " + getMissingEvents(expectedEvents, currentEvents), passed);
     }
 
     protected Set<String> getMissingEvents(Set<String> expectedEvents, Set<String> currentEvents) {

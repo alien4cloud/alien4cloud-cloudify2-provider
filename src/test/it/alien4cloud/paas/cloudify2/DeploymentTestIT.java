@@ -42,7 +42,7 @@ public class DeploymentTestIT extends GenericTestCase {
     @Test(expected = PaaSDeploymentException.class)
     public void deployATopologyWhenNoComputeAreDefinedShouldFail() throws Throwable {
         log.info("\n\n >> Executing Test deployATopologyWhenNoComputeAreDefinedShouldFail \n");
-        deployTopology("noCompute", null, null);
+        deployTopology("noCompute", null, null, null);
     }
 
     @Test
@@ -54,7 +54,7 @@ public class DeploymentTestIT extends GenericTestCase {
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         try {
             String[] computesId = new String[] { "comp_tomcatsh" };
-            cloudifyAppId = deployTopology("tomcatSh", computesId, null);
+            cloudifyAppId = deployTopology("tomcatSh", computesId, null, null);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "comp_tomcatsh", 1000L * 120);
@@ -78,7 +78,7 @@ public class DeploymentTestIT extends GenericTestCase {
         this.uploadGitArchive("samples", "tomcat-war");
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         String[] computesId = new String[] { "compute", "compute_2" };
-        String cloudifyAppId = deployTopology("compute_only", computesId, null);
+        String cloudifyAppId = deployTopology("compute_only", computesId, null, null);
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
         PaaSTopologyDeploymentContext deploymentContext = new PaaSTopologyDeploymentContext();
         deploymentContext.setDeploymentSetup(null);
@@ -116,7 +116,7 @@ public class DeploymentTestIT extends GenericTestCase {
         this.uploadGitArchive("samples", "tomcat-war");
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         String[] computesId = new String[] { "comp_envartest" };
-        String cloudifyAppId = deployTopology("envVarTest", computesId, null);
+        String cloudifyAppId = deployTopology("envVarTest", computesId, null, null);
         this.assertApplicationIsInstalled(cloudifyAppId);
         testEvents(cloudifyAppId, new String[] { "comp_envartest", "test_component" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
                 ToscaNodeLifecycleConstants.CONFIGURED, ToscaNodeLifecycleConstants.STARTED, ToscaNodeLifecycleConstants.AVAILABLE);
