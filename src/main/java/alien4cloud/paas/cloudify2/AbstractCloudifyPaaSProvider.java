@@ -40,12 +40,14 @@ import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.cloudifysource.restclient.exceptions.RestClientIOException;
 
+import alien4cloud.cloud.DeploymentService;
 import alien4cloud.dao.IGenericSearchDAO;
 import alien4cloud.exception.TechnicalException;
 import alien4cloud.model.application.DeploymentSetup;
 import alien4cloud.model.components.IAttributeValue;
 import alien4cloud.model.components.IOperationParameter;
 import alien4cloud.model.components.IndexedNodeType;
+import alien4cloud.model.deployment.Deployment;
 import alien4cloud.model.topology.NodeTemplate;
 import alien4cloud.model.topology.ScalingPolicy;
 import alien4cloud.model.topology.Topology;
@@ -102,6 +104,8 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     private IGenericSearchDAO alienMonitorDao;
     @Resource
     private TopologyTreeBuilderService topologyTreeBuilderService;
+    @Resource
+    private DeploymentService deploymentService;
 
     private static final long TIMEOUT_IN_MILLIS = 1000L * 60L * 10L; // 10 minutes
     private static final long MAX_DEPLOYMENT_TIMEOUT_MILLIS = 1000L * 60L * 5L; // 5 minutes
@@ -629,7 +633,10 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             }
             PaaSInstanceStateMonitorEvent monitorEvent;
             if (alienEvent instanceof BlockStorageEvent) {
-                monitorEvent = new PaaSInstanceStorageMonitorEvent(((BlockStorageEvent) alienEvent).getVolumeId());
+                String volumeId = ((BlockStorageEvent) alienEvent).getVolumeId();
+                Deployment deployment = deploymentService.getDeployment(alienEvent.getApplicationName());
+                String isDeletable = deployment.getDeploymentSetup().getProviderDeploymentProperties().get(DeploymentPropertiesNames.DELETABLE_BLOCKSTORAGE);
+                monitorEvent = new PaaSInstanceStorageMonitorEvent(volumeId, Boolean.getBoolean(isDeletable));
             } else {
                 monitorEvent = new PaaSInstanceStateMonitorEvent();
             }
