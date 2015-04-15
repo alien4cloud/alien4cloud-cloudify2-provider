@@ -4,7 +4,6 @@ import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDI
 import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_LOCATOR_OPERATION_NAME;
 import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_START_DETECTION_OPERATION_NAME;
 import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_STOP_DETECTION_OPERATION_NAME;
-import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CUSTOM_INTERFACE_NAME;
 import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.AND_OPERATOR;
 import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.APPLICATION_NAME;
 import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.APPLICATION_SERVICES;
@@ -33,6 +32,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -429,12 +429,17 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
     }
 
     private void addCustomCommands(final PaaSNodeTemplate nodeTemplate, final RecipeGeneratorServiceContext context) throws IOException {
-        Interface customInterface = nodeTemplate.getIndexedToscaElement().getInterfaces().get(CUSTOM_INTERFACE_NAME);
-        if (customInterface != null) {
-            Map<String, Operation> operations = customInterface.getOperations();
-            for (Entry<String, Operation> entry : operations.entrySet()) {
-                String commandUniqueName = CloudifyPaaSUtils.prefixWith(entry.getKey(), nodeTemplate.getId());
-                addCustomCommand(context, nodeTemplate, CUSTOM_INTERFACE_NAME, commandUniqueName, entry);
+        Iterator<Entry<String, Interface>> interfacesEntries = nodeTemplate.getIndexedToscaElement().getInterfaces().entrySet().iterator();
+        while (interfacesEntries.hasNext()) {
+            Entry<String, Interface> interfacesEntry = interfacesEntries.next();
+            String interfaceName = interfacesEntry.getKey();
+            Interface customInterface = interfacesEntry.getValue();
+            if (customInterface != null && !interfaceName.equals(AlienExtentedConstants.STANDARD_INTERFACE_NAME)) {
+                Map<String, Operation> operations = customInterface.getOperations();
+                for (Entry<String, Operation> entry : operations.entrySet()) {
+                    String commandUniqueName = CloudifyPaaSUtils.prefixWith(entry.getKey(), nodeTemplate.getId(), interfaceName);
+                    addCustomCommand(context, nodeTemplate, interfacesEntry.getKey(), commandUniqueName, entry);
+                }
             }
         }
 

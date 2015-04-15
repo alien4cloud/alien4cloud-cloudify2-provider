@@ -754,7 +754,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         Map<String, String> operationResponse = Maps.newHashMap();
         String serviceName = retrieveServiceName(deploymentId, request.getNodeTemplateName());
         InvokeCustomCommandRequest invokeRequest = new InvokeCustomCommandRequest();
-        invokeRequest.setCommandName(CloudifyPaaSUtils.prefixWith(request.getOperationName(), request.getNodeTemplateName()));
+        invokeRequest.setCommandName(CloudifyPaaSUtils.prefixWith(request.getOperationName(), request.getNodeTemplateName(), request.getInterfaceName()));
         buildParameters(deploymentId, request, invokeRequest);
         String operationFQN = operationFQN(serviceName, request, invokeRequest);
         try {
