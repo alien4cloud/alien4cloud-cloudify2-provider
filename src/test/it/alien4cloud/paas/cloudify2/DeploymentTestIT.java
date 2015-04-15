@@ -81,7 +81,6 @@ public class DeploymentTestIT extends GenericTestCase {
         String cloudifyAppId = deployTopology("compute_only", computesId, null, null);
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
         PaaSTopologyDeploymentContext deploymentContext = new PaaSTopologyDeploymentContext();
-        deploymentContext.setDeploymentSetup(null);
         deploymentContext.setTopology(topo);
         Deployment deployment = new Deployment();
         deployment.setPaasId(cloudifyAppId);

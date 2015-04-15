@@ -1,31 +1,7 @@
 package alien4cloud.paas.cloudify2.generator;
 
-import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_INTERFACE_NAME;
-import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_LOCATOR_OPERATION_NAME;
-import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_START_DETECTION_OPERATION_NAME;
-import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_STOP_DETECTION_OPERATION_NAME;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.AND_OPERATOR;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.APPLICATION_NAME;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.APPLICATION_SERVICES;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.CONTEXT_THIS_INSTANCE_ATTRIBUTES;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.INIT_COMMAND;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.INIT_LIFECYCLE;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.LOCATORS;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.OR_OPERATOR;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.RELATIONSHIP_CUSTOM_COMMANDS;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_COMPUTE_TEMPLATE_NAME;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_CUSTOM_COMMANDS;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_DETECTION_COMMAND;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_MAX_ALLOWED_INSTANCES;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_MIN_ALLOWED_INSTANCES;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_NAME;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_NETWORK_NAME;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_NUM_INSTANCES;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_START_DETECTION_COMMAND;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_STOP_DETECTION_COMMAND;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SHUTDOWN_COMMAND;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SHUTDOWN_LIFECYCLE;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.START_DETECTION_TIMEOUT_SEC;
+import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.*;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -140,13 +116,13 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         globalDetectionScriptDescriptorPath = loadResourceFromClasspath("classpath:velocity/GlobalDetectionScriptDescriptor.vm");
     }
 
-    public Path generateRecipe(final String deploymentName, final String topologyId, final Map<String, PaaSNodeTemplate> nodeTemplates,
-            final List<PaaSNodeTemplate> roots, DeploymentSetup setup) throws IOException {
+    public Path generateRecipe(final String deploymentId, final Map<String, PaaSNodeTemplate> nodeTemplates, final List<PaaSNodeTemplate> roots,
+            DeploymentSetup setup) throws IOException {
         // cleanup/create the topology recipe directory
-        Path recipePath = cleanupDirectory(topologyId);
+        Path recipePath = cleanupDirectory(deploymentId);
         List<String> serviceIds = Lists.newArrayList();
         if (roots == null || roots.isEmpty()) {
-            throw new PaaSDeploymentException("No compute found in topology for deployment " + deploymentName);
+            throw new PaaSDeploymentException("No compute found in topology for deployment " + deploymentId);
         }
         for (PaaSNodeTemplate root : roots) {
             ServiceSetup serviceSetup = new ServiceSetup();
@@ -168,7 +144,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             serviceIds.add(serviceSetup.getId());
         }
 
-        generateApplicationDescriptor(recipePath, topologyId, deploymentName, serviceIds);
+        generateApplicationDescriptor(recipePath, deploymentId, serviceIds);
 
         return createZip(recipePath);
     }
@@ -732,13 +708,12 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         VelocityUtil.writeToOutputFile(serviceDescriptorPath, outputPath, properties);
     }
 
-    protected void generateApplicationDescriptor(final Path recipePath, final String topologyId, final String deploymentName, final List<String> serviceIds)
-            throws IOException {
+    protected void generateApplicationDescriptor(final Path recipePath, final String deploymentId, final List<String> serviceIds) throws IOException {
         // configure and write the application descriptor thanks to velocity.
-        Path outputPath = recipePath.resolve(topologyId + DSLUtils.APPLICATION_DSL_FILE_NAME_SUFFIX);
+        Path outputPath = recipePath.resolve(deploymentId + DSLUtils.APPLICATION_DSL_FILE_NAME_SUFFIX);
 
         HashMap<String, Object> properties = Maps.newHashMap();
-        properties.put(APPLICATION_NAME, deploymentName);
+        properties.put(APPLICATION_NAME, deploymentId);
         properties.put(APPLICATION_SERVICES, serviceIds);
 
         VelocityUtil.writeToOutputFile(applicationDescriptorPath, outputPath, properties);
