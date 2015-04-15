@@ -634,7 +634,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             PaaSInstanceStateMonitorEvent monitorEvent;
             if (alienEvent instanceof BlockStorageEvent) {
                 String volumeId = ((BlockStorageEvent) alienEvent).getVolumeId();
-                Deployment deployment = deploymentService.getDeployment(alienEvent.getApplicationName());
+                Deployment deployment = deploymentService.getDeploymentByPaaSId(alienEvent.getApplicationName());
                 String isDeletable = deployment.getDeploymentSetup().getProviderDeploymentProperties().get(DeploymentPropertiesNames.DELETABLE_BLOCKSTORAGE);
                 monitorEvent = new PaaSInstanceStorageMonitorEvent(volumeId, Boolean.getBoolean(isDeletable));
             } else {
