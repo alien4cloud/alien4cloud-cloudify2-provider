@@ -25,8 +25,6 @@ import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.function.FunctionEvaluator;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
-import alien4cloud.tosca.ToscaUtils;
-import alien4cloud.tosca.normative.AlienCustomTypes;
 import alien4cloud.tosca.normative.NormativeBlockStorageConstants;
 import alien4cloud.utils.MapUtil;
 
@@ -120,7 +118,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
                     log.warn(NormativeBlockStorageConstants.VOLUME_ID + " is not of type Scalar, it's not supported by the driver, volume will not be reused");
                 }
             }
-            verifyNoVolumeIdForDeletableStorage(blockStorageNode, volumeIds);
+            verifyNoVolumeIdForStorage(blockStorageNode.getId(), volumeIds, context.isDeletableBlockStorage());
         }
 
         // setting the volumes Ids array for instances
@@ -234,10 +232,10 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         return unmountDeleteCommand;
     }
 
-    private void verifyNoVolumeIdForDeletableStorage(PaaSNodeTemplate blockStorageNode, String volumeIds) {
-        if (ToscaUtils.isFromType(AlienCustomTypes.DELETABLE_BLOCKSTORAGE_TYPE, blockStorageNode.getIndexedToscaElement()) && StringUtils.isNotBlank(volumeIds)) {
-            throw new PaaSDeploymentException("Failed to generate scripts for BlockStorage <" + blockStorageNode.getId() + " >. A storage of type <"
-                    + AlienCustomTypes.DELETABLE_BLOCKSTORAGE_TYPE + "> should not be provided with volumeIds.");
+    private void verifyNoVolumeIdForStorage(String blockStorageNodeId, String volumeIds, boolean isDeletableBlockStorage) {
+        if (isDeletableBlockStorage && StringUtils.isNotBlank(volumeIds)) {
+            throw new PaaSDeploymentException("Failed to generate scripts for BlockStorage <" + blockStorageNodeId
+                    + " >. A block storage should not be provided with volumeIds.");
         }
     }
 }

@@ -53,7 +53,7 @@ public class ArtifactsCopyTestIT extends GenericTestCase {
         topology.getNodeTemplates().get("war_2").getArtifacts().put("war_file", artifact);
         alienDAO.save(topology);
         String[] computes = new String[] { "comp_tomcat_war" };
-        cloudifyAppId = deployTopology(computes, topology, topologyFileName, null);
+        cloudifyAppId = deployTopology(computes, topology, topologyFileName, null, null);
         assertApplicationIsInstalled(cloudifyAppId);
         testEvents(cloudifyAppId, new String[] { "comp_tomcat_war", "War_1", "war_2" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
                 ToscaNodeLifecycleConstants.CONFIGURED, ToscaNodeLifecycleConstants.STARTED);

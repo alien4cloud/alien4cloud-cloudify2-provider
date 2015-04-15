@@ -31,7 +31,7 @@ public class InstanceInfoTestIT extends GenericTestCase {
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
 
         String[] computes = new String[] { "comp_tomcat_scaling" };
-        cloudifyAppId = deployTopology("compTomcatScaling", computes, null);
+        cloudifyAppId = deployTopology("compTomcatScaling", computes, null, null);
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
         Map<String, Map<String, InstanceInformation>> instancesInformations = cloudifyPaaSPovider.getInstancesInformation(cloudifyAppId, topo);
         printStatuses(instancesInformations);

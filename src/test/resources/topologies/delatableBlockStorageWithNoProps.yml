@@ -10,7 +10,7 @@ node_templates:
       os_version:
         value: ubuntu
   blockstorage:
-    type: alien.nodes.DeletableBlockStorage
+    type: tosca.nodes.BlockStorage
     relationships:
       attachToServeurWeb:
         target: comp_storage_noprops
