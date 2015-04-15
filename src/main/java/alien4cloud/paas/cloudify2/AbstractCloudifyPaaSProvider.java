@@ -80,7 +80,6 @@ import alien4cloud.paas.model.PaaSDeploymentContext;
 import alien4cloud.paas.model.PaaSDeploymentStatusMonitorEvent;
 import alien4cloud.paas.model.PaaSInstanceStateMonitorEvent;
 import alien4cloud.paas.model.PaaSInstanceStorageMonitorEvent;
-import alien4cloud.paas.model.PaaSMessageMonitorEvent;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSTopology;
 import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
@@ -131,7 +130,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     private Queue<AbstractMonitorEvent> monitorEvents = new ConcurrentLinkedQueue<>();
 
     @PostConstruct
-    private void init() {
+    private void initBean() {
         // Call a protected method to be able to override it.
         // This is more clearer and avoid implementation errors.
         configureDefault();
@@ -145,6 +144,20 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
      */
     protected void configureDefault() {
         log.info("Configuring the paaS provider");
+    }
+
+    @Override
+    public void init(Map<String, PaaSTopologyDeploymentContext> activeDeployments) {
+        if (activeDeployments == null) {
+            return;
+        }
+        for (Map.Entry<String, PaaSTopologyDeploymentContext> activeDeployment : activeDeployments.entrySet()) {
+            DeploymentInfo deploymentInfo = new DeploymentInfo();
+            deploymentInfo.deploymentId = activeDeployment.getValue().getDeploymentPaaSId();
+            deploymentInfo.topology = activeDeployment.getValue().getTopology();
+            deploymentInfo.paaSNodeTemplates = activeDeployment.getValue().getPaaSTopology().getAllNodes();
+            statusByDeployments.put(activeDeployment.getKey(), deploymentInfo);
+        }
     }
 
     @Override
@@ -514,21 +527,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         callback.onSuccess(getInstancesInformation(deploymentContext.getDeploymentPaaSId(), topology));
     }
 
-    /**
-     * Dispatch a message event to ALIEN.
-     *
-     * @param deploymentPaaSId The id of the deployment (application from cloudify point of view).
-     * @param message The message to dispatch.
-     */
-    public void dispatchMessage(String deploymentPaaSId, String message) {
-        PaaSMessageMonitorEvent messageMonitorEvent = new PaaSMessageMonitorEvent();
-        messageMonitorEvent.setDate(new Date().getTime());
-        messageMonitorEvent.setDeploymentId(deploymentPaaSId);
-        messageMonitorEvent.setMessage(message);
-        monitorEvents.offer(messageMonitorEvent);
-    }
-
-    private void fillInstanceStateEvent(PaaSInstanceStateMonitorEvent monitorEvent, NodesDeploymentInfo current, String nodeId, String instanceId) {
+    private void fillInstanceStateEvent(PaaSInstanceStateMonitorEvent monitorEvent, InstanceDeploymentInfo current, String nodeId, String instanceId) {
         // Generate instance state change events
         if (current == null || current.instanceInformations == null) {
             return;
@@ -605,7 +604,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                 boolean found = updateStatus(deploymentId, applicationDescription.getApplicationName(), status);
                 if (found) {
                     PaaSDeploymentStatusMonitorEvent dsMonitorEvent = new PaaSDeploymentStatusMonitorEvent();
-                    dsMonitorEvent.setDeploymentId(applicationDescription.getApplicationName());
+                    dsMonitorEvent.setDeploymentId(deploymentId);
                     dsMonitorEvent.setDeploymentStatus(status);
                     dsMonitorEvent.setDate(new Date().getTime());
 

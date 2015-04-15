@@ -344,7 +344,9 @@ public class GenericTestCase {
         log.info("\n\n TESTS: Deploying topology <{}>. Deployment id is <{}>. \n", topologyFileName, topology.getId());
         deployedCloudifyAppIds.add(topology.getId());
         PaaSTopologyDeploymentContext deploymentContext = new PaaSTopologyDeploymentContext();
-        deploymentContext.setDeploymentSetup(setup);
+        Deployment deployment = new Deployment();
+        deployment.setDeploymentSetup(setup);
+        deploymentContext.setDeployment(deployment);
         deploymentContext.setTopology(topology);
         Map<String, PaaSNodeTemplate> nodes = topologyTreeBuilderService.buildPaaSNodeTemplate(topology);
         PaaSTopology paaSTopology = topologyTreeBuilderService.buildPaaSTopology(nodes);
