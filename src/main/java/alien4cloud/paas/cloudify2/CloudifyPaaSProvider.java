@@ -3,7 +3,6 @@ package alien4cloud.paas.cloudify2;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.lang.NotImplementedException;
 import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
@@ -13,7 +12,6 @@ import alien4cloud.model.cloud.CloudResourceMatcherConfig;
 import alien4cloud.model.cloud.CloudResourceType;
 import alien4cloud.paas.exception.PluginConfigurationException;
 import alien4cloud.paas.model.PaaSComputeTemplate;
-import alien4cloud.paas.model.PaaSDeploymentContext;
 
 import com.google.common.collect.Sets;
 
@@ -99,11 +97,6 @@ public class CloudifyPaaSProvider extends AbstractCloudifyPaaSProvider {
                     templateEntry.getKey());
         }
         return paaSComputeTemplates;
-    }
-
-    @Override
-    public void switchMaintenanceMode(PaaSDeploymentContext arg0, boolean arg1) {
-        throw new NotImplementedException("This feature is not yet implemented on this plugin");
     }
 
 }

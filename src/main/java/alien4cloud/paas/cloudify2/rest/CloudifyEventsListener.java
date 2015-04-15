@@ -67,8 +67,8 @@ public class CloudifyEventsListener {
         URIBuilder builder = new URIBuilder(endpoint.resolve("/events/test"));
         Response response = doGetWithStatus(builder);
         if (response.status != 200) {
-            throw new IOException("Failed to connect to event endpoint" + builder.build() + ". Status is: " + response.status + "; Response is: "
-                    + response.response);
+            log.debug("Failed to execute" + builder.build() + ". Status: " + response.status + " ; Reason: " + response.errorReason + "\n\tResponse is: ");
+            throw new IOException("Failed to execute " + builder.build() + ". Status: " + response.status + " ; Reason: " + response.errorReason);
         }
         return response.response;
     }
@@ -112,7 +112,7 @@ public class CloudifyEventsListener {
     }
 
     public void putNodeInstanceStates(List<NodeInstanceState> nodeInstanceStates) throws URISyntaxException, IOException {
-        URIBuilder builder = new URIBuilder(endpoint.resolve("/events/putNodeInstanceState"));
+        URIBuilder builder = new URIBuilder(endpoint.resolve("/events/putInstanceStates"));
         this.doPost(builder, nodeInstanceStates, true);
     }
 
