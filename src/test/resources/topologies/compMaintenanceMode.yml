@@ -32,7 +32,7 @@ scaling_policies:
   comp_maint_mode:
     min_instances: 1
     max_instances: 3
-    initial_instances: 1
+    initial_instances: 2
 
 dependencies:
   - name: tosca-normative-types

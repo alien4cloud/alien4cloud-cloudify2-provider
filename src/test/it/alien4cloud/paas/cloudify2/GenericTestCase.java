@@ -163,13 +163,13 @@ public class GenericTestCase {
         System.out.println(resource);
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        cloudifyURL = cloudifyURL == null ? "https://129.185.67.67:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "https://129.185.67.27:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.setCloudifyURLs(Lists.newArrayList(cloudifyURL));
         pluginConfigurationBean.setVersion("2.7.1");
         pluginConfigurationBean.setConnectionTimeOutInSeconds(5);
-        pluginConfigurationBean.setUsername("Superuser");
-        pluginConfigurationBean.setPassword("Superuser");
+        // pluginConfigurationBean.setUsername("Superuser");
+        // pluginConfigurationBean.setPassword("Superuser");
         cloudifyPaaSPovider.setConfiguration(pluginConfigurationBean);
         cloudifyRestClientManager = cloudifyPaaSPovider.getCloudifyRestClientManager();
         CloudResourceMatcherConfig matcherConf = new CloudResourceMatcherConfig();
@@ -345,7 +345,9 @@ public class GenericTestCase {
         deployedCloudifyAppIds.add(topology.getId());
         PaaSTopologyDeploymentContext deploymentContext = new PaaSTopologyDeploymentContext();
         Deployment deployment = new Deployment();
+        deployment.setId(topology.getId());
         deployment.setDeploymentSetup(setup);
+        deployment.setPaasId(topology.getId());
         deploymentContext.setDeployment(deployment);
         deploymentContext.setTopology(topology);
         Map<String, PaaSNodeTemplate> nodes = topologyTreeBuilderService.buildPaaSNodeTemplate(topology);
@@ -402,8 +404,7 @@ public class GenericTestCase {
         }
     }
 
-    protected void assertFiredEvents(String nodeName, Set<String> expectedEvents, String applicationName, long timeoutInMillis)
-            throws Exception {
+    protected void assertFiredEvents(String nodeName, Set<String> expectedEvents, String applicationName, long timeoutInMillis) throws Exception {
         Set<String> currentEvents = new HashSet<>();
         String serviceName = nodeName;
         long timeout = System.currentTimeMillis() + timeoutInMillis;
@@ -415,7 +416,7 @@ public class GenericTestCase {
             for (AlienEvent alienEvent : allServiceEvents) {
                 currentEvents.add(alienEvent.getEvent());
             }
-            passed = currentEvents.containsAll(expectedEvents) ;
+            passed = currentEvents.containsAll(expectedEvents);
         } while (System.currentTimeMillis() < timeout && !passed);
         log.info("Application: " + applicationName + "." + serviceName + " got events : " + currentEvents);
         Assert.assertTrue("Missing events for node <" + serviceName + ">: " + getMissingEvents(expectedEvents, currentEvents), passed);
