@@ -38,6 +38,15 @@ node_types:
           input:
             EXPECTED_HOSTNAME: {get_property: [SELF, customHostName]}
           implementation: scripts/compute_start_detection.groovy
+      fr.fastconnect.custom:
+        bolo:
+          implementation: scripts/cmd_bolo.groovy
+        bala:
+          implementation: scripts/cmd_bala.groovy
+          inputs:
+            p1:
+              type: string
+              required: true          
   
   alien.test.nodes.ComputeWindows:
     derived_from: tosca.nodes.Compute

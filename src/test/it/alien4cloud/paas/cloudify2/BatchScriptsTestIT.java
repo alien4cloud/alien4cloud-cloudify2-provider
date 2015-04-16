@@ -48,10 +48,10 @@ public class BatchScriptsTestIT extends GenericTestCase {
 
         Map<String, String> params = Maps.newHashMap();
         params.put("filename", "created.txt");
-        testCustomCommandSuccess(cloudifyAppId, "computeWindows", null, "checkFile", params, null);
+        testCustomCommandSuccess(cloudifyAppId, "computeWindows", null, "custom", "checkFile", params, null);
 
         params.put("filename", "configured.txt");
-        testCustomCommandSuccess(cloudifyAppId, "computeWindows", null, "checkFile", params, null);
+        testCustomCommandSuccess(cloudifyAppId, "computeWindows", null, "custom", "checkFile", params, null);
     }
 
 }

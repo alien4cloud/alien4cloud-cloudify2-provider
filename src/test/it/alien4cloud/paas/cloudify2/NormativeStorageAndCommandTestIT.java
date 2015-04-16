@@ -55,13 +55,13 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
             String resultSnipetInst = "hello <alien>, customHostName is <testCompute>, from <comp_custom_cmd.1>";
             Map<String, String> params = Maps.newHashMap();
             params.put("yourName", "alien");
-            testCustomCommandSuccess(cloudifyAppId, "comp_custom_cmd", null, "helloCmd", params, resultSnipet);
+            testCustomCommandSuccess(cloudifyAppId, "comp_custom_cmd", null, "custom", "helloCmd", params, resultSnipet);
             params.put("yourName", null);
-            testCustomCommandFail(cloudifyAppId, "comp_custom_cmd", null, "helloCmd", null);
+            testCustomCommandFail(cloudifyAppId, "comp_custom_cmd", null, "custom", "helloCmd", null);
             params.put("yourName", "alien");
-            testCustomCommandSuccess(cloudifyAppId, "comp_custom_cmd", 1, "helloCmd", params, resultSnipetInst);
+            testCustomCommandSuccess(cloudifyAppId, "comp_custom_cmd", 1, "custom", "helloCmd", params, resultSnipetInst);
             params.put("yourName", "failThis");
-            testCustomCommandFail(cloudifyAppId, "comp_custom_cmd", 1, "helloCmd", params);
+            testCustomCommandFail(cloudifyAppId, "comp_custom_cmd", 1, "custom", "helloCmd", params);
 
         } catch (Exception e) {
             log.error("Test Failed", e);

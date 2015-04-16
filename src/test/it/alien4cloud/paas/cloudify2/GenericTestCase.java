@@ -432,9 +432,10 @@ public class GenericTestCase {
         return missing;
     }
 
-    protected void testCustomCommandFail(String applicationId, String nodeName, Integer instanceId, String command, Map<String, String> params) {
+    protected void testCustomCommandFail(String applicationId, String nodeName, Integer instanceId, String interfaceName, String command,
+            Map<String, String> params) {
         try {
-            executeCustomCommand(applicationId, nodeName, instanceId, command, params, new IPaaSCallback<Map<String, String>>() {
+            executeCustomCommand(applicationId, nodeName, instanceId, interfaceName, command, params, new IPaaSCallback<Map<String, String>>() {
                 @Override
                 public void onSuccess(Map<String, String> data) {
                     Assert.fail();
@@ -449,9 +450,10 @@ public class GenericTestCase {
         }
     }
 
-    protected void testCustomCommandSuccess(String cloudifyAppId, String nodeName, Integer instanceId, String command, Map<String, String> params,
+    protected void testCustomCommandSuccess(String cloudifyAppId, String nodeName, Integer instanceId, String interfaceName, String command,
+            Map<String, String> params,
             final String expectedResultSnippet) {
-        executeCustomCommand(cloudifyAppId, nodeName, instanceId, command, params, new IPaaSCallback<Map<String, String>>() {
+        executeCustomCommand(cloudifyAppId, nodeName, instanceId, interfaceName, command, params, new IPaaSCallback<Map<String, String>>() {
             @Override
             public void onSuccess(Map<String, String> result) {
 
@@ -470,13 +472,14 @@ public class GenericTestCase {
         });
     }
 
-    protected void executeCustomCommand(String cloudifyAppId, String nodeName, Integer instanceId, String command, Map<String, String> params,
+    protected void executeCustomCommand(String cloudifyAppId, String nodeName, Integer instanceId, String interfaceName, String command,
+            Map<String, String> params,
             IPaaSCallback<Map<String, String>> callback) {
         if (!deployedCloudifyAppIds.contains(cloudifyAppId)) {
             Assert.fail("Topology not found in deployments");
         }
         NodeOperationExecRequest request = new NodeOperationExecRequest();
-        request.setInterfaceName("custom");
+        request.setInterfaceName(interfaceName);
         request.setOperationName(command);
         request.setNodeTemplateName(nodeName);
 
