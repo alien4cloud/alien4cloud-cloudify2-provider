@@ -177,7 +177,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             deploymentInfo.topology = topology;
             deploymentInfo.paaSTopology = topologyTreeBuilderService.buildPaaSTopology(deploymentInfo.topology);
             Path cfyZipPath = recipeGenerator.generateRecipe(deploymentPaaSId, nodeTemplates, roots, deploymentSetup);
-            statusByDeployments.put(deploymentId, deploymentInfo);
+            statusByDeployments.put(deploymentPaaSId, deploymentInfo);
             log.info("Deploying application from recipe at <{}>", cfyZipPath);
             this.deployOnCloudify(deploymentPaaSId, cfyZipPath, getSelHealingProperty(deploymentSetup));
             registerDeploymentStatus(deploymentId, DeploymentStatus.DEPLOYMENT_IN_PROGRESS);
