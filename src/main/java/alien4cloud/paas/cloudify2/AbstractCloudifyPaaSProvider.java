@@ -950,9 +950,11 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         Map<String, IOperationParameter> params = nodeType.getInterfaces().get(request.getInterfaceName()).getOperations().get(request.getOperationName())
                 .getInputParameters();
         Map<String, String> requestParams = request.getParameters() == null ? Maps.<String, String> newHashMap() : request.getParameters();
-        for (Entry<String, IOperationParameter> param : params.entrySet()) {
-            if (param.getValue().isDefinition() && !requestParams.containsKey(param.getKey())) {
-                invokeRequest.getParameters().add(param.getKey().concat("=").concat("null"));
+        if (params != null) {
+            for (Entry<String, IOperationParameter> param : params.entrySet()) {
+                if (param.getValue().isDefinition() && !requestParams.containsKey(param.getKey())) {
+                    invokeRequest.getParameters().add(param.getKey().concat("=").concat("null"));
+                }
             }
         }
     }

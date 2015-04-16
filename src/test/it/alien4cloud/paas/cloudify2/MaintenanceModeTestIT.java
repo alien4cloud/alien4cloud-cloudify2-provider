@@ -43,7 +43,7 @@ public class MaintenanceModeTestIT extends GenericTestCase {
         // String startMaintenanceResultSnipet = "agent failure detection disabled successfully for a period of";
         // String stopMaintenanceResultSnipet = "agent failure detection enabled successfully";
         try {
-            String[] computesId = new String[] { "comp_maint_mode" };
+            String[] computesId = new String[] { "comp_maint_mode", "comp_maint_mode_2" };
             cloudifyAppId = deployTopology("compMaintenanceMode", computesId, null, null);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
@@ -53,10 +53,12 @@ public class MaintenanceModeTestIT extends GenericTestCase {
             /** one instance of a node **/
             // ON
             testMaintenanceModeSuccess(cloudifyAppId, "comp_maint_mode", 1, true, Lists.newArrayList("tomcat"));
+            assertInstanceStateCorrect(cloudifyAppId, "comp_maint_mode", "2", ToscaNodeLifecycleConstants.AVAILABLE, Lists.newArrayList("tomcat"));
             assertInstanceStateCorrect(cloudifyAppId, "comp_maint_mode_2", null, ToscaNodeLifecycleConstants.AVAILABLE, null);
 
             // OFF
             testMaintenanceModeSuccess(cloudifyAppId, "comp_maint_mode", 1, false, Lists.newArrayList("tomcat"));
+            assertInstanceStateCorrect(cloudifyAppId, "comp_maint_mode", "2", ToscaNodeLifecycleConstants.AVAILABLE, Lists.newArrayList("tomcat"));
             assertInstanceStateCorrect(cloudifyAppId, "comp_maint_mode_2", null, ToscaNodeLifecycleConstants.AVAILABLE, null);
 
             /** all instances of a node **/
@@ -100,7 +102,7 @@ public class MaintenanceModeTestIT extends GenericTestCase {
         if (children != null) {
             nodesNames.addAll(children);
         }
-        if (StringUtils.isBlank(nodeName)) {
+        if (StringUtils.isNotBlank(nodeName)) {
             nodesNames.add(nodeName);
         }
 
