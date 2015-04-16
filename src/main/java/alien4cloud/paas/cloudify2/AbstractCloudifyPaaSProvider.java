@@ -576,16 +576,16 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             List<String> appUnknownStatuses = Lists.newArrayList(statusByDeployments.keySet());
             processUnknownStatuses(events, applicationDescriptions, appUnknownStatuses);
 
-            // cleanup statuses
-            if (appUnknownStatuses.size() > 0) {
-                cleanupUnknownApplicationsStatuses(listener, appUnknownStatuses);
-            }
-
             // get instance status events
             List<AlienEvent> instanceEvents = listener.getEventsSince(date, maxEvents);
 
             Set<String> processedDeployments = Sets.newHashSet();
             processEvents(events, instanceEvents, processedDeployments);
+
+            // cleanup statuses
+            if (appUnknownStatuses.size() > 0) {
+                cleanupUnknownApplicationsStatuses(listener, appUnknownStatuses);
+            }
         } catch (Exception e) {
             eventsCallback.onFailure(new PaaSTechnicalException("Error while getting deployment events.", e));
         }
