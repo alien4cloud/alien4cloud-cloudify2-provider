@@ -62,7 +62,7 @@ public class GigaSpacesEventsManager {
 
     def putNodeInstanceStateEvent(def application, def service, def instanceId, def event) {
         def document = new SpaceDocument("alien4cloud.paas.cloudify2.events.NodeInstanceState");
-        document.setProperty("id", application + "-" + service + "-" + instanceId);
+        document.setProperty("id", "$deploymentId" + "-" + service + "-" + instanceId);
         document.setProperty("applicationName", application as String);
         document.setProperty("deploymentId", "$deploymentId" as String);
         document.setProperty("nodeTemplateId", service as String);
