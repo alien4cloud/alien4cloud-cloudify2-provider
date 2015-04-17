@@ -1,6 +1,9 @@
 package alien4cloud.paas.cloudify2.generator;
 
-import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.*;
+import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_INTERFACE_NAME;
+import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_LOCATOR_OPERATION_NAME;
+import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_START_DETECTION_OPERATION_NAME;
+import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_STOP_DETECTION_OPERATION_NAME;
 import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.*;
 
 import java.io.IOException;
@@ -109,24 +112,25 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         }
 
         // initialize velocity template paths
-        applicationDescriptorPath = loadResourceFromClasspath("classpath:velocity/ApplicationDescriptor.vm");
-        serviceDescriptorPath = loadResourceFromClasspath("classpath:velocity/ServiceDescriptor.vm");
-        scriptDescriptorPath = loadResourceFromClasspath("classpath:velocity/ScriptDescriptor.vm");
-        closureScriptDescriptorPath = loadResourceFromClasspath("classpath:velocity/ClosureScriptDescriptor.vm");
-        globalDetectionScriptDescriptorPath = loadResourceFromClasspath("classpath:velocity/GlobalDetectionScriptDescriptor.vm");
+        applicationDescriptorPath = commandGenerator.loadResourceFromClasspath("classpath:velocity/ApplicationDescriptor.vm");
+        serviceDescriptorPath = commandGenerator.loadResourceFromClasspath("classpath:velocity/ServiceDescriptor.vm");
+        scriptDescriptorPath = commandGenerator.loadResourceFromClasspath("classpath:velocity/ScriptDescriptor.vm");
+        closureScriptDescriptorPath = commandGenerator.loadResourceFromClasspath("classpath:velocity/ClosureScriptDescriptor.vm");
+        globalDetectionScriptDescriptorPath = commandGenerator.loadResourceFromClasspath("classpath:velocity/GlobalDetectionScriptDescriptor.vm");
     }
 
-    public Path generateRecipe(final String deploymentId, final Map<String, PaaSNodeTemplate> nodeTemplates, final List<PaaSNodeTemplate> roots,
-            DeploymentSetup setup) throws IOException {
+    public Path generateRecipe(final String deploymentId, final String deploymentPaaSId, final Map<String, PaaSNodeTemplate> nodeTemplates,
+            final List<PaaSNodeTemplate> roots, DeploymentSetup setup) throws IOException {
         // cleanup/create the topology recipe directory
-        Path recipePath = cleanupDirectory(deploymentId);
+        Path recipePath = cleanupDirectory(deploymentPaaSId);
         List<String> serviceIds = Lists.newArrayList();
         if (roots == null || roots.isEmpty()) {
-            throw new PaaSDeploymentException("No compute found in topology for deployment " + deploymentId);
+            throw new PaaSDeploymentException("No compute found in topology for deployment " + deploymentPaaSId);
         }
         for (PaaSNodeTemplate root : roots) {
-            ServiceSetup serviceSetup = new ServiceSetup();
             String nodeName = root.getId();
+            ServiceSetup serviceSetup = new ServiceSetup();
+            serviceSetup.setDeploymentId(deploymentId);
             serviceSetup.setComputeTemplate(getComputeTemplateOrDie(setup.getCloudResourcesMapping(), root));
             List<PaaSNodeTemplate> networkNodes = root.getNetworkNodes();
             if (networkNodes != null && !networkNodes.isEmpty()) {
@@ -144,7 +148,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             serviceIds.add(serviceSetup.getId());
         }
 
-        generateApplicationDescriptor(recipePath, deploymentId, serviceIds);
+        generateApplicationDescriptor(recipePath, deploymentPaaSId, serviceIds);
 
         return createZip(recipePath);
     }
@@ -251,7 +255,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         context.setDeletableBlockStorage(setup.getProviderDeploymentProperties().get(DeploymentPropertiesNames.DELETABLE_BLOCKSTORAGE));
 
         // copy internal static resources for the service
-        commandGenerator.copyInternalResources(servicePath);
+        commandGenerator.copyInternalResources(servicePath, setup.getDeploymentId());
 
         // copy artifacts for the nodes
         this.artifactCopier.copyAllArtifacts(context, computeNode);

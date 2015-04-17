@@ -18,5 +18,6 @@ public class ServiceSetup {
     private NetworkTemplate network;
     private StorageTemplate storage;
     private Map<String, String> providerDeploymentProperties = Maps.newHashMap();
+    private String deploymentId;
 
 }

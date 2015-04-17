@@ -176,7 +176,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             deploymentInfo.deploymentId = deploymentId;
             deploymentInfo.topology = topology;
             deploymentInfo.paaSTopology = topologyTreeBuilderService.buildPaaSTopology(deploymentInfo.topology);
-            Path cfyZipPath = recipeGenerator.generateRecipe(deploymentPaaSId, nodeTemplates, roots, deploymentSetup);
+            Path cfyZipPath = recipeGenerator.generateRecipe(deploymentId, deploymentPaaSId, nodeTemplates, roots, deploymentSetup);
             statusByDeployments.put(deploymentPaaSId, deploymentInfo);
             log.info("Deploying application from recipe at <{}>", cfyZipPath);
             this.deployOnCloudify(deploymentPaaSId, cfyZipPath, getSelHealingProperty(deploymentSetup));
@@ -240,7 +240,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         try {
             final URI restEventEndpoint = this.cloudifyRestClientManager.getRestEventEndpoint();
             if (restEventEndpoint != null) {
-                CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, deploymentPaaSId, "");
+                CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, statusByDeployments.get(deploymentPaaSId).deploymentId, "");
                 cleanupUnmanagedApplicationInfos(listener, deploymentPaaSId, false);
             }
 
@@ -361,8 +361,9 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
      */
     private void fillInstanceStates(final String deploymentPaaSId, final Map<String, Map<String, InstanceInformation>> instanceInformations,
             final URI restEventEndpoint) throws URISyntaxException, IOException {
-        CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, deploymentPaaSId, "");
-        List<NodeInstanceState> instanceStates = listener.getNodeInstanceStates(deploymentPaaSId);
+        String deploymentId = statusByDeployments.get(deploymentPaaSId).deploymentId;
+        CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, deploymentId, "");
+        List<NodeInstanceState> instanceStates = listener.getNodeInstanceStates(deploymentId);
 
         for (NodeInstanceState instanceState : instanceStates) {
             Map<String, InstanceInformation> nodeTemplateInstanceInformations = instanceInformations.get(instanceState.getNodeTemplateId());
@@ -642,7 +643,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                 monitorEvent = new PaaSInstanceStateMonitorEvent();
             }
 
-            monitorEvent.setDeploymentId(deploymentInfo.deploymentId);
+            monitorEvent.setDeploymentId(alienEvent.getDeploymentId());
             monitorEvent.setNodeTemplateId(alienEvent.getServiceName());
             monitorEvent.setInstanceId(alienEvent.getInstanceId());
             monitorEvent.setDate(alienEvent.getDateTimestamp().getTime());
@@ -678,6 +679,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
     private void cleanupUnmanagedApplicationInfos(CloudifyEventsListener listener, String deploymentPaaSId, boolean deleteRecipe) throws URISyntaxException,
             IOException {
+        String deploymentId = statusByDeployments.get(deploymentPaaSId).deploymentId;
         if (deleteRecipe) {
             log.info("Cleanup unmanaged application <" + deploymentPaaSId + ">.");
             statusByDeployments.remove(deploymentPaaSId);
@@ -689,7 +691,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             }
         }
         // call the rest service to remove permanent status
-        listener.deleteNodeInstanceStates(deploymentPaaSId);
+        listener.deleteNodeInstanceStates(deploymentId);
     }
 
     private DeploymentStatus getStatusFromApplicationDescription(ApplicationDescription applicationDescription) {
@@ -904,8 +906,9 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         for (String instanceId : instanceIds) {
             NodeInstanceState instanceState = new NodeInstanceState();
             instanceState.setInstanceId(instanceId);
+            instanceState.setDeploymentId(statusByDeployments.get(deploymentPaaSId).deploymentId);
             instanceState.setNodeTemplateId(paaSNodeTemplate.getId());
-            instanceState.setTopologyId(deploymentPaaSId);
+            instanceState.setApplicationName(deploymentPaaSId);
             instanceState.setInstanceState(stateContext.state);
             nodeInstanceStates.add(instanceState);
             // change it in the local cash

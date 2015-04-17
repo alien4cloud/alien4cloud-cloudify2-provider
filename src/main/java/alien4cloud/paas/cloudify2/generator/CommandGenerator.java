@@ -7,6 +7,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,9 +22,11 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 import alien4cloud.model.components.ImplementationArtifact;
+import alien4cloud.paas.cloudify2.utils.VelocityUtil;
 import alien4cloud.paas.exception.PaaSDeploymentException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Maps;
 
 /**
  * Generate properly formated commands for cloudify recipes.
@@ -32,6 +35,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class CommandGenerator {
     private final static String[] SERVICE_RECIPE_RESOURCES = new String[] { "chmod-init.groovy", "CloudifyUtils.groovy", "GigaSpacesEventsManager.groovy",
             "CloudifyExecutorUtils.groovy", "CloudifyAttributesUtils.groovy", "EnvironmentBuilder.groovy" };
+    private final static String[] SERVICE_RECIPE_RESOURCES_VELOCITY_TEMP = new String[] { "GigaSpacesEventsManager" };
 
     private static final String FIRE_EVENT_FORMAT = "CloudifyExecutorUtils.fireEvent(\"%s\", \"%s\", %s)";
     private static final String FIRE_BLOCKSTORAGE_EVENT_FORMAT = "CloudifyExecutorUtils.fireBlockStorageEvent(\"%s\", \"%s\", %s, %s)";
@@ -63,12 +67,22 @@ public class CommandGenerator {
      * Copy all internal extensions files to the service recipe directory.
      *
      * @param servicePath Path to the service recipe directory.
+     * @param deploymentId TODO
      * @throws IOException In case of a copy failure.
      */
-    public void copyInternalResources(Path servicePath) throws IOException {
+    public void copyInternalResources(Path servicePath, String deploymentId) throws IOException {
         for (String resource : SERVICE_RECIPE_RESOURCES) {
             // Files.copy(loadResourceFromClasspath("classpath:" + resource), servicePath.resolve(resource));
             this.copyResourceFromClasspath("classpath:" + resource, servicePath.resolve(resource));
+        }
+
+        // build veocity templates
+        Map<String, String> properties = Maps.newHashMap();
+        properties.put("deploymentId", deploymentId);
+
+        for (String resource : SERVICE_RECIPE_RESOURCES_VELOCITY_TEMP) {
+            VelocityUtil.writeToOutputFile(loadResourceFromClasspath("classpath:velocity/" + resource + ".vm"),
+                    servicePath.resolve(resource.concat(".groovy")), properties);
         }
     }
 
@@ -112,14 +126,14 @@ public class CommandGenerator {
 
         if (ArrayUtils.isEmpty(supportedArtifactTypes) || ArrayUtils.contains(supportedArtifactTypes, artifact.getArtifactType())) {
             switch (artifact.getArtifactType()) {
-                case AlienExtentedConstants.GROOVY_ARTIFACT_TYPE:
-                    return getGroovyCommand(scriptPath, varParamsMap, stringParamsMap);
-                case AlienExtentedConstants.SHELL_ARTIFACT_TYPE:
-                case AlienExtentedConstants.BATCH_ARTIFACT_TYPE:
-                    return getScriptCommand(scriptPath, varParamsMap, stringParamsMap);
-                default:
-                    throw new PaaSDeploymentException("Operation implementation <" + operationFQN + "> is defined using an unsupported artifact type <"
-                            + artifact.getArtifactType() + ">.");
+            case AlienExtentedConstants.GROOVY_ARTIFACT_TYPE:
+                return getGroovyCommand(scriptPath, varParamsMap, stringParamsMap);
+            case AlienExtentedConstants.SHELL_ARTIFACT_TYPE:
+            case AlienExtentedConstants.BATCH_ARTIFACT_TYPE:
+                return getScriptCommand(scriptPath, varParamsMap, stringParamsMap);
+            default:
+                throw new PaaSDeploymentException("Operation implementation <" + operationFQN + "> is defined using an unsupported artifact type <"
+                        + artifact.getArtifactType() + ">.");
             }
         }
         throw new PaaSDeploymentException("Operation implementation <" + operationFQN + "> is defined using an unsupported artifact type <"
@@ -410,6 +424,34 @@ public class CommandGenerator {
         buildParamsAsString(stringParamsMap, parametersSb);
         buildParamsAsVar(varParamsMap, parametersSb);
         return parametersSb.toString().trim().isEmpty() ? null : "[" + parametersSb.toString().trim() + "]";
+    }
+
+    protected Path loadResourceFromClasspath(String resource) throws IOException {
+        URI uri = applicationContext.getResource(resource).getURI();
+        String uriStr = uri.toString();
+        Path path = null;
+        if (uriStr.contains("!")) {
+            FileSystem fs = null;
+            try {
+                String[] array = uriStr.split("!");
+                fs = FileSystems.newFileSystem(URI.create(array[0]), new HashMap<String, Object>());
+                path = fs.getPath(array[1]);
+
+                // Hack to avoid classloader issues
+                Path createTempFile = Files.createTempFile("velocity", ".vm");
+                createTempFile.toFile().deleteOnExit();
+                Files.copy(path, createTempFile, StandardCopyOption.REPLACE_EXISTING);
+
+                path = createTempFile;
+            } finally {
+                if (fs != null) {
+                    fs.close();
+                }
+            }
+        } else {
+            path = Paths.get(uri);
+        }
+        return path;
     }
 
 }
