@@ -33,8 +33,8 @@ import com.google.common.collect.Maps;
  */
 @Component
 public class CommandGenerator {
-    private final static String[] SERVICE_RECIPE_RESOURCES = new String[] { "chmod-init.groovy", "CloudifyUtils.groovy", "GigaSpacesEventsManager.groovy",
-            "CloudifyExecutorUtils.groovy", "CloudifyAttributesUtils.groovy", "EnvironmentBuilder.groovy" };
+    private final static String[] SERVICE_RECIPE_RESOURCES = new String[] { "chmod-init.groovy", "CloudifyUtils.groovy", "CloudifyExecutorUtils.groovy",
+            "CloudifyAttributesUtils.groovy", "EnvironmentBuilder.groovy" };
     private final static String[] SERVICE_RECIPE_RESOURCES_VELOCITY_TEMP = new String[] { "GigaSpacesEventsManager" };
 
     private static final String FIRE_EVENT_FORMAT = "CloudifyExecutorUtils.fireEvent(\"%s\", \"%s\", %s)";

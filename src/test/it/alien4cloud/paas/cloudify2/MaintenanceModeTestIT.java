@@ -28,12 +28,6 @@ public class MaintenanceModeTestIT extends GenericTestCase {
     public MaintenanceModeTestIT() {
     }
 
-    @Override
-    public void after() {
-        // TODO Auto-generated method stub
-        super.after();
-    }
-
     @Test
     public void maintenanceModeTest() throws Throwable {
         log.info("\n\n >> Executing Test maintenanceModeTest \n");
