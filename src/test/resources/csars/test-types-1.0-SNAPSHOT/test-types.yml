@@ -46,7 +46,9 @@ node_types:
           inputs:
             p1:
               type: string
-              required: true          
+              required: true
+        bashWithOuput:
+          implementation: scripts/customCommandBashWithOutput.sh          
   
   alien.test.nodes.ComputeWindows:
     derived_from: tosca.nodes.Compute
