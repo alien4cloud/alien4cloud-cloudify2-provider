@@ -54,6 +54,9 @@ import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.IPaaSCallback;
 import alien4cloud.paas.cloudify2.events.AlienEvent;
 import alien4cloud.paas.cloudify2.exception.A4CCloudifyDriverITException;
+import alien4cloud.paas.cloudify2.rest.CloudifyEventsListener;
+import alien4cloud.paas.cloudify2.rest.CloudifyRestClient;
+import alien4cloud.paas.cloudify2.rest.CloudifyRestClientManager;
 import alien4cloud.paas.cloudify2.testutils.TestsUtils;
 import alien4cloud.paas.exception.OperationExecutionException;
 import alien4cloud.paas.exception.PaaSDeploymentException;
@@ -154,15 +157,19 @@ public class GenericTestCase {
     public void before() throws Throwable {
         log.info("In beforeTest");
         testsUtils.cleanESFiles(IndiceClassesToClean);
-        testsUtils.uploadGitArchive("tosca-normative-types-1.0.0.wd03", "");
-        testsUtils.uploadGitArchive("alien-extended-types", "alien-base-types-1.0-SNAPSHOT");
+
+        ClassLoader classLoader = this.getClass().getClassLoader();
+        URL resource = classLoader.getResource("org/apache/http/message/BasicLineFormatter.class");
+        System.out.println(resource);
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        cloudifyURL = cloudifyURL == null ? "http://129.185.67.107:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "https://129.185.67.27:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.setCloudifyURLs(Lists.newArrayList(cloudifyURL));
         pluginConfigurationBean.setVersion("2.7.1");
         pluginConfigurationBean.setConnectionTimeOutInSeconds(5);
+        // pluginConfigurationBean.setUsername("Superuser");
+        // pluginConfigurationBean.setPassword("Superuser");
         cloudifyPaaSPovider.setConfiguration(pluginConfigurationBean);
         cloudifyRestClientManager = cloudifyPaaSPovider.getCloudifyRestClientManager();
         CloudResourceMatcherConfig matcherConf = new CloudResourceMatcherConfig();
@@ -184,6 +191,10 @@ public class GenericTestCase {
         storageMapping.put(new StorageTemplate(ALIEN_STORAGE, 1L, ALIEN_STORAGE_DEVICE, null), IAAS_BLOCK_STORAGE_ID);
         matcherConf.setStorageMapping(storageMapping);
         cloudifyPaaSPovider.updateMatcherConfig(matcherConf);
+
+        // upload archives
+        testsUtils.uploadGitArchive("tosca-normative-types-1.0.0.wd03", "");
+        testsUtils.uploadGitArchive("alien-extended-types", "alien-base-types-1.0-SNAPSHOT");
     }
 
     @After
@@ -303,15 +314,18 @@ public class GenericTestCase {
         return huc.getResponseCode();
     }
 
-    protected String deployTopology(String topologyFileName, String[] computesId, Map<String, ComputeTemplate> computesMatching) throws Throwable {
+    protected String deployTopology(String topologyFileName, String[] computesId, Map<String, ComputeTemplate> computesMatching,
+            Map<String, String> providerDeploymentProperties) throws Throwable {
         Topology topology = this.createAlienApplication(topologyFileName, topologyFileName);
-        return deployTopology(computesId, topology, topologyFileName, computesMatching);
+        return deployTopology(computesId, topology, topologyFileName, computesMatching, providerDeploymentProperties);
     }
 
-    protected String deployTopology(String[] computesId, Topology topology, String topologyFileName, Map<String, ComputeTemplate> computesMatching)
-            throws Throwable {
+    protected String deployTopology(String[] computesId, Topology topology, String topologyFileName, Map<String, ComputeTemplate> computesMatching,
+            Map<String, String> providerDeploymentProperties) throws Throwable {
+
         DeploymentSetup setup = new DeploymentSetup();
         setup.setCloudResourcesMapping(Maps.<String, ComputeTemplate> newHashMap());
+
         if (computesId != null) {
             for (String string : computesId) {
                 ComputeTemplate computeTemplate = new ComputeTemplate(ALIEN_LINUX_IMAGE, ALIEN_FLAVOR);
@@ -323,15 +337,19 @@ public class GenericTestCase {
             setup.getCloudResourcesMapping().putAll(computesMatching);
         }
         setup.setStorageMapping(Maps.<String, StorageTemplate> newHashMap());
-        setup.setProviderDeploymentProperties(Maps.<String, String> newHashMap());
-        setup.getProviderDeploymentProperties().put(DeploymentPropertiesNames.DISABLE_SELF_HEALING, "true");
+
+        // configure provider properties
+        setup.setProviderDeploymentProperties(generateDeploymentProviderProperties(providerDeploymentProperties));
+
         log.info("\n\n TESTS: Deploying topology <{}>. Deployment id is <{}>. \n", topologyFileName, topology.getId());
         deployedCloudifyAppIds.add(topology.getId());
         PaaSTopologyDeploymentContext deploymentContext = new PaaSTopologyDeploymentContext();
-        deploymentContext.setDeploymentSetup(setup);
+        Deployment deployment = new Deployment();
+        deployment.setId(topology.getId());
+        deployment.setDeploymentSetup(setup);
+        deployment.setPaasId(topology.getId());
+        deploymentContext.setDeployment(deployment);
         deploymentContext.setTopology(topology);
-        deploymentContext.setRecipeId(topologyFileName);
-        deploymentContext.setDeploymentId(topology.getId());
         Map<String, PaaSNodeTemplate> nodes = topologyTreeBuilderService.buildPaaSNodeTemplate(topology);
         PaaSTopology paaSTopology = topologyTreeBuilderService.buildPaaSTopology(nodes);
         deploymentContext.setPaaSTopology(paaSTopology);
@@ -342,6 +360,16 @@ public class GenericTestCase {
 
         waitForApplicationInstallation(this.cloudifyRestClientManager.getRestClient(), topology.getId());
         return topology.getId();
+    }
+
+    private Map<String, String> generateDeploymentProviderProperties(Map<String, String> properties) {
+        Map<String, String> providerProperties = Maps.<String, String> newHashMap();
+        if (properties != null) {
+            providerProperties.putAll(properties);
+        }
+        // by default for all deployment
+        providerProperties.put(DeploymentPropertiesNames.DISABLE_SELF_HEALING, "true");
+        return providerProperties;
     }
 
     protected Topology createAlienApplication(String applicationName, String topologyFileName) throws IOException, JsonParseException, JsonMappingException,
@@ -371,32 +399,27 @@ public class GenericTestCase {
     }
 
     protected void testEvents(String applicationId, String[] nodeTemplateNames, long timeoutInMillis, String... expectedEvents) throws Exception {
-        ApplicationDescription applicationDescription = cloudifyRestClientManager.getRestClient().getApplicationDescription(applicationId);
         for (String nodeName : nodeTemplateNames) {
-            this.assertFiredEvents(nodeName, new HashSet<String>(Arrays.asList(expectedEvents)), applicationDescription, timeoutInMillis);
+            this.assertFiredEvents(nodeName, new HashSet<String>(Arrays.asList(expectedEvents)), applicationId, timeoutInMillis);
         }
     }
 
-    protected void assertFiredEvents(String nodeName, Set<String> expectedEvents, ApplicationDescription applicationDescription, long timeoutInMillis)
-            throws Exception {
+    protected void assertFiredEvents(String nodeName, Set<String> expectedEvents, String applicationName, long timeoutInMillis) throws Exception {
         Set<String> currentEvents = new HashSet<>();
         String serviceName = nodeName;
-        for (ServiceDescription service : applicationDescription.getServicesDescription()) {
-            long timeout = System.currentTimeMillis() + timeoutInMillis;
-            boolean passed = false;
-            String applicationName = service.getApplicationName();
-            CloudifyEventsListener listener = new CloudifyEventsListener(cloudifyRestClientManager.getRestEventEndpoint(), applicationName, serviceName);
-            do {
-                currentEvents.clear();
-                List<AlienEvent> allServiceEvents = listener.getEvents();
-                for (AlienEvent alienEvent : allServiceEvents) {
-                    currentEvents.add(alienEvent.getEvent());
-                }
-                passed = currentEvents.containsAll(expectedEvents);
-            } while (System.currentTimeMillis() < timeout && !passed);
-            log.info("Application: " + applicationName + "." + serviceName + " got events : " + currentEvents);
-            Assert.assertTrue("Missing events for node <" + serviceName + ">: " + getMissingEvents(expectedEvents, currentEvents), passed);
-        }
+        long timeout = System.currentTimeMillis() + timeoutInMillis;
+        boolean passed = false;
+        CloudifyEventsListener listener = new CloudifyEventsListener(cloudifyRestClientManager.getRestEventEndpoint(), applicationName, serviceName);
+        do {
+            currentEvents.clear();
+            List<AlienEvent> allServiceEvents = listener.getEvents();
+            for (AlienEvent alienEvent : allServiceEvents) {
+                currentEvents.add(alienEvent.getEvent());
+            }
+            passed = currentEvents.containsAll(expectedEvents);
+        } while (System.currentTimeMillis() < timeout && !passed);
+        log.info("Application: " + applicationName + "." + serviceName + " got events : " + currentEvents);
+        Assert.assertTrue("Missing events for node <" + serviceName + ">: " + getMissingEvents(expectedEvents, currentEvents), passed);
     }
 
     protected Set<String> getMissingEvents(Set<String> expectedEvents, Set<String> currentEvents) {
@@ -409,9 +432,10 @@ public class GenericTestCase {
         return missing;
     }
 
-    protected void testCustomCommandFail(String applicationId, String nodeName, Integer instanceId, String command, Map<String, String> params) {
+    protected void testCustomCommandFail(String applicationId, String nodeName, Integer instanceId, String interfaceName, String command,
+            Map<String, String> params) {
         try {
-            executeCustomCommand(applicationId, nodeName, instanceId, command, params, new IPaaSCallback<Map<String, String>>() {
+            executeCustomCommand(applicationId, nodeName, instanceId, interfaceName, command, params, new IPaaSCallback<Map<String, String>>() {
                 @Override
                 public void onSuccess(Map<String, String> data) {
                     Assert.fail();
@@ -426,9 +450,9 @@ public class GenericTestCase {
         }
     }
 
-    protected void testCustomCommandSuccess(String cloudifyAppId, String nodeName, Integer instanceId, String command, Map<String, String> params,
-            final String expectedResultSnippet) {
-        executeCustomCommand(cloudifyAppId, nodeName, instanceId, command, params, new IPaaSCallback<Map<String, String>>() {
+    protected void testCustomCommandSuccess(String cloudifyAppId, String nodeName, Integer instanceId, String interfaceName, String command,
+            Map<String, String> params, final String expectedResultSnippet) {
+        executeCustomCommand(cloudifyAppId, nodeName, instanceId, interfaceName, command, params, new IPaaSCallback<Map<String, String>>() {
             @Override
             public void onSuccess(Map<String, String> result) {
 
@@ -447,13 +471,13 @@ public class GenericTestCase {
         });
     }
 
-    protected void executeCustomCommand(String cloudifyAppId, String nodeName, Integer instanceId, String command, Map<String, String> params,
-            IPaaSCallback<Map<String, String>> callback) {
+    protected void executeCustomCommand(String cloudifyAppId, String nodeName, Integer instanceId, String interfaceName, String command,
+            Map<String, String> params, IPaaSCallback<Map<String, String>> callback) {
         if (!deployedCloudifyAppIds.contains(cloudifyAppId)) {
             Assert.fail("Topology not found in deployments");
         }
         NodeOperationExecRequest request = new NodeOperationExecRequest();
-        request.setInterfaceName("custom");
+        request.setInterfaceName(interfaceName);
         request.setOperationName(command);
         request.setNodeTemplateName(nodeName);
 
@@ -461,14 +485,18 @@ public class GenericTestCase {
             request.setInstanceId(instanceId.toString());
         }
         request.setParameters(params);
-        PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
-        deploymentContext.setDeploymentId(cloudifyAppId);
+        PaaSTopologyDeploymentContext deploymentContext = new PaaSTopologyDeploymentContext();
+        Deployment deployment = new Deployment();
+        deployment.setPaasId(cloudifyAppId);
+        deploymentContext.setDeployment(deployment);
         cloudifyPaaSPovider.executeOperation(deploymentContext, request, callback);
     }
 
     protected void testUndeployment(String applicationId) throws Throwable {
         PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
-        deploymentContext.setDeploymentId(applicationId);
+        Deployment deployment = new Deployment();
+        deployment.setPaasId(applicationId);
+        deploymentContext.setDeployment(deployment);
         cloudifyPaaSPovider.undeploy(deploymentContext, null);
         waitUndeployApplication(this.cloudifyRestClientManager.getRestClient(), applicationId);
         assertApplicationIsUninstalled(applicationId);
@@ -503,24 +531,40 @@ public class GenericTestCase {
 
     protected void scale(String nodeID, int nbToAdd, String appId, Topology topo, Integer sleepTimeSec) throws Exception {
         int plannedInstance = topo.getScalingPolicies().get(nodeID).getInitialInstances() + nbToAdd;
-        log.info("Scaling to " + nbToAdd);
+        log.info("Scaling to " + plannedInstance);
         topo.getScalingPolicies().get(nodeID).setInitialInstances(plannedInstance);
         alienDAO.save(topo);
         PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
-        deploymentContext.setDeploymentId(appId);
+        Deployment deployment = new Deployment();
+        deployment.setPaasId(appId);
+        deploymentContext.setDeployment(deployment);
         cloudifyPaaSPovider.scale(deploymentContext, nodeID, nbToAdd, null);
         if (sleepTimeSec != null) {
             Thread.sleep(sleepTimeSec * 1000L);
         }
     }
 
+    private void getEentSince(Date date) {
+        cloudifyPaaSPovider.getEventsSince(date, 100, new IPaaSCallback<AbstractMonitorEvent[]>() {
+            @Override
+            public void onSuccess(AbstractMonitorEvent[] abstractMonitorEvents) {
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+            }
+        });
+    }
+
     private void waitForApplicationInstallation(RestClient restClient, String applicationName) throws PaaSDeploymentException {
         ApplicationDescription applicationDescription = null;
         DeploymentState currentDeploymentState = null;
-
+        Date pollingDate = new Date();
         long timeout = System.currentTimeMillis() + TIMEOUT_IN_MILLIS;
         try {
             while (System.currentTimeMillis() < timeout) {
+                getEentSince(pollingDate);
+                pollingDate = new Date();
                 applicationDescription = restClient.getApplicationDescription(applicationName);
                 currentDeploymentState = applicationDescription.getApplicationState();
 

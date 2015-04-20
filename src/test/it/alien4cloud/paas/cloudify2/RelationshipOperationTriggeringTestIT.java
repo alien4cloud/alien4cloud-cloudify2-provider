@@ -34,7 +34,7 @@ import com.google.common.collect.Sets;
 public class RelationshipOperationTriggeringTestIT extends GenericTestCase {
     private static final String GET_REL_EVENTS_END_POINT = "/events/getRelEvents";
     private static final String SERVICE_KEY = "service";
-    private static final String APPLICATION_KEY = "application";
+    private static final String DEPLOYMENT_ID_KEY = "deploymentId";
     private Integer lastRelIndex = 0;
 
     public RelationshipOperationTriggeringTestIT() {
@@ -45,7 +45,7 @@ public class RelationshipOperationTriggeringTestIT extends GenericTestCase {
         this.uploadGitArchive("samples", "tomcat-war");
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         String[] computesId = new String[] { "source_comp", "target_comp" };
-        String cloudifyAppId = deployTopology("relshipTrigeringTest", computesId, null);
+        String cloudifyAppId = deployTopology("relshipTrigeringTest", computesId, null, null);
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
         this.assertApplicationIsInstalled(cloudifyAppId);
         testEvents(cloudifyAppId, new String[] { "source_comp", "target_comp" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
@@ -67,10 +67,10 @@ public class RelationshipOperationTriggeringTestIT extends GenericTestCase {
 
     }
 
-    private List<RelationshipOperationEvent> getRelationsEvents(String application, String service, Integer beginIndex) throws Throwable {
+    private List<RelationshipOperationEvent> getRelationsEvents(String deploymentId, String service, Integer beginIndex) throws Throwable {
         // check that the events module can be reached too.
         URI restEventEndpoint = cloudifyRestClientManager.getRestEventEndpoint();
-        URIBuilder builder = new URIBuilder(restEventEndpoint.resolve(GET_REL_EVENTS_END_POINT)).addParameter(APPLICATION_KEY, application)
+        URIBuilder builder = new URIBuilder(restEventEndpoint.resolve(GET_REL_EVENTS_END_POINT)).addParameter(DEPLOYMENT_ID_KEY, deploymentId)
                 .addParameter(SERVICE_KEY, service).addParameter("lastIndex", beginIndex != null ? String.valueOf(beginIndex + 1) : null);
         HttpGet request = new HttpGet(builder.build());
         HttpResponse httpResponse = new DefaultHttpClient().execute(request);

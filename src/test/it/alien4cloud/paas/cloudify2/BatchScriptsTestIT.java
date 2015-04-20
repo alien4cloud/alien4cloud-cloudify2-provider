@@ -42,16 +42,16 @@ public class BatchScriptsTestIT extends GenericTestCase {
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         Map<String, ComputeTemplate> templates = Maps.newHashMap();
         templates.put("computeWindows", new ComputeTemplate(ALIEN_WINDOWS_IMAGE, ALIEN_FLAVOR));
-        String cloudifyAppId = deployTopology("computeWindows", null, templates);
+        String cloudifyAppId = deployTopology("computeWindows", null, templates, null);
         this.assertApplicationIsInstalled(cloudifyAppId);
         waitForServiceToStarts(cloudifyAppId, "computewindows", 1000L * 120);
 
         Map<String, String> params = Maps.newHashMap();
         params.put("filename", "created.txt");
-        testCustomCommandSuccess(cloudifyAppId, "computeWindows", null, "checkFile", params, null);
+        testCustomCommandSuccess(cloudifyAppId, "computeWindows", null, "custom", "checkFile", params, null);
 
         params.put("filename", "configured.txt");
-        testCustomCommandSuccess(cloudifyAppId, "computeWindows", null, "checkFile", params, null);
+        testCustomCommandSuccess(cloudifyAppId, "computeWindows", null, "custom", "checkFile", params, null);
     }
 
 }

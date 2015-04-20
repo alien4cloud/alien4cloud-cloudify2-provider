@@ -62,8 +62,9 @@ public class GigaSpacesEventsManager {
 
     def putNodeInstanceStateEvent(def application, def service, def instanceId, def event) {
         def document = new SpaceDocument("alien4cloud.paas.cloudify2.events.NodeInstanceState");
-        document.setProperty("id", application + "-" + service + "-" + instanceId);
-        document.setProperty("topologyId", application as String);
+        document.setProperty("id", "$deploymentId" + "-" + service + "-" + instanceId);
+        document.setProperty("applicationName", application as String);
+        document.setProperty("deploymentId", "$deploymentId" as String);
         document.setProperty("nodeTemplateId", service as String);
         document.setProperty("instanceId", instanceId as String);
         document.setProperty("instanceState", event as String);
@@ -73,7 +74,7 @@ public class GigaSpacesEventsManager {
     def fillEventDocument(def application, def service, def instanceId, def event, def document) {
         SQLQuery<SpaceDocument> template = new SQLQuery<SpaceDocument>(
                 "alien4cloud.paas.cloudify2.events.AlienEvent"
-                , String.format("applicationName='%s' and serviceName='%s' and instanceId='%s' ORDER BY eventIndex DESC", application, service, instanceId)
+                , String.format("deploymentId='$deploymentId' and applicationName='%s' and serviceName='%s' and instanceId='%s' ORDER BY eventIndex DESC", application, service, instanceId)
                 , QueryResultType.DOCUMENT);
 
         SpaceDocument[] readMultiple = gigaSpace.readMultiple(template, 1);
@@ -84,6 +85,7 @@ public class GigaSpacesEventsManager {
 
         document.setProperty("routing", 1 as Integer);
         document.setProperty("applicationName", application as String);
+        document.setProperty("deploymentId", "$deploymentId" as String);
         document.setProperty("serviceName", service as String);
         document.setProperty("instanceId", instanceId as String);
         document.setProperty("event", event as String);
@@ -96,7 +98,7 @@ public class GigaSpacesEventsManager {
         boolean wait = true
 
         while (wait) {
-            String query = String.format("topologyId='%s' and nodeTemplateId='%s' and instanceId='%s'"
+            String query = String.format("deploymentId='$deploymentId' and applicationName='%s' and nodeTemplateId='%s' and instanceId='%s'"
                     , applicationName, serviceName, instanceId)
 
             SQLQuery<SpaceDocument> sqlQuery = new SQLQuery<SpaceDocument>("alien4cloud.paas.cloudify2.events.NodeInstanceState", query, QueryResultType.DOCUMENT)
@@ -121,7 +123,7 @@ public class GigaSpacesEventsManager {
     }
 
     def getState(def applicationName, def serviceName, def instanceId) {
-        String query = String.format("topologyId='%s' and nodeTemplateId='%s' and instanceId='%s'"
+        String query = String.format("deploymentId='$deploymentId' and applicationName='%s' and nodeTemplateId='%s' and instanceId='%s'"
                 , applicationName, serviceName, instanceId)
 
         SQLQuery<SpaceDocument> sqlQuery = new SQLQuery<SpaceDocument>("alien4cloud.paas.cloudify2.events.NodeInstanceState", query, QueryResultType.DOCUMENT)

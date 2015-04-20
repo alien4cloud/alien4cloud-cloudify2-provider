@@ -32,7 +32,7 @@ public class CustomStorageTestIT extends GenericStorageTestCase {
         try {
 
             String[] computesId = new String[] { "custom_storage_size" };
-            cloudifyAppId = deployTopology("customDeletableBlockStorageWithSize", computesId, null);
+            cloudifyAppId = deployTopology("customDeletableBlockStorageWithSize", computesId, null, null);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "custom_storage_size", 1000L * 120);
@@ -54,7 +54,7 @@ public class CustomStorageTestIT extends GenericStorageTestCase {
         try {
 
             String[] computesId = new String[] { "config_storage_props" };
-            cloudifyAppId = deployTopology("configurableBlockStorageWithPropsProvided", computesId, null);
+            cloudifyAppId = deployTopology("configurableBlockStorageWithPropsProvided", computesId, null, null);
 
             this.assertApplicationIsInstalled(cloudifyAppId);
             waitForServiceToStarts(cloudifyAppId, "config_storage_props", 1000L * 120);

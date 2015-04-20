@@ -7,6 +7,8 @@ echo "SOURCE_HOSTNAME : $SOURCE_HOSTNAME"
 
 echo "MY_IP : $MY_IP"
 
+echo "SOURCE_IP : $SOURCE_IP"
+
 echo "SOURCE : $SOURCE"
 
 echo "SOURCE_NAME : $SOURCE_NAME"
@@ -39,7 +41,7 @@ done
 
 echo "Nb of targets is $count"
 
-echo "$TARGET ... $SOURCE"
+echo "$TARGET ( $MY_IP )... $SOURCE ( $SOURCE_IP )"
 
 # def sourcesArray = SOURCES.split(",")
 # def nbSource = sourcesArray.length;

@@ -1,12 +1,15 @@
 import java.util.concurrent.TimeUnit
+import org.apache.commons.validator.routines.InetAddressValidator;
+
+def ipValidator = InetAddressValidator.getInstance();
 
 assert MY_HOSTNAME : "Empty env var MY_HOSTNAME"
 println "MY_HOSTNAME : ${MY_HOSTNAME}"
 assert SOURCE_HOSTNAME : "Empty env var SOURCE_HOSTNAME"
 println "SOURCE_HOSTNAME : ${SOURCE_HOSTNAME}"
-assert MY_IP && MY_IP != "true": "Empty or not valid env var MY_IP"
+assert MY_IP && ipValidator.isValidInet4Address(MY_IP): "Empty or not valid env var MY_IP"
 println "MY_IP : ${MY_IP}"
-assert SOURCE_IP && SOURCE_IP != "true": "Empty or not valid env var SOURCE_IP"
+assert SOURCE_IP && ipValidator.isValidInet4Address(SOURCE_IP): "Empty or not valid env var SOURCE_IP"
 println "SOURCE_IP : ${SOURCE_IP}"
 assert SOURCE : "Empty env var SOURCE"
 println "SOURCE : ${SOURCE}"

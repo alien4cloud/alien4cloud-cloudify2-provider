@@ -3,7 +3,7 @@
 
     <groupId>alien4cloud</groupId>
     <artifactId>alien4cloud-cloudify2-provider</artifactId>
-    <version>1.0.0-SM23</version>
+    <version>1.0.0-SM24</version>
 
     <name>Cloudify 2.x PaaS Provider for Alien 4 Cloud</name>
 
@@ -40,8 +40,7 @@
 
         <alien4cloud.version>${project.version}</alien4cloud.version>
         <a4c-cdfy2-extension.version>${project.version}</a4c-cdfy2-extension.version>
-        <cloudify.version>2.7.0-5996-RELEASE</cloudify.version>
-        <gigaspaces.version>9.7.0-10496-RELEASE</gigaspaces.version>
+        <cloudify.version>2.7.1-SNAPSHOT</cloudify.version>
 
 
         <spring.version>4.1.4.RELEASE</spring.version>
@@ -75,29 +74,7 @@
             <version>${a4c-cdfy2-extension.version}</version>
         </dependency>
 
-        <!-- gigaSpaces -->
-        <dependency>
-            <groupId>com.gigaspaces</groupId>
-            <artifactId>gs-runtime</artifactId>
-            <version>${gigaspaces.version}</version>
-            <exclusions>
-                <exclusion>
-                    <artifactId>tools</artifactId>
-                    <groupId>com.sun</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>slf4j-api</artifactId>
-                    <groupId>org.slf4j</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
         <!-- cloudify -->
-        <dependency>
-            <groupId>org.cloudifysource</groupId>
-            <artifactId>domain</artifactId>
-            <version>${cloudify.version}</version>
-        </dependency>
         <dependency>
             <groupId>org.cloudifysource</groupId>
             <artifactId>dsl</artifactId>
@@ -106,11 +83,6 @@
         <dependency>
             <groupId>org.cloudifysource</groupId>
             <artifactId>rest-client</artifactId>
-            <version>${cloudify.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.cloudifysource</groupId>
-            <artifactId>version</artifactId>
             <version>${cloudify.version}</version>
         </dependency>
 
@@ -122,16 +94,18 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.codehaus.groovy</groupId>
-            <artifactId>groovy-all</artifactId>
-            <version>1.8.6</version>
-        </dependency>
-        <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpcore</artifactId>
-            <version>4.3.1</version>
+            <version>4.3.3</version>
         </dependency>
+        
         <!-- tests -->
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <version>3.0.1</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
@@ -157,14 +131,10 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
-            <artifactId>neo4j-cypher-compiler-2.1</artifactId>
-            <version>2.1.2</version>
-        </dependency>
-        <dependency>
-            <groupId>org.hornetq</groupId>
-            <artifactId>hornetq-server</artifactId>
-            <version>2.4.1.Final</version>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <version>3.0.1</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
@@ -267,7 +237,7 @@
             <plugin>
                 <groupId>external.atlassian.jgitflow</groupId>
                 <artifactId>jgitflow-maven-plugin</artifactId>
-                <version>1.0-m3</version>
+                <version>1.0-m4.3</version>
             </plugin>
         </plugins>
     </build>
@@ -319,14 +289,6 @@
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-failsafe-plugin</artifactId>
                         <version>2.16</version>
-                        <!-- <configuration> -->
-                        <!-- <parallel>methods</parallel> -->
-                        <!-- <forkCount>4</forkCount> -->
-                        <!-- <threadCount>10</threadCount> -->
-                        <!-- <includes> -->
-                        <!-- <include> **/recipeTests2/*Suite.java</include> -->
-                        <!-- </includes> -->
-                        <!-- </configuration> -->
                         <executions>
                             <execution>
                                 <goals>

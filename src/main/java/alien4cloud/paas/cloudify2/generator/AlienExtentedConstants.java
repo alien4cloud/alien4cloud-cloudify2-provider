@@ -3,7 +3,7 @@ package alien4cloud.paas.cloudify2.generator;
 public final class AlienExtentedConstants {
     // interfaces
     public static final String CLOUDIFY_EXTENSIONS_INTERFACE_NAME = "fastconnect.cloudify.extensions";
-    public static final String CUSTOM_INTERFACE_NAME = "custom";
+    public static final String STANDARD_INTERFACE_NAME = "tosca.interfaces.node.lifecycle.Standard";
 
     // operations
     public static final String CLOUDIFY_EXTENSIONS_START_DETECTION_OPERATION_NAME = "start_detection";

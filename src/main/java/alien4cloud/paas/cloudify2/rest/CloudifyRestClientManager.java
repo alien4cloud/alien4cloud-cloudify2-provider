@@ -1,4 +1,4 @@
-package alien4cloud.paas.cloudify2;
+package alien4cloud.paas.cloudify2.rest;
 
 import java.io.IOException;
 import java.net.URI;
@@ -9,11 +9,13 @@ import java.util.LinkedList;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang3.StringUtils;
 import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import alien4cloud.paas.cloudify2.PluginConfigurationBean;
 import alien4cloud.paas.exception.PluginConfigurationException;
 
 import com.google.common.collect.Lists;
@@ -74,13 +76,13 @@ public class CloudifyRestClientManager {
         try {
             this.cloudifyURL = new URL(cloudifyURLString);
             this.restClient = new CloudifyRestClient(cloudifyURL, username, password, version);
-            this.restClient.connect();
+            this.restClient.test(StringUtils.isNoneBlank(this.username, this.password));
             // check that the events module can be reached too.
             setEventRestEndPoint();
             CloudifyEventsListener cloudifyEventsListener = new CloudifyEventsListener(this.restEventEndpoint);
             // check connection
             log.info("Testing events module endpoint " + this.restEventEndpoint + "... ");
-            log.info("==> " + cloudifyEventsListener.test());
+            log.info("Events module endpoint response: " + cloudifyEventsListener.test());
             log.info("Cloudify rest client manager configuration done.");
             return true;
         } catch (RestClientException | URISyntaxException | IOException e) {
@@ -155,7 +157,7 @@ public class CloudifyRestClientManager {
         }
 
         try {
-            restClient.connect();
+            restClient.test(StringUtils.isNoneBlank(this.username, this.password));
             if (restEventEndpoint == null) {
                 setEventRestEndPoint();
             }

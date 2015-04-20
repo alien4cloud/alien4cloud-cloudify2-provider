@@ -28,8 +28,6 @@ public class RecipeGeneratorServiceContext {
     private String serviceId;
     /** Path of the directory for the service recipe. */
     private Path servicePath;
-    /** Path of the generated properties file. */
-    private Path propertiesFilePath;
     /** Set of types (nodes and relationships) that are used in the recipe. */
     private final Set<String> recipeTypes = Sets.newHashSet();
     /** Maps nodeId -> script of the start detection commands that we have to aggregate to generate a good start detection for cloudify. */
@@ -53,6 +51,9 @@ public class RecipeGeneratorServiceContext {
 
     /** Events lease time for this service */
     private Double eventsLeaseInHour = 2.0;
+
+    /** Indicates if BStorage are deleatable */
+    private boolean deletableBlockStorage = false;
 
     /**
      * Initialize a new context for service recipe generation.
@@ -94,6 +95,12 @@ public class RecipeGeneratorServiceContext {
     public void setEventsLeaseInHour(String valueInHour) {
         if (StringUtils.isNotBlank(valueInHour) && Double.parseDouble(valueInHour) > 0) {
             this.eventsLeaseInHour = Double.parseDouble(valueInHour);
+        }
+    }
+
+    public void setDeletableBlockStorage(String deletableBlockStorage) {
+        if (StringUtils.isNotBlank(deletableBlockStorage) && Boolean.parseBoolean(deletableBlockStorage)) {
+            this.deletableBlockStorage = Boolean.parseBoolean(deletableBlockStorage);
         }
     }
 }

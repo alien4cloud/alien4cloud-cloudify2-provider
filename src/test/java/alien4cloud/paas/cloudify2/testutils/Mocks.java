@@ -3,7 +3,7 @@ package alien4cloud.paas.cloudify2.testutils;
 import org.mockito.Answers;
 import org.mockito.Mockito;
 
-import alien4cloud.paas.cloudify2.CloudifyRestClientManager;
+import alien4cloud.paas.cloudify2.rest.CloudifyRestClientManager;
 
 // Cannot use @Configuration : https://jira.spring.io/browse/SPR-9567
 // @Configuration

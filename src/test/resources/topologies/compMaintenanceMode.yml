@@ -1,0 +1,41 @@
+
+node_templates:
+  comp_maint_mode:
+    type: tosca.nodes.Compute
+    properties:
+      os_type:
+        value: linux
+      os_distribution:
+        value: ubuntu
+      os_version:
+        value: ubuntu
+  comp_maint_mode_2:
+    type: tosca.nodes.Compute
+    properties:
+      os_type:
+        value: linux
+      os_distribution:
+        value: ubuntu
+      os_version:
+        value: ubuntu
+  tomcat:
+    type: alien.nodes.cloudify.Tomcat
+    relationships:
+      hostedOnServeurWeb:
+        target: comp_maint_mode
+        type: tosca.relationships.HostedOn
+        requirement_name: host
+        requirement_type: tosca.capabilities.Container
+  
+
+scaling_policies:
+  comp_maint_mode:
+    min_instances: 1
+    max_instances: 3
+    initial_instances: 2
+
+dependencies:
+  - name: tosca-normative-types
+    version: 1.0.0.wd03-SNAPSHOT
+  - name: tomcat-war-types
+    version: 1.0-SNAPSHOT

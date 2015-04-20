@@ -148,10 +148,10 @@ public class FunctionProcessorTest {
         // test SELF keyword on relationship
         param = configOp.getInputParameters().get("relName");
         Assert.assertEquals(FunctionEvaluator.getScalarValue(hostedOnRelTemp.getTemplate().getProperties().get("relName")),
-                FunctionEvaluator.evaluateGetPropertyFuntion((FunctionPropertyValue) param, hostedOnRelTemp, builtPaaSNodeTemplates));
+                FunctionEvaluator.evaluateGetPropertyFunction((FunctionPropertyValue) param, hostedOnRelTemp, builtPaaSNodeTemplates));
 
         Assert.assertEquals(FunctionEvaluator.getScalarValue(hostedOnRelTemp_2.getTemplate().getProperties().get("relName")),
-                FunctionEvaluator.evaluateGetPropertyFuntion((FunctionPropertyValue) param, hostedOnRelTemp_2, builtPaaSNodeTemplates));
+                FunctionEvaluator.evaluateGetPropertyFunction((FunctionPropertyValue) param, hostedOnRelTemp_2, builtPaaSNodeTemplates));
 
     }
 

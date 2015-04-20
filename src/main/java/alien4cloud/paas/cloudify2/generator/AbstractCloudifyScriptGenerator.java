@@ -11,14 +11,7 @@ import static alien4cloud.tosca.normative.ToscaFunctionConstants.HOST;
 import static alien4cloud.tosca.normative.ToscaFunctionConstants.SELF;
 
 import java.io.IOException;
-import java.net.URI;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -60,9 +53,7 @@ abstract class AbstractCloudifyScriptGenerator {
     @Resource
     protected CommandGenerator commandGenerator;
     @Resource
-    private RecipePropertiesGenerator recipePropertiesGenerator;
-    @Resource
-    private ApplicationContext applicationContext;
+    ApplicationContext applicationContext;
 
     private static final String MAP_TO_ADD_KEYWORD = "MAP_TO_ADD_";
 
@@ -234,39 +225,6 @@ abstract class AbstractCloudifyScriptGenerator {
                 }
             }
         }
-    }
-
-    protected Path loadResourceFromClasspath(String resource) throws IOException {
-        URI uri = applicationContext.getResource(resource).getURI();
-        String uriStr = uri.toString();
-        Path path = null;
-        if (uriStr.contains("!")) {
-            FileSystem fs = null;
-            try {
-                String[] array = uriStr.split("!");
-                fs = FileSystems.newFileSystem(URI.create(array[0]), new HashMap<String, Object>());
-                path = fs.getPath(array[1]);
-
-                // Hack to avoid classloader issues
-                Path createTempFile = Files.createTempFile("velocity", ".vm");
-                createTempFile.toFile().deleteOnExit();
-                Files.copy(path, createTempFile, StandardCopyOption.REPLACE_EXISTING);
-
-                path = createTempFile;
-            } finally {
-                if (fs != null) {
-                    fs.close();
-                }
-            }
-        } else {
-            path = Paths.get(uri);
-        }
-        return path;
-    }
-
-    protected void generatePropertiesFile(RecipeGeneratorServiceContext context, PaaSNodeTemplate serviceRootTemplate) throws IOException {
-        Path descriptorPath = loadResourceFromClasspath("classpath:velocity/ServiceProperties.vm");
-        recipePropertiesGenerator.generatePropertiesFile(context, serviceRootTemplate, descriptorPath);
     }
 
     @AllArgsConstructor

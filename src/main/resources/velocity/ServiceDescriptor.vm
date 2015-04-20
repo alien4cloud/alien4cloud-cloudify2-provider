@@ -52,7 +52,7 @@ service {
 	#foreach($mapEntry in $relationshipCustomCommands.entrySet())
     "$mapEntry.getKey()" : { String[] args ->
 		String instanceId = args[0]
-		String ip_address = args[0]
+		String ip_address = args[1]
     	return $mapEntry.getValue()
     },
     #end
