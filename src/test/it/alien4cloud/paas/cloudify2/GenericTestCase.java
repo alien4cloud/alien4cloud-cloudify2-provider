@@ -451,8 +451,7 @@ public class GenericTestCase {
     }
 
     protected void testCustomCommandSuccess(String cloudifyAppId, String nodeName, Integer instanceId, String interfaceName, String command,
-            Map<String, String> params,
-            final String expectedResultSnippet) {
+            Map<String, String> params, final String expectedResultSnippet) {
         executeCustomCommand(cloudifyAppId, nodeName, instanceId, interfaceName, command, params, new IPaaSCallback<Map<String, String>>() {
             @Override
             public void onSuccess(Map<String, String> result) {
@@ -473,8 +472,7 @@ public class GenericTestCase {
     }
 
     protected void executeCustomCommand(String cloudifyAppId, String nodeName, Integer instanceId, String interfaceName, String command,
-            Map<String, String> params,
-            IPaaSCallback<Map<String, String>> callback) {
+            Map<String, String> params, IPaaSCallback<Map<String, String>> callback) {
         if (!deployedCloudifyAppIds.contains(cloudifyAppId)) {
             Assert.fail("Topology not found in deployments");
         }
@@ -533,7 +531,7 @@ public class GenericTestCase {
 
     protected void scale(String nodeID, int nbToAdd, String appId, Topology topo, Integer sleepTimeSec) throws Exception {
         int plannedInstance = topo.getScalingPolicies().get(nodeID).getInitialInstances() + nbToAdd;
-        log.info("Scaling to " + nbToAdd);
+        log.info("Scaling to " + plannedInstance);
         topo.getScalingPolicies().get(nodeID).setInitialInstances(plannedInstance);
         alienDAO.save(topo);
         PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();

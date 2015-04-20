@@ -6,6 +6,7 @@ import javax.annotation.Resource;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
@@ -72,6 +73,7 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
     @Test
     public void blockStorageVolumeIdProvidedSucessTest() throws Throwable {
         log.info("\n\n >> Executing Test blockStorageVolumeIdProvidedSucessTest \n");
+        setDeletableBlockStorage("false");
         String cloudifyAppId = null;
         try {
             String[] computesId = new String[] { "comp_storage_volumeid" };
@@ -108,6 +110,7 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
     }
 
     @Test
+    @Ignore
     public void blockStorageWithDeletabeBSDeploymentPropertyTest() throws Throwable {
 
         log.info("\n\n >> Executing Test blockStorageWithDeletableBlockStorageOptionTest \n");

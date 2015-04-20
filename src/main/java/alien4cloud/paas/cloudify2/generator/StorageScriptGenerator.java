@@ -63,12 +63,12 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
 
     @PostConstruct
     public void initialize() throws IOException {
-        startupBlockStorageScriptDescriptorPath = loadResourceFromClasspath("classpath:velocity/startupBlockStorage.vm");
-        initStorageScriptDescriptorPath = loadResourceFromClasspath("classpath:velocity/initStorage.vm");
-        createAttachBlockStorageScriptDescriptorPath = loadResourceFromClasspath("classpath:velocity/CreateAttachStorage.vm");
-        formatMountBlockStorageScriptDescriptorPath = loadResourceFromClasspath("classpath:velocity/FormatMountStorage.vm");
-        unmountDeleteBlockStorageSCriptDescriptorPath = loadResourceFromClasspath("classpath:velocity/UnmountDeleteStorage.vm");
-        shutdownBlockStorageScriptDescriptorPath = loadResourceFromClasspath("classpath:velocity/shutdownBlockStorage.vm");
+        startupBlockStorageScriptDescriptorPath = commandGenerator.loadResourceFromClasspath("classpath:velocity/startupBlockStorage.vm");
+        initStorageScriptDescriptorPath = commandGenerator.loadResourceFromClasspath("classpath:velocity/initStorage.vm");
+        createAttachBlockStorageScriptDescriptorPath = commandGenerator.loadResourceFromClasspath("classpath:velocity/CreateAttachStorage.vm");
+        formatMountBlockStorageScriptDescriptorPath = commandGenerator.loadResourceFromClasspath("classpath:velocity/FormatMountStorage.vm");
+        unmountDeleteBlockStorageSCriptDescriptorPath = commandGenerator.loadResourceFromClasspath("classpath:velocity/UnmountDeleteStorage.vm");
+        shutdownBlockStorageScriptDescriptorPath = commandGenerator.loadResourceFromClasspath("classpath:velocity/shutdownBlockStorage.vm");
         jsonMapper = new ObjectMapper();
     }
 

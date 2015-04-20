@@ -37,20 +37,20 @@ public class CloudifyEventsListener {
 
     private static final String SERVICE_KEY = "service";
 
-    private static final String APPLICATION_KEY = "application";
+    private static final String DEPLOYMENT_ID_KEY = "deploymentId";
 
     private DefaultHttpClient httpClient;
     private final URI endpoint;
-    private final String application;
+    private final String deploymentId;
     private final String service;
 
     public CloudifyEventsListener(URI restEventEndpoint) throws URISyntaxException {
         this(restEventEndpoint, null, null);
     }
 
-    public CloudifyEventsListener(URI restEventEndpoint, String application, String service) throws URISyntaxException {
+    public CloudifyEventsListener(URI restEventEndpoint, String deploymentId, String service) throws URISyntaxException {
         this.endpoint = restEventEndpoint;
-        this.application = application;
+        this.deploymentId = deploymentId;
         this.service = service;
         this.httpClient = new DefaultHttpClient();
     }
@@ -74,7 +74,7 @@ public class CloudifyEventsListener {
     }
 
     public List<AlienEvent> getEvents() throws IOException, URISyntaxException {
-        URIBuilder builder = new URIBuilder(endpoint.resolve(GET_EVENTS_END_POINT)).addParameter(APPLICATION_KEY, application)
+        URIBuilder builder = new URIBuilder(endpoint.resolve(GET_EVENTS_END_POINT)).addParameter(DEPLOYMENT_ID_KEY, deploymentId)
                 .addParameter(SERVICE_KEY, service).addParameter("lastIndex", "0");
 
         String response = doGet(builder, true);
@@ -99,15 +99,15 @@ public class CloudifyEventsListener {
         }
     }
 
-    public List<NodeInstanceState> getNodeInstanceStates(String topologyId) throws URISyntaxException, IOException {
-        URIBuilder builder = new URIBuilder(endpoint.resolve("/events/getInstanceStates")).addParameter(APPLICATION_KEY, topologyId);
+    public List<NodeInstanceState> getNodeInstanceStates(String deploymentId) throws URISyntaxException, IOException {
+        URIBuilder builder = new URIBuilder(endpoint.resolve("/events/getInstanceStates")).addParameter(DEPLOYMENT_ID_KEY, deploymentId);
 
         String response = this.doGet(builder, false);
         return StringUtils.isNotBlank(response) ? JsonUtil.toList(response, NodeInstanceState.class) : Lists.<NodeInstanceState> newArrayList();
     }
 
-    public void deleteNodeInstanceStates(String topologyId) throws URISyntaxException, IOException {
-        URIBuilder builder = new URIBuilder(endpoint.resolve("/events/deleteInstanceStates")).addParameter(APPLICATION_KEY, topologyId);
+    public void deleteNodeInstanceStates(String deploymentId) throws URISyntaxException, IOException {
+        URIBuilder builder = new URIBuilder(endpoint.resolve("/events/deleteInstanceStates")).addParameter(DEPLOYMENT_ID_KEY, deploymentId);
         this.doDelete(builder);
     }
 
