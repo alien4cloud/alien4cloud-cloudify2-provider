@@ -48,6 +48,9 @@ public class CustomCommandsTestIT extends GenericTestCase {
             testCustomCommandFail(cloudifyAppId, "comp_custom_cmd", null, "fastconnect.cloudify.extensions", "start_detection", null);
             // should fail since it's not really a custom command
             testCustomCommandFail(cloudifyAppId, "comp_custom_cmd", null, "tosca.interfaces.node.lifecycle.Standard", "stop", null);
+            // test that a bash script can return value
+            testCustomCommandSuccess(cloudifyAppId, "comp_custom_cmd", null, "fr.fastconnect.custom", "bashWithOuput", params, "Here is my command output from stdout");
+
         } catch (Exception e) {
             log.error("Test Failed: " + (e instanceof RestClientException ? ((RestClientException) e).getMessageFormattedText() : e.getMessage()), e);
             throw e;
