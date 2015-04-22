@@ -764,12 +764,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         }
     }
 
-    @NoArgsConstructor
-    @AllArgsConstructor
-    private static class NodesDeploymentInfo {
-        private Map<String, Map<String, InstanceInformation>> instanceInformations;
-    }
-
     @Override
     public void executeOperation(PaaSTopologyDeploymentContext deploymentContext, NodeOperationExecRequest request, IPaaSCallback<Map<String, String>> callback)
             throws OperationExecutionException {
@@ -1012,6 +1006,15 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         }
         fqnBuilder.append(")");
         return fqnBuilder.toString();
+    }
+
+    /** ****************************************************** **/
+    /** *** *** *** *** *** INTERNAL CLASSES *** *** *** *** **/
+    /** ***************************************************** **/
+    @NoArgsConstructor
+    @AllArgsConstructor
+    private static class NodesDeploymentInfo {
+        private Map<String, Map<String, InstanceInformation>> instanceInformations;
     }
 
     @NoArgsConstructor
