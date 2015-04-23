@@ -1,6 +1,7 @@
 package alien4cloud.paas.cloudify2.rest;
 
 import java.net.URL;
+import java.util.List;
 import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
@@ -13,8 +14,11 @@ import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.codehaus.jackson.type.TypeReference;
 
 import alien4cloud.paas.cloudify2.CloudifyComputeTemplate;
+import alien4cloud.rest.utils.JsonUtil;
 import alien4cloud.utils.MapUtil;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 @Slf4j
@@ -50,14 +54,41 @@ public class CloudifyRestClient extends RestClient {
         if (templates == null) {
             return computeTemplates;
         }
+        List<String> alreadyAdded = Lists.newArrayList();
         for (Map.Entry<String, Object> templateEntry : templates.entrySet()) {
-            String imageId = (String) MapUtil.get((Map<String, Object>) templateEntry.getValue(), "imageId");
-            String hardwareId = (String) MapUtil.get((Map<String, Object>) templateEntry.getValue(), "hardwareId");
-            if (!StringUtils.isEmpty(imageId) && !StringUtils.isEmpty(hardwareId)) {
-                computeTemplates.put(templateEntry.getKey(), new CloudifyComputeTemplate(imageId, hardwareId));
+            if (isTemplateEligible(templateEntry.getValue(), alreadyAdded)) {
+                String imageId = (String) MapUtil.get((Map<String, Object>) templateEntry.getValue(), "imageId");
+                String hardwareId = (String) MapUtil.get((Map<String, Object>) templateEntry.getValue(), "hardwareId");
+                if (!StringUtils.isEmpty(imageId) && !StringUtils.isEmpty(hardwareId)) {
+                    computeTemplates.put(templateEntry.getKey(), new CloudifyComputeTemplate(imageId, hardwareId));
+                }
             }
         }
         return computeTemplates;
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean isTemplateEligible(Object value, List<String> alreadyAdded) {
+        String templateString;
+        Map<String, Object> templateAsMap = (Map<String, Object>) value;
+        try {
+            // remove availability zones before comparing
+            templateAsMap.remove("locationId");
+            Map<String, Object> custom = (Map<String, Object>) MapUtil.get(templateAsMap, "custom");
+            if (custom != null) {
+                ((Map<String, Object>) templateAsMap.get("custom")).remove("openstack.compute.zone");
+            }
+            templateAsMap.remove("availabilityZones");
+            templateString = JsonUtil.toString(templateAsMap).replaceAll("\\s", "");
+            if (alreadyAdded.contains(templateString)) {
+                return false;
+            }
+            alreadyAdded.add(templateString);
+            return true;
+        } catch (JsonProcessingException e) {
+            log.warn("Error when parsing a compute template from the cloud.", e);
+            return false;
+        }
     }
 
     public void testLogin() throws RestClientException {
