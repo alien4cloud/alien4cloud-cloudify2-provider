@@ -14,10 +14,8 @@ import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.codehaus.jackson.type.TypeReference;
 
 import alien4cloud.paas.cloudify2.CloudifyComputeTemplate;
-import alien4cloud.rest.utils.JsonUtil;
 import alien4cloud.utils.MapUtil;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -54,7 +52,7 @@ public class CloudifyRestClient extends RestClient {
         if (templates == null) {
             return computeTemplates;
         }
-        List<String> alreadyAdded = Lists.newArrayList();
+        List<Object> alreadyAdded = Lists.newArrayList();
         for (Map.Entry<String, Object> templateEntry : templates.entrySet()) {
             if (isTemplateEligible(templateEntry.getValue(), alreadyAdded)) {
                 String imageId = (String) MapUtil.get((Map<String, Object>) templateEntry.getValue(), "imageId");
@@ -68,27 +66,23 @@ public class CloudifyRestClient extends RestClient {
     }
 
     @SuppressWarnings("unchecked")
-    private boolean isTemplateEligible(Object value, List<String> alreadyAdded) {
-        String templateString;
-        Map<String, Object> templateAsMap = (Map<String, Object>) value;
-        try {
-            // remove availability zones before comparing
-            templateAsMap.remove("locationId");
-            Map<String, Object> custom = (Map<String, Object>) MapUtil.get(templateAsMap, "custom");
-            if (custom != null) {
-                ((Map<String, Object>) templateAsMap.get("custom")).remove("openstack.compute.zone");
-            }
-            templateAsMap.remove("availabilityZones");
-            templateString = JsonUtil.toString(templateAsMap).replaceAll("\\s", "");
-            if (alreadyAdded.contains(templateString)) {
-                return false;
-            }
-            alreadyAdded.add(templateString);
-            return true;
-        } catch (JsonProcessingException e) {
-            log.warn("Error when parsing a compute template from the cloud.", e);
+    private boolean isTemplateEligible(Object value, List<Object> alreadyAdded) {
+        Map<String, Object> templateAsMap = Maps.newHashMap((Map<String, Object>) value);
+
+        // remove availability zones before comparing
+        templateAsMap.remove("locationId");
+        Map<String, Object> custom = (Map<String, Object>) MapUtil.get(templateAsMap, "custom");
+        if (custom != null) {
+            ((Map<String, Object>) templateAsMap.get("custom")).remove("openstack.compute.zone");
+        }
+        templateAsMap.remove("availabilityZones");
+
+        if (alreadyAdded.contains(templateAsMap)) {
             return false;
         }
+
+        alreadyAdded.add(templateAsMap);
+        return true;
     }
 
     public void testLogin() throws RestClientException {
