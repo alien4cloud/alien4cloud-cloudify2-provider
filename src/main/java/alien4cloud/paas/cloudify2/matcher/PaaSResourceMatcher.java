@@ -2,7 +2,6 @@ package alien4cloud.paas.cloudify2.matcher;
 
 import java.util.Map;
 
-import lombok.AccessLevel;
 import lombok.Getter;
 
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -13,6 +12,7 @@ import alien4cloud.model.cloud.CloudImage;
 import alien4cloud.model.cloud.CloudImageFlavor;
 import alien4cloud.model.cloud.CloudResourceMatcherConfig;
 import alien4cloud.model.cloud.ComputeTemplate;
+import alien4cloud.model.cloud.HighAvailabilityComputeTemplate;
 import alien4cloud.model.cloud.NetworkTemplate;
 import alien4cloud.model.cloud.StorageTemplate;
 import alien4cloud.model.components.IndexedNodeType;
@@ -28,11 +28,12 @@ import com.google.common.collect.Maps;
  * Find a valid template based on the TOSCA node compute properties.
  */
 @Component
-@Getter(value = AccessLevel.PROTECTED)
+@Getter
 @Scope(BeanDefinition.SCOPE_PROTOTYPE)
 public class PaaSResourceMatcher {
 
     private Map<ComputeTemplate, String> alienTemplateToCloudifyTemplateMapping = Maps.newHashMap();
+    private Map<HighAvailabilityComputeTemplate, String> alienTemplateToCloudifyHATemplateMapping = Maps.newHashMap();
     private Map<NetworkTemplate, String> alienNetworkToCloudifyNetworkMapping = Maps.newHashMap();
     private Map<StorageTemplate, String> alienStorageToCloudifyStorageMapping = Maps.newHashMap();
 
@@ -58,7 +59,7 @@ public class PaaSResourceMatcher {
 
     /**
      * Match a cloudify storage based on the storage
-     * 
+     *
      * @param storage the storage
      * @return the template name which match the given storage
      */
