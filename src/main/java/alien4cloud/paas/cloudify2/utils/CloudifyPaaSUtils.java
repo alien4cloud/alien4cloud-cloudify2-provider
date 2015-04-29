@@ -1,6 +1,5 @@
 package alien4cloud.paas.cloudify2.utils;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -85,8 +84,8 @@ public class CloudifyPaaSUtils {
                     List<String> azs;
                     try {
                         azs = JsonUtil.toList(JsonUtil.toString(availabilityZones), String.class);
-                        az = azs.get(0);
-                    } catch (IOException e) {
+                        az = azs.size() > 0 ? azs.get(0) : az;
+                    } catch (Exception e) {
                     }
                 }
             }

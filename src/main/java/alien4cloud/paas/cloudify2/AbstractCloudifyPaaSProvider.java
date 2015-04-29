@@ -161,12 +161,12 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
     @Override
     public void deploy(PaaSTopologyDeploymentContext deploymentContext, IPaaSCallback<?> callback) {
-        doDeploy(deploymentContext.getDeploymentId(), deploymentContext.getDeploymentPaaSId(), deploymentContext.getTopology(), deploymentContext
-                .getPaaSTopology().getComputes(), deploymentContext.getPaaSTopology().getAllNodes(), deploymentContext.getDeploymentSetup());
+        doDeploy(deploymentContext.getDeploymentId(), deploymentContext.getDeploymentPaaSId(), deploymentContext.getTopology(),
+                deploymentContext.getPaaSTopology(), deploymentContext.getDeploymentSetup());
     }
 
-    protected synchronized void doDeploy(String deploymentId, String deploymentPaaSId, Topology topology, List<PaaSNodeTemplate> roots,
-            Map<String, PaaSNodeTemplate> nodeTemplates, DeploymentSetup deploymentSetup) {
+    protected synchronized void doDeploy(String deploymentId, String deploymentPaaSId, Topology topology, PaaSTopology paaSTopology,
+            DeploymentSetup deploymentSetup) {
         if (statusByDeployments.get(deploymentPaaSId) != null && DeploymentStatus.UNDEPLOYED != statusByDeployments.get(deploymentPaaSId).deploymentStatus) {
             log.info("Application with deploymentId <" + deploymentPaaSId + "> is already deployed");
             throw new PaaSAlreadyDeployedException("Application is already deployed.");
@@ -175,8 +175,8 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             DeploymentInfo deploymentInfo = new DeploymentInfo();
             deploymentInfo.deploymentId = deploymentId;
             deploymentInfo.topology = topology;
-            deploymentInfo.paaSTopology = topologyTreeBuilderService.buildPaaSTopology(deploymentInfo.topology);
-            Path cfyZipPath = recipeGenerator.generateRecipe(deploymentId, deploymentPaaSId, nodeTemplates, roots, deploymentSetup);
+            deploymentInfo.paaSTopology = paaSTopology;
+            Path cfyZipPath = recipeGenerator.generateRecipe(deploymentId, deploymentPaaSId, paaSTopology, deploymentSetup);
             statusByDeployments.put(deploymentPaaSId, deploymentInfo);
             log.info("Deploying application from recipe at <{}>", cfyZipPath);
             this.deployOnCloudify(deploymentPaaSId, cfyZipPath, getSelHealingProperty(deploymentSetup));

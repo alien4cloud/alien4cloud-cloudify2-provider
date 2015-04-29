@@ -40,11 +40,15 @@ public class PaaSResourceMatcher {
     /**
      * Match a cloudify template based on the compute node.
      *
-     * @param computeNode The compute node.
+     * @param computeNode The compute node. Could be a simple or a HA compute node
      * @return The template that matches the given compute node.
      */
     public synchronized String getTemplate(ComputeTemplate computeNode) {
-        return alienTemplateToCloudifyTemplateMapping.get(computeNode);
+        if (computeNode instanceof HighAvailabilityComputeTemplate) {
+            return alienTemplateToCloudifyHATemplateMapping.get(computeNode);
+        } else {
+            return alienTemplateToCloudifyTemplateMapping.get(computeNode);
+        }
     }
 
     /**

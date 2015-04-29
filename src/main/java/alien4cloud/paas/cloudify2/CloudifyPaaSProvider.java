@@ -171,8 +171,7 @@ public class CloudifyPaaSProvider extends AbstractCloudifyPaaSProvider {
                 missing.add(aZEntry.getValue());
                 continue;
             }
-            HighAvailabilityComputeTemplate haTemplate = new HighAvailabilityComputeTemplate(basicTemplate.getCloudImageId(),
-                    basicTemplate.getCloudImageFlavorId(), haPaaSResourceId, aZEntry.getKey().getId());
+            HighAvailabilityComputeTemplate haTemplate = new HighAvailabilityComputeTemplate(basicTemplate, aZEntry.getKey().getId());
             alienTemplateToCloudifyHATemplateMapping.put(haTemplate, haPaaSResourceId);
         }
 
