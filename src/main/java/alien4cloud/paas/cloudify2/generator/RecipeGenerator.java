@@ -1,9 +1,6 @@
 package alien4cloud.paas.cloudify2.generator;
 
-import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_INTERFACE_NAME;
-import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_LOCATOR_OPERATION_NAME;
-import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_START_DETECTION_OPERATION_NAME;
-import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_STOP_DETECTION_OPERATION_NAME;
+import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.*;
 import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.*;
 
 import java.io.IOException;
@@ -133,7 +130,8 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             throw new PaaSDeploymentException("No compute found in topology for deployment " + deploymentPaaSId);
         }
 
-        Map<String, AvailabilityZone> azAllocation = availabilityZoneAllocator.processAllocation(paasTopology, deploymenySetup);
+        Map<String, AvailabilityZone> azAllocation = availabilityZoneAllocator.processAllocation(paasTopology, deploymenySetup,
+                paaSResourceMatcher.getCloudResourceMatcherConfig());
         for (PaaSNodeTemplate root : paasTopology.getComputes()) {
             String nodeName = root.getId();
             ServiceSetup serviceSetup = new ServiceSetup();

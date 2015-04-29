@@ -36,6 +36,7 @@ public class PaaSResourceMatcher {
     private Map<HighAvailabilityComputeTemplate, String> alienTemplateToCloudifyHATemplateMapping = Maps.newHashMap();
     private Map<NetworkTemplate, String> alienNetworkToCloudifyNetworkMapping = Maps.newHashMap();
     private Map<StorageTemplate, String> alienStorageToCloudifyStorageMapping = Maps.newHashMap();
+    private CloudResourceMatcherConfig cloudResourceMatcherConfig;
 
     /**
      * Match a cloudify template based on the compute node.
@@ -72,6 +73,7 @@ public class PaaSResourceMatcher {
     }
 
     public synchronized void configure(CloudResourceMatcherConfig config, Map<String, CloudifyComputeTemplate> paaSComputeTemplateMap) {
+        this.cloudResourceMatcherConfig = config;
         Map<String, CloudImage> imageMapping = MappingUtil.getReverseMapping(config.getImageMapping());
         Map<String, CloudImageFlavor> flavorsMapping = MappingUtil.getReverseMapping(config.getFlavorMapping());
 
