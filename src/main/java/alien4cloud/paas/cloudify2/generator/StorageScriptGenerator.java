@@ -19,6 +19,7 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import alien4cloud.common.AlienContants;
 import alien4cloud.model.components.AbstractPropertyValue;
 import alien4cloud.model.components.ScalarPropertyValue;
 import alien4cloud.paas.exception.PaaSDeploymentException;
@@ -73,16 +74,15 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
     }
 
     public void generateInitStartUpStorageScripts(final RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode, String storageName,
-            List<String> executions)
-    // FIXME try manage it via plan generator
-            throws IOException {
+            String availabilityZone, List<String> executions) throws IOException {
+        // FIXME try manage it via plan generator
         // do nothing if no blockstorage
         if (blockStorageNode == null) {
             return;
         }
 
         generateInitVolumeIdsScript(context, blockStorageNode, storageName, executions);
-        generateStartUpStorageScript(context, blockStorageNode, executions);
+        generateStartUpStorageScript(context, blockStorageNode, executions, availabilityZone);
     }
 
     public void generateShutdownStorageScript(final RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode, List<String> executions)
@@ -118,13 +118,13 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
                     log.warn(NormativeBlockStorageConstants.VOLUME_ID + " is not of type Scalar, it's not supported by the driver, volume will not be reused");
                 }
             }
-            verifyNoVolumeIdForStorage(blockStorageNode.getId(), volumeIds, context.isDeletableBlockStorage());
+            verifyVolumeIdsForStorage(blockStorageNode.getId(), volumeIds, context.isDeleteStorages());
         }
 
         // setting the volumes Ids array for instances
         String volumeIdsAsArrayString = "null";
         if (StringUtils.isNotBlank(volumeIds)) {
-            String[] volumesIdsArray = volumeIds.split(",");
+            String[] volumesIdsArray = parseVolumesIds(volumeIds);
             volumeIdsAsArrayString = jsonMapper.writeValueAsString(volumesIdsArray);
         }
         velocityProps.put("instancesVolumeIds", volumeIdsAsArrayString);
@@ -133,14 +133,31 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         executions.add(commandGenerator.getGroovyCommand(INIT_STORAGE_SCRIPT_FILE_NAME.concat(".groovy"), null, null));
     }
 
-    private void generateStartUpStorageScript(final RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode, List<String> executions)
-            throws IOException {
+    private String[] parseVolumesIds(String volumeIds) {
+        String[] splitted = volumeIds.split(",");
+        String[] toReturn = new String[splitted.length];
+        int i = 0;
+        for (String zoneAndVolumeId : splitted) {
+            int index = zoneAndVolumeId.indexOf(AlienContants.VOLUME_AZ_VOLUMEID_SEPARATOR);
+            if (index > 0) {
+                toReturn[i++] = zoneAndVolumeId.substring(index + 1, zoneAndVolumeId.length());
+            } else {
+                toReturn[i++] = zoneAndVolumeId;
+            }
+        }
+        return toReturn;
+    }
+
+    private void generateStartUpStorageScript(final RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode, List<String> executions,
+            String availabilityZone) throws IOException {
         // startup (create, attach, format, mount)
         Map<String, String> velocityProps = Maps.newHashMap();
         // events
         Double lease = context.getEventsLeaseInHour();
+        String volumeIdKey = StringUtils.isNotBlank(availabilityZone) ? "\"" + availabilityZone + AlienContants.VOLUME_AZ_VOLUMEID_SEPARATOR + "\"+"
+                + VOLUME_ID_KEY : VOLUME_ID_KEY;
         velocityProps.put("createdEvent",
-                commandGenerator.getFireBlockStorageEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.CREATED, VOLUME_ID_KEY, lease));
+                commandGenerator.getFireBlockStorageEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.CREATED, volumeIdKey, lease));
         velocityProps.put("configuredEvent", commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.CONFIGURED, lease));
         velocityProps.put("startedEvent", commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.STARTED, lease));
         velocityProps.put("availableEvent", commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.AVAILABLE, lease));
@@ -222,7 +239,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
 
             // getting deletable BStorage from context (deployment properties)
             Map<String, String> additionalProps = Maps.newHashMap();
-            additionalProps.put("deletable", Boolean.toString(context.isDeletableBlockStorage()));
+            additionalProps.put("deletable", Boolean.toString(context.isDeleteStorages()));
 
             generateScriptWorkflow(context.getServicePath(), unmountDeleteBlockStorageSCriptDescriptorPath, DEFAULT_STORAGE_UNMOUNT_FILE_NAME, null,
                     additionalProps);
@@ -232,10 +249,10 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         return unmountDeleteCommand;
     }
 
-    private void verifyNoVolumeIdForStorage(String blockStorageNodeId, String volumeIds, boolean isDeletableBlockStorage) {
+    private void verifyVolumeIdsForStorage(String blockStorageNodeId, String volumeIds, boolean isDeletableBlockStorage) {
         if (isDeletableBlockStorage && StringUtils.isNotBlank(volumeIds)) {
             throw new PaaSDeploymentException("Failed to generate scripts for BlockStorage <" + blockStorageNodeId
-                    + " >. A block storage should not be provided with volumeIds.");
+                    + " >. Since deletion of storage is activated,  it should not be provided with volumeIds.");
         }
     }
 }

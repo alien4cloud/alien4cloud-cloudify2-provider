@@ -37,7 +37,7 @@ public class RecipeGeneratorServiceContext {
     /** Maps commandUniqueName -> script of the relationships operations that we have to add to the service recipe as custom command. */
     private final Map<String, String> relationshipCustomCommands = Maps.newHashMap();
     /** Map of the node templates in the topology. */
-    private final Map<String, PaaSNodeTemplate> topologyNodeTemplates;
+    private final Map<String, PaaSNodeTemplate> allNodes;
     /** Maps nodeId -> script of the stop detection commands that we have to aggregate to generate a good stop detection for cloudify. */
     private final Map<String, String> stopDetectionCommands = Maps.newHashMap();
     /** Maps nodeId -> script of the process locators commands that we have to aggregate to generate a good process locator for cloudify. */
@@ -52,16 +52,16 @@ public class RecipeGeneratorServiceContext {
     /** Events lease time for this service */
     private Double eventsLeaseInHour = 2.0;
 
-    /** Indicates if BStorage are deleatable */
-    private boolean deletableBlockStorage = false;
+    /** Indicates if to delete the storages */
+    private boolean deleteStorages = false;
 
     /**
      * Initialize a new context for service recipe generation.
      *
-     * @param topologyNodeTemplates The map of all the nodes templates in the topology.
+     * @param allNodes The map of all the nodes templates in the topology.
      */
-    public RecipeGeneratorServiceContext(Map<String, PaaSNodeTemplate> topologyNodeTemplates) {
-        this.topologyNodeTemplates = topologyNodeTemplates;
+    public RecipeGeneratorServiceContext(Map<String, PaaSNodeTemplate> allNodes) {
+        this.allNodes = allNodes;
     }
 
     /**
@@ -71,7 +71,7 @@ public class RecipeGeneratorServiceContext {
      * @return The node template in the recipe that match the given id or null if no node template exists for the given id.
      */
     public PaaSNodeTemplate getNodeTemplateById(String nodeTemplateId) {
-        return topologyNodeTemplates.get(nodeTemplateId);
+        return allNodes.get(nodeTemplateId);
     }
 
     /**
@@ -98,9 +98,9 @@ public class RecipeGeneratorServiceContext {
         }
     }
 
-    public void setDeletableBlockStorage(String deletableBlockStorage) {
+    public void setDeleteStorages(String deletableBlockStorage) {
         if (StringUtils.isNotBlank(deletableBlockStorage) && Boolean.parseBoolean(deletableBlockStorage)) {
-            this.deletableBlockStorage = Boolean.parseBoolean(deletableBlockStorage);
+            this.deleteStorages = Boolean.parseBoolean(deletableBlockStorage);
         }
     }
 }

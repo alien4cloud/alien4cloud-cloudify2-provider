@@ -4,6 +4,7 @@ import java.util.Map;
 
 import lombok.Getter;
 import lombok.Setter;
+import alien4cloud.model.cloud.AvailabilityZone;
 import alien4cloud.model.cloud.ComputeTemplate;
 import alien4cloud.model.cloud.NetworkTemplate;
 import alien4cloud.model.cloud.StorageTemplate;
@@ -19,5 +20,6 @@ public class ServiceSetup {
     private StorageTemplate storage;
     private Map<String, String> providerDeploymentProperties = Maps.newHashMap();
     private String deploymentId;
+    private AvailabilityZone availabilityZone;
 
 }

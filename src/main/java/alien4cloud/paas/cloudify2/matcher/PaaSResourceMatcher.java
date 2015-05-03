@@ -8,6 +8,7 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import alien4cloud.model.cloud.AvailabilityZone;
 import alien4cloud.model.cloud.CloudImage;
 import alien4cloud.model.cloud.CloudImageFlavor;
 import alien4cloud.model.cloud.CloudResourceMatcherConfig;
@@ -36,6 +37,7 @@ public class PaaSResourceMatcher {
     private Map<HighAvailabilityComputeTemplate, String> alienTemplateToCloudifyHATemplateMapping = Maps.newHashMap();
     private Map<NetworkTemplate, String> alienNetworkToCloudifyNetworkMapping = Maps.newHashMap();
     private Map<StorageTemplate, String> alienStorageToCloudifyStorageMapping = Maps.newHashMap();
+    private Map<AvailabilityZone, String> alienZoneToCloudifyZoneMapping = Maps.newHashMap();
     private CloudResourceMatcherConfig cloudResourceMatcherConfig;
 
     /**
@@ -72,6 +74,16 @@ public class PaaSResourceMatcher {
         return alienStorageToCloudifyStorageMapping.get(storage);
     }
 
+    /**
+     * Match an cloudify availability zone based on the zone
+     *
+     * @param availabilityZone the availabilityZone
+     * @return the cdfy availabilityZone name which match the given availabilityZone
+     */
+    public synchronized String getAvailabilityZone(AvailabilityZone availabilityZone) {
+        return alienZoneToCloudifyZoneMapping.get(availabilityZone);
+    }
+
     public synchronized void configure(CloudResourceMatcherConfig config, Map<String, CloudifyComputeTemplate> paaSComputeTemplateMap) {
         this.cloudResourceMatcherConfig = config;
         Map<String, CloudImage> imageMapping = MappingUtil.getReverseMapping(config.getImageMapping());
@@ -90,6 +102,7 @@ public class PaaSResourceMatcher {
         }
         alienNetworkToCloudifyNetworkMapping = config.getNetworkMapping();
         alienStorageToCloudifyStorageMapping = config.getStorageMapping();
+        alienZoneToCloudifyZoneMapping = config.getAvailabilityZoneMapping();
     }
 
     /**
