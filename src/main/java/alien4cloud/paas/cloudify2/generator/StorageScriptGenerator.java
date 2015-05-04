@@ -138,7 +138,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         String[] toReturn = new String[splitted.length];
         int i = 0;
         for (String zoneAndVolumeId : splitted) {
-            int index = zoneAndVolumeId.indexOf(AlienContants.VOLUME_AZ_VOLUMEID_SEPARATOR);
+            int index = zoneAndVolumeId.indexOf(AlienContants.STORAGE_AZ_VOLUMEID_SEPARATOR);
             if (index > 0) {
                 toReturn[i++] = zoneAndVolumeId.substring(index + 1, zoneAndVolumeId.length());
             } else {
@@ -154,7 +154,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         Map<String, String> velocityProps = Maps.newHashMap();
         // events
         Double lease = context.getEventsLeaseInHour();
-        String volumeIdKey = StringUtils.isNotBlank(availabilityZone) ? "\"" + availabilityZone + AlienContants.VOLUME_AZ_VOLUMEID_SEPARATOR + "\"+"
+        String volumeIdKey = StringUtils.isNotBlank(availabilityZone) ? "\"" + availabilityZone + AlienContants.STORAGE_AZ_VOLUMEID_SEPARATOR + "\"+"
                 + VOLUME_ID_KEY : VOLUME_ID_KEY;
         velocityProps.put("createdEvent",
                 commandGenerator.getFireBlockStorageEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.CREATED, volumeIdKey, lease));
