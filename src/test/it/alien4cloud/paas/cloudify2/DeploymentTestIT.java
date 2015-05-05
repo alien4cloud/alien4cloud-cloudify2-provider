@@ -8,7 +8,6 @@ import javax.annotation.Resource;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
@@ -43,32 +42,6 @@ public class DeploymentTestIT extends GenericTestCase {
     public void deployATopologyWhenNoComputeAreDefinedShouldFail() throws Throwable {
         log.info("\n\n >> Executing Test deployATopologyWhenNoComputeAreDefinedShouldFail \n");
         deployTopology("noCompute", null, null, null);
-    }
-
-    @Test
-    public void topologyWithShScriptsTests() throws Throwable {
-        log.info("\n\n >> Executing Test topologyWithShScriptsTests \n");
-
-        String cloudifyAppId = null;
-        this.uploadGitArchive("samples", "tomcat-war");
-        this.uploadTestArchives("test-types-1.0-SNAPSHOT");
-        try {
-            String[] computesId = new String[] { "comp_tomcatsh" };
-            cloudifyAppId = deployTopology("tomcatSh", computesId, null, null);
-
-            this.assertApplicationIsInstalled(cloudifyAppId);
-            waitForServiceToStarts(cloudifyAppId, "comp_tomcatsh", 1000L * 120);
-            assertHttpCodeEquals(cloudifyAppId, "comp_tomcatsh", "8080", "", HTTP_CODE_OK, null);
-
-            testEvents(cloudifyAppId, new String[] { "comp_tomcatsh", "tomcat" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
-                    ToscaNodeLifecycleConstants.CONFIGURED, ToscaNodeLifecycleConstants.STARTED);
-
-            testUndeployment(cloudifyAppId);
-
-        } catch (Exception e) {
-            log.error("Test Failed: " + (e instanceof RestClientException ? ((RestClientException) e).getMessageFormattedText() : e.getMessage()), e);
-            throw e;
-        }
     }
 
     @Test(expected = PaaSAlreadyDeployedException.class)

@@ -353,15 +353,14 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     /**
      * Fill instance states found from the cloudify extention for TOSCA that dispatch instance states.
      *
-     * @param deploymentPaaSId The id of the deployment/ applicaiton for which to retrieve instance states.
+     * @param deploymentId The id of the deployment for which to retrieve instance states.
      * @param instanceInformations The current map of instance informations to fill-in with additional states.
      * @param restEventEndpoint The current rest event endpoint.
      * @throws URISyntaxException
      * @throws IOException In case we fail to get events.
      */
-    private void fillInstanceStates(final String deploymentPaaSId, final Map<String, Map<String, InstanceInformation>> instanceInformations,
+    private void fillInstanceStates(final String deploymentId, final Map<String, Map<String, InstanceInformation>> instanceInformations,
             final URI restEventEndpoint) throws URISyntaxException, IOException {
-        String deploymentId = statusByDeployments.get(deploymentPaaSId).deploymentId;
         CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, deploymentId, "");
         List<NodeInstanceState> instanceStates = listener.getNodeInstanceStates(deploymentId);
 
@@ -496,15 +495,19 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     }
 
     public Map<String, Map<String, InstanceInformation>> getInstancesInformation(String deploymentPaaSId, Topology topology) {
-        Map<String, Map<String, InstanceInformation>> instanceInformations = instanceInformationsFromTopology(topology);
 
+        Map<String, Map<String, InstanceInformation>> instanceInformations = instanceInformationsFromTopology(topology);
+        DeploymentInfo deploymentInfo = statusByDeployments.get(deploymentPaaSId);
+        if (deploymentInfo == null) {
+            return null;
+        }
         final URI restEventEndpoint = this.cloudifyRestClientManager.getRestEventEndpoint();
         if (restEventEndpoint == null) {
             return instanceInformations;
         }
 
         try {
-            fillInstanceStates(deploymentPaaSId, instanceInformations, restEventEndpoint);
+            fillInstanceStates(deploymentInfo.deploymentId, instanceInformations, restEventEndpoint);
             fillRuntimeInformations(deploymentPaaSId, instanceInformations);
             parseAttributes(instanceInformations, statusByDeployments.get(deploymentPaaSId));
             instanceStatusByDeployments.put(deploymentPaaSId, new NodesDeploymentInfo(instanceInformations));

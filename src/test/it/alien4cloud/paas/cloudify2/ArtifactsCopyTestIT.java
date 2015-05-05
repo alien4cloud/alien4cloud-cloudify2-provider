@@ -55,17 +55,19 @@ public class ArtifactsCopyTestIT extends GenericTestCase {
         String[] computes = new String[] { "comp_tomcat_war" };
         cloudifyAppId = deployTopology(computes, topology, topologyFileName, null, null);
         assertApplicationIsInstalled(cloudifyAppId);
-        testEvents(cloudifyAppId, new String[] { "comp_tomcat_war", "War_1", "war_2" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
+        testEvents(cloudifyAppId, new String[] { "comp_tomcat_war", "java", "tomcat", "War_1", "war_2" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
                 ToscaNodeLifecycleConstants.CONFIGURED, ToscaNodeLifecycleConstants.STARTED);
 
         String serviceName = "comp_tomcat_war";
         NodeTemplate war1 = topology.getNodeTemplates().get("War_1");
         NodeTemplate war2 = topology.getNodeTemplates().get("war_2");
 
-        assertHttpCodeEquals(cloudifyAppId, serviceName, DEFAULT_TOMCAT_PORT, "", HTTP_CODE_OK, null);
-        assertHttpCodeEquals(cloudifyAppId, serviceName, DEFAULT_TOMCAT_PORT, FunctionEvaluator.getScalarValue(war1.getProperties().get("contextPath")),
-                HTTP_CODE_OK, 20 * 1000);
-        assertHttpCodeEquals(cloudifyAppId, serviceName, DEFAULT_TOMCAT_PORT, FunctionEvaluator.getScalarValue(war2.getProperties().get("contextPath")),
-                HTTP_CODE_OK, 20 * 1000);
+        String tomcatPort = FunctionEvaluator.getScalarValue(topology.getNodeTemplates().get("tomcat").getProperties().get("tomcat_port"));
+
+        assertHttpCodeEquals(cloudifyAppId, serviceName, tomcatPort, "", HTTP_CODE_OK, null);
+        assertHttpCodeEquals(cloudifyAppId, serviceName, tomcatPort, FunctionEvaluator.getScalarValue(war1.getProperties().get("context_path")), HTTP_CODE_OK,
+                20 * 1000);
+        assertHttpCodeEquals(cloudifyAppId, serviceName, tomcatPort, FunctionEvaluator.getScalarValue(war2.getProperties().get("context_path")), HTTP_CODE_OK,
+                20 * 1000);
     }
 }
