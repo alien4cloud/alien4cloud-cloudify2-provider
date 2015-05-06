@@ -118,7 +118,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
     private static final String START_MAINTENANCE_COMMAND_NAME = "cloudify:start-maintenance-mode";
     private static final String STOP_MAINTENANCE_COMMAND_NAME = "cloudify:stop-maintenance-mode";
-    private static final Long DEFAULT_MAINENANCE_TIME_MIN = Long.MAX_VALUE;
+    private static final Long DEFAULT_MAINENANCE_TIME_MIN = 1000L * 60L * 60L * 24L * 365L; // about one year
 
     // private static final String INVOCATION_INSTANCE_NAME_KEY = "Invocation_Instance_Name";
     // private static final String INVOCATION_COMMAND_NAME_KEY = "Invocation_Command_Name";
