@@ -6,7 +6,6 @@ import javax.annotation.Resource;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
@@ -103,32 +102,9 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
             waitForServiceToStarts(cloudifyAppId, "comp_storage_size", 1000L * 120);
             assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, ToscaNodeLifecycleConstants.CREATED);
 
-        } catch (Exception e) {
-            log.error("Test Failed", e);
-            throw e;
-        }
-    }
-
-    @Test
-    @Ignore
-    public void blockStorageWithDeletabeBSDeploymentPropertyTest() throws Throwable {
-
-        log.info("\n\n >> Executing Test blockStorageWithDeletableBlockStorageOptionTest \n");
-        String cloudifyAppId = null;
-        this.uploadGitArchive(EXTENDED_TYPES_REPO, EXTENDED_STORAGE_TYPES);
-
-        try {
-
-            String[] computesId = new String[] { "comp_storage_size" };
-            cloudifyAppId = deployTopology("deletableBlockStorageWithSize", computesId, null, providerDeploymentProperties);
-
-            this.assertApplicationIsInstalled(cloudifyAppId);
-            waitForServiceToStarts(cloudifyAppId, "comp_storage_size", 1000L * 120);
-            // a blockstorage event of type "CREATED" should exist
-            assertStorageEventFiredWithVolumeId(cloudifyAppId, new String[] { "blockstorage" }, ToscaNodeLifecycleConstants.CREATED);
-            testUndeployment(cloudifyAppId);
-            // check that the blockstorage is stopped / deleted
-            assertBlockStorageEventFired(cloudifyAppId, "blockstorage", ToscaNodeLifecycleConstants.STOPPED);
+            // testUndeployment(cloudifyAppId);
+            // // check that the blockstorage is stopped / deleted
+            // assertBlockStorageEventFired(cloudifyAppId, "blockstorage", ToscaNodeLifecycleConstants.STOPPED);
 
         } catch (Exception e) {
             log.error("Test Failed", e);

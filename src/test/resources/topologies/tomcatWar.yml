@@ -31,7 +31,7 @@ node_templates:
       tomcat_port: 
         value: 9999
       tomcat_url: 
-        value: "http://apache.crihan.fr/dist/tomcat/tomcat-8/v8.0.20/bin/apache-tomcat-8.0.20.tar.gz"
+        value: "http://apache.crihan.fr/dist/tomcat/tomcat-8/v8.0.22/bin/apache-tomcat-8.0.22.tar.gz"
     relationships:
       runOnJVMJava:
         target: java
