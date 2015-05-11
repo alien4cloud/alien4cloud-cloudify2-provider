@@ -11,11 +11,13 @@ node_templates:
         value: ubuntu
       customHostName:
         value: testHostname
-  tomcat:
-    type: alien.test.nodes.TomcatSh
+  java:
+    type: alien.nodes.Java
     properties:
-      version:
-        value: 7.0.23
+      java_url: 
+        value: "http://download.oracle.com/otn-pub/java/jdk/7u75-b13/jdk-7u75-linux-x64.tar.gz"
+      java_home: 
+        value: /opt/java
     relationships:
       hostedOnServeurWeb:
         target: comp_tomcat_war
@@ -23,31 +25,56 @@ node_templates:
         requirement_name: host
         requirement_type: tosca.capabilities.Container
         targeted_capability_name: host
-  war_1:
-    type: alien.nodes.cloudify.War
+        
+  tomcat:
+    type: alien.nodes.Tomcat
     properties:
-      contextPath:
+      tomcat_home:
+        value: /opt/tomcat
+      tomcat_port: 
+        value: 9999
+      tomcat_url: 
+        value: "http://apache.crihan.fr/dist/tomcat/tomcat-8/v8.0.20/bin/apache-tomcat-8.0.20.tar.gz"
+      version:
+        value: 7.0.0
+    relationships:
+      runOnJVMJava:
+        target: java
+        type: alien.relationships.RunOnJVM
+        requirement_name: java
+        requirement_type: alien.capabilities.Java
+        targeted_capability_name: java
+      hostedOnServeurWeb:
+        target: comp_tomcat_war
+        type: tosca.relationships.HostedOn
+        requirement_name: host
+        requirement_type: tosca.capabilities.Container
+        targeted_capability_name: host
+  war_1:
+    type: alien.nodes.War
+    properties:
+      context_path:
         value: war1
     relationships:
       hostedOnTomcat:
         target: tomcat
-        type: alien.test.functions.relationships.cloudify.WarHostedOnTomcat
+        type: alien.test.functions.relationships.WarHostedOnTomcat
         requirement_name: host
-        requirement_type: alien4cloud.capabilities.WarHosting
+        requirement_type: alien.capabilities.WarHosting
         targeted_capability_name: war_host
         properties:
           relName: war_1_hostedOnTomcat_relname
   war_2:
-    type: alien.nodes.cloudify.War
+    type: alien.nodes.War
     properties:
-      contextPath:
+      context_path:
         value: war2
     relationships:
       hostedOnTomcat:
         target: tomcat
-        type: alien.test.functions.relationships.cloudify.WarHostedOnTomcat
+        type: alien.test.functions.relationships.WarHostedOnTomcat
         requirement_name: host
-        requirement_type: alien4cloud.capabilities.WarHosting
+        requirement_type: alien.capabilities.WarHosting
         targeted_capability_name: war_host
         properties:
           relName: war_2_hostedOnTomcat_relname        
@@ -58,4 +85,4 @@ dependencies:
   - name: test-types
     version: 1.0-SNAPSHOT
   - name: tomcat-war-types
-    version: 1.0-SNAPSHOT
+    version: 2.0.0-SNAPSHOT

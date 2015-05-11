@@ -110,12 +110,13 @@ public class FunctionProcessorTest {
                 evaluateParam((AbstractPropertyValue) param, computePaaS, builtPaaSNodeTemplates));
 
         // HOST keyword
-        String tomcatName = "tomcat";
-        PaaSNodeTemplate tomcatPaaS = builtPaaSNodeTemplates.get(tomcatName);
-        Operation customHelloOp = tomcatPaaS.getIndexedToscaElement().getInterfaces().get("custom").getOperations().get("helloCmd");
-        param = customHelloOp.getInputParameters().get("customHostName");
-        Assert.assertEquals(FunctionEvaluator.getScalarValue(computePaaS.getNodeTemplate().getProperties().get("customHostName")),
-                evaluateParam((AbstractPropertyValue) param, tomcatPaaS, builtPaaSNodeTemplates));
+        String warName = "war_1";
+        PaaSNodeTemplate warPaaS = builtPaaSNodeTemplates.get(warName);
+        PaaSNodeTemplate tomcatPaaS = builtPaaSNodeTemplates.get("tomcat");
+        Operation customHelloOp = warPaaS.getIndexedToscaElement().getInterfaces().get("custom").getOperations().get("update_war_file");
+        param = customHelloOp.getInputParameters().get("TOMCAT_HOME");
+        Assert.assertEquals(FunctionEvaluator.getScalarValue(tomcatPaaS.getNodeTemplate().getProperties().get("tomcat_home")),
+                evaluateParam((AbstractPropertyValue) param, warPaaS, builtPaaSNodeTemplates));
     }
 
     @Test
@@ -137,7 +138,7 @@ public class FunctionProcessorTest {
 
         // test SOURCE keyword
         IOperationParameter param = configOp.getInputParameters().get("contextPath");
-        Assert.assertEquals(FunctionEvaluator.getScalarValue(warPaaS.getNodeTemplate().getProperties().get("contextPath")),
+        Assert.assertEquals(FunctionEvaluator.getScalarValue(warPaaS.getNodeTemplate().getProperties().get("context_path")),
                 evaluateParam((AbstractPropertyValue) param, hostedOnRelTemp, builtPaaSNodeTemplates));
 
         // test TARGET keyword

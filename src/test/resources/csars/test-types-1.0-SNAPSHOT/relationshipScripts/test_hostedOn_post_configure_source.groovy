@@ -1,14 +1,16 @@
 import org.cloudifysource.utilitydomain.context.ServiceContextFactory
 import java.util.concurrent.TimeUnit
+import org.apache.commons.validator.routines.InetAddressValidator;
 
 def context = ServiceContextFactory.getServiceContext()
+def ipValidator = InetAddressValidator.getInstance();
 
 assert NAME : "Empty env var NAME"
 println "NAME : ${NAME}"
 assert CUSTOM_HOSTNAME : "Empty env var CUSTOM_HOSTNAME"
 println "CUSTOM_HOSTNAME : ${CUSTOM_HOSTNAME}"
 assert COMPUTE_IP : "Empty env var COMPUTE_IP"
-assert COMPUTE_IP !="true"
+assert ipValidator.isValidInet4Address(COMPUTE_IP)
 println "COMPUTE_IP : ${COMPUTE_IP}"
 assert SOURCE : "Empty env var SOURCE"
 println "SOURCE : ${SOURCE}"
@@ -33,6 +35,6 @@ println "Nb of targets is ${nbTarget}: ${targetsArray}"
 
 targetsArray.each{
   def name = it+"_COMPUTE_IP"
-  assert binding.getVariable(name) : "Empty env var ${name}"
+  assert binding.getVariable(name) && ipValidator.isValidInet4Address(binding.getVariable(name)): "Empty env var ${name}"
   println "${name} : ${binding.getVariable(name)}"
 }

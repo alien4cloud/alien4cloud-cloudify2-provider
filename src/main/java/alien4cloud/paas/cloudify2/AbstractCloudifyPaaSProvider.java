@@ -118,7 +118,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
     private static final String START_MAINTENANCE_COMMAND_NAME = "cloudify:start-maintenance-mode";
     private static final String STOP_MAINTENANCE_COMMAND_NAME = "cloudify:stop-maintenance-mode";
-    private static final Long DEFAULT_MAINENANCE_TIME_MIN = Long.MAX_VALUE;
+    private static final Long DEFAULT_MAINENANCE_TIME_MIN = 1000L * 60L * 60L * 24L * 365L; // about one year
 
     // private static final String INVOCATION_INSTANCE_NAME_KEY = "Invocation_Instance_Name";
     // private static final String INVOCATION_COMMAND_NAME_KEY = "Invocation_Command_Name";
@@ -161,12 +161,12 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
     @Override
     public void deploy(PaaSTopologyDeploymentContext deploymentContext, IPaaSCallback<?> callback) {
-        doDeploy(deploymentContext.getDeploymentId(), deploymentContext.getDeploymentPaaSId(), deploymentContext.getTopology(), deploymentContext
-                .getPaaSTopology().getComputes(), deploymentContext.getPaaSTopology().getAllNodes(), deploymentContext.getDeploymentSetup());
+        doDeploy(deploymentContext.getDeploymentId(), deploymentContext.getDeploymentPaaSId(), deploymentContext.getTopology(),
+                deploymentContext.getPaaSTopology(), deploymentContext.getDeploymentSetup());
     }
 
-    protected synchronized void doDeploy(String deploymentId, String deploymentPaaSId, Topology topology, List<PaaSNodeTemplate> roots,
-            Map<String, PaaSNodeTemplate> nodeTemplates, DeploymentSetup deploymentSetup) {
+    protected synchronized void doDeploy(String deploymentId, String deploymentPaaSId, Topology topology, PaaSTopology paaSTopology,
+            DeploymentSetup deploymentSetup) {
         if (statusByDeployments.get(deploymentPaaSId) != null && DeploymentStatus.UNDEPLOYED != statusByDeployments.get(deploymentPaaSId).deploymentStatus) {
             log.info("Application with deploymentId <" + deploymentPaaSId + "> is already deployed");
             throw new PaaSAlreadyDeployedException("Application is already deployed.");
@@ -175,8 +175,8 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             DeploymentInfo deploymentInfo = new DeploymentInfo();
             deploymentInfo.deploymentId = deploymentId;
             deploymentInfo.topology = topology;
-            deploymentInfo.paaSTopology = topologyTreeBuilderService.buildPaaSTopology(deploymentInfo.topology);
-            Path cfyZipPath = recipeGenerator.generateRecipe(deploymentId, deploymentPaaSId, nodeTemplates, roots, deploymentSetup);
+            deploymentInfo.paaSTopology = paaSTopology;
+            Path cfyZipPath = recipeGenerator.generateRecipe(deploymentId, deploymentPaaSId, paaSTopology, deploymentSetup);
             statusByDeployments.put(deploymentPaaSId, deploymentInfo);
             log.info("Deploying application from recipe at <{}>", cfyZipPath);
             this.deployOnCloudify(deploymentPaaSId, cfyZipPath, getSelHealingProperty(deploymentSetup));
@@ -353,15 +353,14 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     /**
      * Fill instance states found from the cloudify extention for TOSCA that dispatch instance states.
      *
-     * @param deploymentPaaSId The id of the deployment/ applicaiton for which to retrieve instance states.
+     * @param deploymentId The id of the deployment for which to retrieve instance states.
      * @param instanceInformations The current map of instance informations to fill-in with additional states.
      * @param restEventEndpoint The current rest event endpoint.
      * @throws URISyntaxException
      * @throws IOException In case we fail to get events.
      */
-    private void fillInstanceStates(final String deploymentPaaSId, final Map<String, Map<String, InstanceInformation>> instanceInformations,
+    private void fillInstanceStates(final String deploymentId, final Map<String, Map<String, InstanceInformation>> instanceInformations,
             final URI restEventEndpoint) throws URISyntaxException, IOException {
-        String deploymentId = statusByDeployments.get(deploymentPaaSId).deploymentId;
         CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, deploymentId, "");
         List<NodeInstanceState> instanceStates = listener.getNodeInstanceStates(deploymentId);
 
@@ -496,15 +495,19 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     }
 
     public Map<String, Map<String, InstanceInformation>> getInstancesInformation(String deploymentPaaSId, Topology topology) {
-        Map<String, Map<String, InstanceInformation>> instanceInformations = instanceInformationsFromTopology(topology);
 
+        Map<String, Map<String, InstanceInformation>> instanceInformations = instanceInformationsFromTopology(topology);
+        DeploymentInfo deploymentInfo = statusByDeployments.get(deploymentPaaSId);
+        if (deploymentInfo == null) {
+            return null;
+        }
         final URI restEventEndpoint = this.cloudifyRestClientManager.getRestEventEndpoint();
         if (restEventEndpoint == null) {
             return instanceInformations;
         }
 
         try {
-            fillInstanceStates(deploymentPaaSId, instanceInformations, restEventEndpoint);
+            fillInstanceStates(deploymentInfo.deploymentId, instanceInformations, restEventEndpoint);
             fillRuntimeInformations(deploymentPaaSId, instanceInformations);
             parseAttributes(instanceInformations, statusByDeployments.get(deploymentPaaSId));
             instanceStatusByDeployments.put(deploymentPaaSId, new NodesDeploymentInfo(instanceInformations));
@@ -764,12 +767,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         }
     }
 
-    @NoArgsConstructor
-    @AllArgsConstructor
-    private static class NodesDeploymentInfo {
-        private Map<String, Map<String, InstanceInformation>> instanceInformations;
-    }
-
     @Override
     public void executeOperation(PaaSTopologyDeploymentContext deploymentContext, NodeOperationExecRequest request, IPaaSCallback<Map<String, String>> callback)
             throws OperationExecutionException {
@@ -1012,6 +1009,15 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         }
         fqnBuilder.append(")");
         return fqnBuilder.toString();
+    }
+
+    /** ****************************************************** **/
+    /** *** *** *** *** *** INTERNAL CLASSES *** *** *** *** **/
+    /** ***************************************************** **/
+    @NoArgsConstructor
+    @AllArgsConstructor
+    private static class NodesDeploymentInfo {
+        private Map<String, Map<String, InstanceInformation>> instanceInformations;
     }
 
     @NoArgsConstructor

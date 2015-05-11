@@ -87,8 +87,6 @@ public class GenericTestCase {
 
     private static final long TIMEOUT_IN_MILLIS = 1000L * 60L * 10L; // 10 minutes
 
-    protected static final String DEFAULT_TOMCAT_PORT = "8080";
-
     protected static final String ALIEN_WINDOWS_IMAGE = "alienWindowsImage";
 
     protected static final String ALIEN_LINUX_IMAGE = "alienLinuxImage";
@@ -163,7 +161,7 @@ public class GenericTestCase {
         System.out.println(resource);
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        cloudifyURL = cloudifyURL == null ? "https://129.185.67.27:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "http://129.185.67.65:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.setCloudifyURLs(Lists.newArrayList(cloudifyURL));
         pluginConfigurationBean.setVersion("2.7.1");

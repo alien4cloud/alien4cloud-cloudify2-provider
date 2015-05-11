@@ -39,7 +39,11 @@ public class CloudifyExecutorUtils {
 
         println "Executing file ${serviceDirectory}/${script}.\n environment is: ${environment}"
         def scriptProcess = "${serviceDirectory}/${script}".execute(environment, null)
-        scriptProcess.consumeProcessOutput(System.out, System.out)
+        //scriptProcess.consumeProcessOutput(System.out, System.out)
+        def myOutputListener = new ProcessOutputListener()
+        
+        scriptProcess.consumeProcessOutputStream(myOutputListener)
+        scriptProcess.consumeProcessErrorStream(System.out)
 
         scriptProcess.waitFor()
         def scriptExitValue = scriptProcess.exitValue()
@@ -51,7 +55,44 @@ public class CloudifyExecutorUtils {
       """
         if(scriptExitValue) {
             throw new RuntimeException("Error executing the script ${script} (return code: $scriptExitValue)")
+        } else {
+            return myOutputListener.getLastOutput()
         }
+    }
+
+    //
+    static class ProcessOutputListener implements Appendable {
+    
+      private StringWriter outputBufffer = new StringWriter();
+      
+      Appendable append(char c) throws IOException {
+        System.out.append(c)
+        outputBufffer.append(c);
+        return this
+      }
+      
+      Appendable append(CharSequence csq, int start, int end) throws IOException {
+        System.out.append(csq, start, end)
+        outputBufffer.append(csq, start, end)
+        return this
+      }
+      
+      Appendable append(CharSequence csq) throws IOException {
+        System.out.append(csq)
+        outputBufffer.append(csq)
+        return this
+      }
+    
+      String getLastOutput() {
+        outputBufffer.flush()
+        def outputString = outputBufffer.toString();
+        if (outputString == null || outputString.size() == 0) {
+          return null;
+        }
+        def lineList = outputString.readLines();
+        return lineList[lineList.size() -1]
+      }
+    
     }
 
 

@@ -42,7 +42,6 @@ public class RelationshipOperationTriggeringTestIT extends GenericTestCase {
 
     @Test
     public void testRelationshipOperationTrigger() throws Throwable {
-        this.uploadGitArchive("samples", "tomcat-war");
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         String[] computesId = new String[] { "source_comp", "target_comp" };
         String cloudifyAppId = deployTopology("relshipTrigeringTest", computesId, null, null);

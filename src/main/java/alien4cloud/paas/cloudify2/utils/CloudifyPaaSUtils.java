@@ -1,14 +1,24 @@
 package alien4cloud.paas.cloudify2.utils;
 
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
+
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import alien4cloud.model.components.IndexedToscaElement;
 import alien4cloud.paas.model.PaaSNodeTemplate;
+import alien4cloud.rest.utils.JsonUtil;
 import alien4cloud.tosca.ToscaUtils;
+import alien4cloud.utils.MapUtil;
 
 public class CloudifyPaaSUtils {
 
     private static final String PREFIX_SEPARATOR = "_";
+    private static final String HA_TEMPLATE_PAAS_ID_TEMPLATE = "_%s_AZ_%s";
+    private static final String HA_TEMPLATE_PAAS_ID_REGEX = String.format(HA_TEMPLATE_PAAS_ID_TEMPLATE, ".*", ".*");// "\\w*_ALIEN_AZ_\\w*";
+    public static final Pattern HA_TEMPLATE_PAAS_ID_PATTERN = Pattern.compile(HA_TEMPLATE_PAAS_ID_REGEX);
 
     private CloudifyPaaSUtils() {
     }
@@ -57,5 +67,41 @@ public class CloudifyPaaSUtils {
             builder.append(prefix).append(PREFIX_SEPARATOR);
         }
         return builder.append(toPrefix).toString();
+    }
+
+    public static String getAvailabilityZone(Map<String, Object> compute) {
+        String az = null;
+        az = (String) MapUtil.get((Map<String, Object>) compute, "locationId");
+        if (StringUtils.isBlank(az)) {
+            Map<String, Object> custom = (Map<String, Object>) MapUtil.get((Map<String, Object>) compute, "custom");
+            if (custom != null) {
+                az = (String) custom.get("openstack.compute.zone");
+            }
+
+            if (StringUtils.isBlank(az)) {
+                Object availabilityZones = MapUtil.get((Map<String, Object>) compute, "availabilityZones");
+                if (availabilityZones != null) {
+                    List<String> azs;
+                    try {
+                        azs = JsonUtil.toList(JsonUtil.toString(availabilityZones), String.class);
+                        az = azs.size() > 0 ? azs.get(0) : az;
+                    } catch (Exception e) {
+                    }
+                }
+            }
+        }
+
+        return az;
+    }
+
+    /**
+     * Build a compute HA PaaSesource Id based on a basic compute PaaSResourceId and an Availability Zone Id
+     *
+     * @param paaSResourceId
+     * @param aZPaaSResourceId
+     * @return
+     */
+    public static String buildHAPaaSResourceId(String paaSResourceId, String aZPaaSResourceId) {
+        return String.format(HA_TEMPLATE_PAAS_ID_TEMPLATE, paaSResourceId, aZPaaSResourceId);
     }
 }

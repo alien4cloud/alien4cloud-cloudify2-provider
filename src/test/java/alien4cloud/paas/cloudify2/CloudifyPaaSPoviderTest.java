@@ -60,7 +60,7 @@ public class CloudifyPaaSPoviderTest {
     public void deploymentPropertiesMapTest() {
         Map<String, PropertyDefinition> properties = cloudifyPaaSProvider.getDeploymentPropertyDefinitions();
         Assert.assertNotNull(properties);
-        assertEquals(3, properties.size());
+        assertEquals(4, properties.size());
         PropertyDefinition prop = properties.get(DeploymentPropertiesNames.STARTDETECTION_TIMEOUT_INSECOND);
         Assert.assertNotNull(prop);
         assertEquals("600", prop.getDefault());

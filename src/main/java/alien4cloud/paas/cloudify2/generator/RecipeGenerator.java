@@ -34,7 +34,9 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import alien4cloud.model.application.DeploymentSetup;
+import alien4cloud.model.cloud.AvailabilityZone;
 import alien4cloud.model.cloud.ComputeTemplate;
+import alien4cloud.model.cloud.HighAvailabilityComputeTemplate;
 import alien4cloud.model.cloud.NetworkTemplate;
 import alien4cloud.model.cloud.StorageTemplate;
 import alien4cloud.model.components.IndexedArtifactToscaElement;
@@ -50,8 +52,10 @@ import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.cloudify2.utils.VelocityUtil;
 import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.exception.ResourceMatchingFailedException;
+import alien4cloud.paas.ha.AvailabilityZoneAllocator;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
+import alien4cloud.paas.model.PaaSTopology;
 import alien4cloud.paas.plan.BuildPlanGenerator;
 import alien4cloud.paas.plan.OperationCallActivity;
 import alien4cloud.paas.plan.ParallelGateway;
@@ -95,6 +99,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
     @Resource
     @Getter
     private StorageScriptGenerator storageScriptGenerator;
+    private AvailabilityZoneAllocator availabilityZoneAllocator = new AvailabilityZoneAllocator();
 
     private Path applicationDescriptorPath;
     private Path serviceDescriptorPath;
@@ -119,32 +124,36 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         globalDetectionScriptDescriptorPath = commandGenerator.loadResourceFromClasspath("classpath:velocity/GlobalDetectionScriptDescriptor.vm");
     }
 
-    public Path generateRecipe(final String deploymentId, final String deploymentPaaSId, final Map<String, PaaSNodeTemplate> nodeTemplates,
-            final List<PaaSNodeTemplate> roots, DeploymentSetup setup) throws IOException {
+    public Path generateRecipe(final String deploymentId, final String deploymentPaaSId, final PaaSTopology paasTopology, DeploymentSetup deploymenySetup)
+            throws IOException {
         // cleanup/create the topology recipe directory
         Path recipePath = cleanupDirectory(deploymentPaaSId);
         List<String> serviceIds = Lists.newArrayList();
-        if (roots == null || roots.isEmpty()) {
+        if (paasTopology.getComputes() == null || paasTopology.getComputes().isEmpty()) {
             throw new PaaSDeploymentException("No compute found in topology for deployment " + deploymentPaaSId);
         }
-        for (PaaSNodeTemplate root : roots) {
+
+        Map<String, AvailabilityZone> azAllocation = availabilityZoneAllocator.processAllocation(paasTopology, deploymenySetup,
+                paaSResourceMatcher.getCloudResourceMatcherConfig());
+        for (PaaSNodeTemplate root : paasTopology.getComputes()) {
             String nodeName = root.getId();
             ServiceSetup serviceSetup = new ServiceSetup();
             serviceSetup.setDeploymentId(deploymentId);
-            serviceSetup.setComputeTemplate(getComputeTemplateOrDie(setup.getCloudResourcesMapping(), root));
+            serviceSetup.setAvailabilityZone(azAllocation.get(root.getId()));
+            serviceSetup.setComputeTemplate(getComputeTemplateOrFail(deploymenySetup.getCloudResourcesMapping(), serviceSetup.getAvailabilityZone(), root));
             List<PaaSNodeTemplate> networkNodes = root.getNetworkNodes();
             if (networkNodes != null && !networkNodes.isEmpty()) {
-                serviceSetup.setNetwork(getNetworkTemplateOrDie(setup.getNetworkMapping(), networkNodes.iterator().next()));
-            }
-            if (MapUtils.isNotEmpty(setup.getProviderDeploymentProperties())) {
-                serviceSetup.setProviderDeploymentProperties(setup.getProviderDeploymentProperties());
+                serviceSetup.setNetwork(getNetworkTemplateOrFail(deploymenySetup.getNetworkMapping(), networkNodes.iterator().next()));
             }
             PaaSNodeTemplate storageNode = root.getAttachedNode();
             if (storageNode != null) {
-                serviceSetup.setStorage(getStorageTemplateOrDie(setup.getStorageMapping(), storageNode));
+                serviceSetup.setStorage(getStorageTemplateOrFail(deploymenySetup.getStorageMapping(), storageNode));
+            }
+            if (MapUtils.isNotEmpty(deploymenySetup.getProviderDeploymentProperties())) {
+                serviceSetup.setProviderDeploymentProperties(deploymenySetup.getProviderDeploymentProperties());
             }
             serviceSetup.setId(CloudifyPaaSUtils.serviceIdFromNodeTemplateId(nodeName));
-            generateService(nodeTemplates, recipePath, root, serviceSetup);
+            generateService(paasTopology.getAllNodes(), recipePath, root, serviceSetup);
             serviceIds.add(serviceSetup.getId());
         }
 
@@ -153,7 +162,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         return createZip(recipePath);
     }
 
-    private StorageTemplate getStorageTemplateOrDie(Map<String, StorageTemplate> storageMapping, PaaSNodeTemplate storageNode) {
+    private StorageTemplate getStorageTemplateOrFail(Map<String, StorageTemplate> storageMapping, PaaSNodeTemplate storageNode) {
         paaSResourceMatcher.verifyNode(storageNode, NormativeBlockStorageConstants.BLOCKSTORAGE_TYPE);
         StorageTemplate storage = storageMapping.get(storageNode.getId());
         if (storage != null) {
@@ -162,7 +171,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         throw new ResourceMatchingFailedException("Failed to find a storage for node <" + storageNode.getId() + ">");
     }
 
-    private NetworkTemplate getNetworkTemplateOrDie(Map<String, NetworkTemplate> networkMapping, PaaSNodeTemplate networkNode) {
+    private NetworkTemplate getNetworkTemplateOrFail(Map<String, NetworkTemplate> networkMapping, PaaSNodeTemplate networkNode) {
         paaSResourceMatcher.verifyNode(networkNode, NormativeNetworkConstants.NETWORK_TYPE);
         NetworkTemplate network = networkMapping.get(networkNode.getId());
         if (network != null) {
@@ -171,10 +180,13 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         throw new ResourceMatchingFailedException("Failed to find a network for node <" + networkNode.getId() + ">");
     }
 
-    private ComputeTemplate getComputeTemplateOrDie(Map<String, ComputeTemplate> cloudResourcesMapping, PaaSNodeTemplate node) {
+    private ComputeTemplate getComputeTemplateOrFail(Map<String, ComputeTemplate> cloudResourcesMapping, AvailabilityZone zone, PaaSNodeTemplate node) {
         paaSResourceMatcher.verifyNode(node, NormativeComputeConstants.COMPUTE_TYPE);
         ComputeTemplate template = cloudResourcesMapping.get(node.getId());
         if (template != null) {
+            if (zone != null) {
+                template = new HighAvailabilityComputeTemplate(template, zone.getId());
+            }
             return template;
         }
         throw new ResourceMatchingFailedException("Failed to find a compute template for node <" + node.getId() + ">");
@@ -234,14 +246,19 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
     protected void generateService(final Map<String, PaaSNodeTemplate> nodeTemplates, final Path recipePath, final PaaSNodeTemplate computeNode,
             ServiceSetup setup) throws IOException {
         // find the compute template for this service
-        String computeTemplate = paaSResourceMatcher.getTemplate(setup.getComputeTemplate());
+        String computeTemplate = getComputeTemplatePaaSResourceIdOrFail(setup.getComputeTemplate());
+
         String networkName = null;
         String storageName = null;
+        String availabilityZone = null;
         if (setup.getNetwork() != null) {
             networkName = paaSResourceMatcher.getNetwork(setup.getNetwork());
         }
         if (setup.getStorage() != null) {
             storageName = paaSResourceMatcher.getStorage(setup.getStorage());
+        }
+        if (setup.getAvailabilityZone() != null) {
+            availabilityZone = paaSResourceMatcher.getAvailabilityZone(setup.getAvailabilityZone());
         }
         log.info("Compute template ID for node <{}> is: [{}]", computeNode.getId(), computeTemplate);
         // create service directory
@@ -252,7 +269,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         context.setServiceId(setup.getId());
         context.setServicePath(servicePath);
         context.setEventsLeaseInHour(setup.getProviderDeploymentProperties().get(DeploymentPropertiesNames.EVENTS_LEASE_INHOUR));
-        context.setDeletableBlockStorage(setup.getProviderDeploymentProperties().get(DeploymentPropertiesNames.DELETABLE_BLOCKSTORAGE));
+        context.setDeleteStorages(setup.getProviderDeploymentProperties().get(DeploymentPropertiesNames.DELETABLE_BLOCKSTORAGE));
 
         // copy internal static resources for the service
         commandGenerator.copyInternalResources(servicePath, setup.getDeploymentId());
@@ -261,7 +278,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         this.artifactCopier.copyAllArtifacts(context, computeNode);
 
         // generate cloudify init script
-        generateInitScripts(context, computeNode, storageName);
+        generateInitScripts(context, computeNode, storageName, availabilityZone);
 
         // generate cloudify global start detection script
         manageStartDetection(context, computeNode);
@@ -291,12 +308,21 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
                 .get(DeploymentPropertiesNames.STARTDETECTION_TIMEOUT_INSECOND));
     }
 
-    private void generateInitScripts(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate computeNode, String storageName) throws IOException {
+    private String getComputeTemplatePaaSResourceIdOrFail(ComputeTemplate computeTemplate) {
+        String id = paaSResourceMatcher.getTemplate(computeTemplate);
+        if (StringUtils.isBlank(id)) {
+            throw new ResourceMatchingFailedException("No PaaSResourceId found for compute template " + computeTemplate);
+        }
+        return id;
+    }
+
+    private void generateInitScripts(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate computeNode, final String storageName,
+            String availabilityZone) throws IOException {
         String initCommand = "{}";
         List<String> executions = Lists.newArrayList();
 
         // process blockstorage init and startup
-        storageScriptGenerator.generateInitStartUpStorageScripts(context, computeNode.getAttachedNode(), storageName, executions);
+        storageScriptGenerator.generateInitStartUpStorageScripts(context, computeNode.getAttachedNode(), storageName, availabilityZone, executions);
 
         // generate the init script
         if (!executions.isEmpty()) {

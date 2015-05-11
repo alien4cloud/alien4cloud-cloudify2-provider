@@ -92,8 +92,7 @@ abstract class AbstractCloudifyScriptGenerator {
 
         // if relationship, add relationship env vars
         if (basePaaSTemplate instanceof PaaSRelationshipTemplate) {
-            addRelationshipEnvVars(operationName, inputParameters, (PaaSRelationshipTemplate) basePaaSTemplate, context.getTopologyNodeTemplates(), instanceId,
-                    envMaps);
+            addRelationshipEnvVars(operationName, inputParameters, (PaaSRelationshipTemplate) basePaaSTemplate, context.getAllNodes(), instanceId, envMaps);
         } else {
             addNodeEnvVars(context, (PaaSNodeTemplate) basePaaSTemplate, instanceId, inputParameters, envMaps, SELF, HOST, SERVICE_NAME);
         }
@@ -207,7 +206,7 @@ abstract class AbstractCloudifyScriptGenerator {
 
     private void addNodeEnvVars(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate nodeTemplate, final String instanceId,
             Map<String, IOperationParameter> inputParameters, ExecEnvMaps envMaps, String... envKeys) {
-        funtionProcessor.processParameters(inputParameters, envMaps.strings, envMaps.runtimes, nodeTemplate, context.getTopologyNodeTemplates(), instanceId);
+        funtionProcessor.processParameters(inputParameters, envMaps.strings, envMaps.runtimes, nodeTemplate, context.getAllNodes(), instanceId);
         if (envKeys != null) {
             for (String envKey : envKeys) {
                 switch (envKey) {

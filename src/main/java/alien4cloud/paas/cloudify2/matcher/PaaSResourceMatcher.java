@@ -2,17 +2,18 @@ package alien4cloud.paas.cloudify2.matcher;
 
 import java.util.Map;
 
-import lombok.AccessLevel;
 import lombok.Getter;
 
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import alien4cloud.model.cloud.AvailabilityZone;
 import alien4cloud.model.cloud.CloudImage;
 import alien4cloud.model.cloud.CloudImageFlavor;
 import alien4cloud.model.cloud.CloudResourceMatcherConfig;
 import alien4cloud.model.cloud.ComputeTemplate;
+import alien4cloud.model.cloud.HighAvailabilityComputeTemplate;
 import alien4cloud.model.cloud.NetworkTemplate;
 import alien4cloud.model.cloud.StorageTemplate;
 import alien4cloud.model.components.IndexedNodeType;
@@ -28,22 +29,29 @@ import com.google.common.collect.Maps;
  * Find a valid template based on the TOSCA node compute properties.
  */
 @Component
-@Getter(value = AccessLevel.PROTECTED)
+@Getter
 @Scope(BeanDefinition.SCOPE_PROTOTYPE)
 public class PaaSResourceMatcher {
 
     private Map<ComputeTemplate, String> alienTemplateToCloudifyTemplateMapping = Maps.newHashMap();
+    private Map<HighAvailabilityComputeTemplate, String> alienTemplateToCloudifyHATemplateMapping = Maps.newHashMap();
     private Map<NetworkTemplate, String> alienNetworkToCloudifyNetworkMapping = Maps.newHashMap();
     private Map<StorageTemplate, String> alienStorageToCloudifyStorageMapping = Maps.newHashMap();
+    private Map<AvailabilityZone, String> alienZoneToCloudifyZoneMapping = Maps.newHashMap();
+    private CloudResourceMatcherConfig cloudResourceMatcherConfig;
 
     /**
      * Match a cloudify template based on the compute node.
      *
-     * @param computeNode The compute node.
+     * @param computeNode The compute node. Could be a simple or a HA compute node
      * @return The template that matches the given compute node.
      */
     public synchronized String getTemplate(ComputeTemplate computeNode) {
-        return alienTemplateToCloudifyTemplateMapping.get(computeNode);
+        if (computeNode instanceof HighAvailabilityComputeTemplate) {
+            return alienTemplateToCloudifyHATemplateMapping.get(computeNode);
+        } else {
+            return alienTemplateToCloudifyTemplateMapping.get(computeNode);
+        }
     }
 
     /**
@@ -58,7 +66,7 @@ public class PaaSResourceMatcher {
 
     /**
      * Match a cloudify storage based on the storage
-     * 
+     *
      * @param storage the storage
      * @return the template name which match the given storage
      */
@@ -66,7 +74,18 @@ public class PaaSResourceMatcher {
         return alienStorageToCloudifyStorageMapping.get(storage);
     }
 
+    /**
+     * Match an cloudify availability zone based on the zone
+     *
+     * @param availabilityZone the availabilityZone
+     * @return the cdfy availabilityZone name which match the given availabilityZone
+     */
+    public synchronized String getAvailabilityZone(AvailabilityZone availabilityZone) {
+        return alienZoneToCloudifyZoneMapping.get(availabilityZone);
+    }
+
     public synchronized void configure(CloudResourceMatcherConfig config, Map<String, CloudifyComputeTemplate> paaSComputeTemplateMap) {
+        this.cloudResourceMatcherConfig = config;
         Map<String, CloudImage> imageMapping = MappingUtil.getReverseMapping(config.getImageMapping());
         Map<String, CloudImageFlavor> flavorsMapping = MappingUtil.getReverseMapping(config.getFlavorMapping());
 
@@ -83,6 +102,7 @@ public class PaaSResourceMatcher {
         }
         alienNetworkToCloudifyNetworkMapping = config.getNetworkMapping();
         alienStorageToCloudifyStorageMapping = config.getStorageMapping();
+        alienZoneToCloudifyZoneMapping = config.getAvailabilityZoneMapping();
     }
 
     /**
