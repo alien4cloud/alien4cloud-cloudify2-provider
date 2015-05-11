@@ -85,6 +85,7 @@ import alien4cloud.paas.model.PaaSTopology;
 import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
+import alien4cloud.tosca.ToscaUtils;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -331,13 +332,13 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         return cachedDeploymentInfo.deploymentStatus;
     }
 
-    private Map<String, Map<String, InstanceInformation>> instanceInformationsFromTopology(Topology topology) {
+    private Map<String, Map<String, InstanceInformation>> instanceInformationsFromTopology(Topology topology, PaaSTopology paaSTopology) {
         Map<String, Map<String, InstanceInformation>> instanceInformations = Maps.newHashMap();
         // fill instance informations based on the topology
         for (Entry<String, NodeTemplate> nodeTempalteEntry : topology.getNodeTemplates().entrySet()) {
             Map<String, InstanceInformation> nodeInstanceInfos = Maps.newHashMap();
             // get the current number of instances
-            int currentPlannedInstances = getPlannedInstancesCount(nodeTempalteEntry.getKey(), topology);
+            int currentPlannedInstances = getPlannedInstancesCount(paaSTopology.getAllNodes().get(nodeTempalteEntry.getKey()), topology);
             for (int i = 1; i <= currentPlannedInstances; i++) {
                 Map<String, String> attributes = nodeTempalteEntry.getValue().getAttributes() == null ? null : Maps.newHashMap(nodeTempalteEntry.getValue()
                         .getAttributes());
@@ -484,9 +485,10 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         }
     }
 
-    private int getPlannedInstancesCount(String nodeTemplateId, Topology topology) {
+    private int getPlannedInstancesCount(PaaSNodeTemplate paaSNodeTemplate, Topology topology) {
         if (topology.getScalingPolicies() != null) {
-            ScalingPolicy scalingPolicy = topology.getScalingPolicies().get(nodeTemplateId);
+            String computeNodeId = ToscaUtils.getMandatoryHostTemplate(paaSNodeTemplate).getId();
+            ScalingPolicy scalingPolicy = topology.getScalingPolicies().get(computeNodeId);
             if (scalingPolicy != null) {
                 return scalingPolicy.getInitialInstances();
             }
@@ -496,11 +498,12 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
     public Map<String, Map<String, InstanceInformation>> getInstancesInformation(String deploymentPaaSId, Topology topology) {
 
-        Map<String, Map<String, InstanceInformation>> instanceInformations = instanceInformationsFromTopology(topology);
         DeploymentInfo deploymentInfo = statusByDeployments.get(deploymentPaaSId);
         if (deploymentInfo == null) {
             return null;
         }
+        topology = deploymentInfo.topology;
+        Map<String, Map<String, InstanceInformation>> instanceInformations = instanceInformationsFromTopology(topology, deploymentInfo.paaSTopology);
         final URI restEventEndpoint = this.cloudifyRestClientManager.getRestEventEndpoint();
         if (restEventEndpoint == null) {
             return instanceInformations;
