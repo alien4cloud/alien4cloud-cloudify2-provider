@@ -43,6 +43,7 @@ public class GroovySandbox {
             GroovyClassLoader classLoader = new GroovyClassLoader();
 
             Class groovy = classLoader.parseClass(new File("src/test/resources/groovy/class.groovy"));
+            classLoader.close();
             GroovyObject groovyObj = (GroovyObject) groovy.newInstance();
             // groovyObj.invokeMethod("append", new Object[] { "totot1\n" });
             // groovyObj.invokeMethod("append", new Object[] { "tototo2" });

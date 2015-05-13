@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 import alien4cloud.model.components.AbstractPropertyValue;
 import alien4cloud.model.components.FunctionPropertyValue;
-import alien4cloud.model.components.IOperationParameter;
+import alien4cloud.model.components.IValue;
 import alien4cloud.model.components.IndexedToscaElement;
 import alien4cloud.model.components.ScalarPropertyValue;
 import alien4cloud.paas.IPaaSTemplate;
@@ -80,7 +80,7 @@ public class FunctionProcessor {
      * Process and evaluate operation parameters.
      * Only process when the param is not a propertyDefinition
      *
-     * @param inputParameters a Map String -> {@link IOperationParameter} representing operations to process
+     * @param inputParameters a Map String -> {@link IValue} representing operations to process
      * @param stringEvalResults a Map < {@link String}, {@link String}> containing the String type results directly usable
      * @param runtimeEvalResults a Map <{@link String}, {@link String}> containing the String type results to evaluate at runtime
      * @param basePaaSTemplate The base PaaSTemplate in which the parameter is defined. Can be a {@link PaaSRelationshipTemplate} or a {@link PaaSNodeTemplate}.
@@ -88,13 +88,13 @@ public class FunctionProcessor {
      *            {@link PaaSNodeTemplate}s should have been built, thus referencing their related parents and relationships.
      * @param instanceId The Id of the instance for which we are processing the inputs
      */
-    public void processParameters(Map<String, IOperationParameter> inputParameters, Map<String, String> stringEvalResults,
+    public void processParameters(Map<String, IValue> inputParameters, Map<String, String> stringEvalResults,
             Map<String, String> runtimeEvalResults, final IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
             final Map<String, PaaSNodeTemplate> builtPaaSTemplates, String instanceId) {
         if (inputParameters == null) {
             return;
         }
-        for (Entry<String, IOperationParameter> paramEntry : inputParameters.entrySet()) {
+        for (Entry<String, IValue> paramEntry : inputParameters.entrySet()) {
             if (!paramEntry.getValue().isDefinition()) {
                 IParamEvalResult evaluatedParam = evaluate((AbstractPropertyValue) paramEntry.getValue(), basePaaSTemplate, builtPaaSTemplates, instanceId);
                 if (evaluatedParam instanceof StringEvalResult) {

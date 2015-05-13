@@ -25,7 +25,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.ApplicationContext;
 
 import alien4cloud.model.components.FunctionPropertyValue;
-import alien4cloud.model.components.IOperationParameter;
+import alien4cloud.model.components.IValue;
 import alien4cloud.model.components.ImplementationArtifact;
 import alien4cloud.model.components.IndexedArtifactToscaElement;
 import alien4cloud.model.components.IndexedToscaElement;
@@ -84,7 +84,7 @@ abstract class AbstractCloudifyScriptGenerator {
     }
 
     protected String getCommandFromOperation(final RecipeGeneratorServiceContext context, final IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
-            final String interfaceName, final String operationName, final ImplementationArtifact artifact, Map<String, IOperationParameter> inputParameters,
+            final String interfaceName, final String operationName, final ImplementationArtifact artifact, Map<String, IValue> inputParameters,
             String instanceId, ExecEnvMaps envMaps) throws IOException {
         if (artifact == null || StringUtils.isBlank(artifact.getArtifactRef())) {
             return null;
@@ -103,7 +103,7 @@ abstract class AbstractCloudifyScriptGenerator {
         return commandGenerator.getCommandBasedOnArtifactType(operationFQN, artifact, envMaps.runtimes, envMaps.strings, scriptPath);
     }
 
-    private void addRelationshipEnvVars(String operationName, Map<String, IOperationParameter> inputParameters, PaaSRelationshipTemplate basePaaSTemplate,
+    private void addRelationshipEnvVars(String operationName, Map<String, IValue> inputParameters, PaaSRelationshipTemplate basePaaSTemplate,
             Map<String, PaaSNodeTemplate> builtPaaSTemplates, String instanceId, ExecEnvMaps envMaps) throws IOException {
 
         Map<String, String> sourceAttributes = Maps.newHashMap();
@@ -124,10 +124,10 @@ abstract class AbstractCloudifyScriptGenerator {
 
         // separate parameters using TARGET and SOURCE keywords before processing them
         if (inputParameters != null) {
-            Map<String, IOperationParameter> sourceAttrParams = Maps.newHashMap();
-            Map<String, IOperationParameter> targetAttrParams = Maps.newHashMap();
-            Map<String, IOperationParameter> simpleParams = Maps.newHashMap();
-            for (Entry<String, IOperationParameter> paramEntry : inputParameters.entrySet()) {
+            Map<String, IValue> sourceAttrParams = Maps.newHashMap();
+            Map<String, IValue> targetAttrParams = Maps.newHashMap();
+            Map<String, IValue> simpleParams = Maps.newHashMap();
+            for (Entry<String, IValue> paramEntry : inputParameters.entrySet()) {
                 if (!paramEntry.getValue().isDefinition()) {
                     if (FunctionEvaluator.isGetAttribute((FunctionPropertyValue) paramEntry.getValue())) {
                         FunctionPropertyValue param = (FunctionPropertyValue) paramEntry.getValue();
@@ -205,7 +205,7 @@ abstract class AbstractCloudifyScriptGenerator {
     }
 
     private void addNodeEnvVars(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate nodeTemplate, final String instanceId,
-            Map<String, IOperationParameter> inputParameters, ExecEnvMaps envMaps, String... envKeys) {
+            Map<String, IValue> inputParameters, ExecEnvMaps envMaps, String... envKeys) {
         funtionProcessor.processParameters(inputParameters, envMaps.strings, envMaps.runtimes, nodeTemplate, context.getAllNodes(), instanceId);
         if (envKeys != null) {
             for (String envKey : envKeys) {

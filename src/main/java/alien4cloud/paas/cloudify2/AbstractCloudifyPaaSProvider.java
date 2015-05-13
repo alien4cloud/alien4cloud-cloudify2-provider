@@ -44,8 +44,7 @@ import alien4cloud.cloud.DeploymentService;
 import alien4cloud.dao.IGenericSearchDAO;
 import alien4cloud.exception.TechnicalException;
 import alien4cloud.model.application.DeploymentSetup;
-import alien4cloud.model.components.IAttributeValue;
-import alien4cloud.model.components.IOperationParameter;
+import alien4cloud.model.components.IValue;
 import alien4cloud.model.components.IndexedNodeType;
 import alien4cloud.model.deployment.Deployment;
 import alien4cloud.model.topology.NodeTemplate;
@@ -470,8 +469,8 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                 if (nodeInstanceNumber.getValue().getAttributes() != null) {
                     for (Entry<String, String> attributeEntry : nodeInstanceNumber.getValue().getAttributes().entrySet()) {
                         PaaSNodeTemplate nodeTemplate = deploymentInfo.paaSTopology.getAllNodes().get(nodeInstanceId.getKey());
-                        Map<String, IAttributeValue> nodeTemplateAttributes = nodeTemplate.getIndexedToscaElement().getAttributes();
-                        IAttributeValue attributeValue = nodeTemplateAttributes.get(attributeEntry.getKey());
+                        Map<String, IValue> nodeTemplateAttributes = nodeTemplate.getIndexedToscaElement().getAttributes();
+                        IValue attributeValue = nodeTemplateAttributes.get(attributeEntry.getKey());
                         if (attributeValue != null) {
                             String parsedAttribute = FunctionEvaluator.parseAttribute(attributeEntry.getKey(), attributeValue, topology, instanceInformations,
                                     nodeInstanceNumber.getKey(), nodeTemplate, deploymentInfo.paaSTopology.getAllNodes());
@@ -502,7 +501,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         if (deploymentInfo == null) {
             return null;
         }
-        Topology topology = deploymentInfo.topology;
         Map<String, Map<String, InstanceInformation>> instanceInformations = buildInstancesInformations(deploymentInfo);
         final URI restEventEndpoint = this.cloudifyRestClientManager.getRestEventEndpoint();
         if (restEventEndpoint == null) {
@@ -529,7 +527,8 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     }
 
     @Override
-    public void getInstancesInformation(PaaSDeploymentContext deploymentContext, IPaaSCallback<Map<String, Map<String, InstanceInformation>>> callback) {
+    public void getInstancesInformation(PaaSDeploymentContext deploymentContext, Topology topology,
+            IPaaSCallback<Map<String, Map<String, InstanceInformation>>> callback) {
         callback.onSuccess(getInstancesInformation(deploymentContext.getDeploymentPaaSId()));
     }
 
@@ -629,9 +628,8 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             if (!statusByDeployments.containsKey(alienEvent.getApplicationName())) {
                 continue;
             }
-            DeploymentInfo deploymentInfo = statusByDeployments.get(alienEvent.getApplicationName());
-            NodesDeploymentInfo currentNodesDeploymentInfo;
 
+            NodesDeploymentInfo currentNodesDeploymentInfo;
             if (processedDeployments.add(alienEvent.getApplicationName())) {
                 currentNodesDeploymentInfo = new NodesDeploymentInfo();
                 currentNodesDeploymentInfo.instanceInformations = getInstancesInformation(alienEvent.getApplicationName());
@@ -936,11 +934,11 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         // if some params are missing, add them with null value
         IndexedNodeType nodeType = statusByDeployments.get(deploymentPaaSId).paaSTopology.getAllNodes().get(request.getNodeTemplateName())
                 .getIndexedToscaElement();
-        Map<String, IOperationParameter> params = nodeType.getInterfaces().get(request.getInterfaceName()).getOperations().get(request.getOperationName())
+        Map<String, IValue> params = nodeType.getInterfaces().get(request.getInterfaceName()).getOperations().get(request.getOperationName())
                 .getInputParameters();
         Map<String, String> requestParams = request.getParameters() == null ? Maps.<String, String> newHashMap() : request.getParameters();
         if (params != null) {
-            for (Entry<String, IOperationParameter> param : params.entrySet()) {
+            for (Entry<String, IValue> param : params.entrySet()) {
                 if (param.getValue().isDefinition() && !requestParams.containsKey(param.getKey())) {
                     invokeRequest.getParameters().add(param.getKey().concat("=").concat("null"));
                 }
