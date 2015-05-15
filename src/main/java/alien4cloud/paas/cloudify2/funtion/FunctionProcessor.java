@@ -113,7 +113,7 @@ public class FunctionProcessor {
                 builtPaaSTemplates);
         // getting the top hierarchical parent
         String serviceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate((PaaSNodeTemplate) paaSTemplates.get(paaSTemplates.size() - 1));
-        return evaluateAttributeName(functionParam.getPropertyOrAttributeName(), serviceName, instanceId);
+        return evaluateAttributeName(functionParam.getElementNameToFetch(), serviceName, instanceId);
     }
 
     /* consider doing this in the tosca yaml parser */

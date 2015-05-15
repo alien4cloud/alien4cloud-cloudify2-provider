@@ -133,10 +133,10 @@ abstract class AbstractCloudifyScriptGenerator {
                         FunctionPropertyValue param = (FunctionPropertyValue) paramEntry.getValue();
                         if (ToscaFunctionConstants.TARGET.equals(param.getTemplateName())) {
                             targetAttrParams.put(paramEntry.getKey(), param);
-                            targetAttributes.put(paramEntry.getKey(), param.getPropertyOrAttributeName());
+                            targetAttributes.put(paramEntry.getKey(), param.getElementNameToFetch());
                         } else if (ToscaFunctionConstants.SOURCE.equals(param.getTemplateName())) {
                             sourceAttrParams.put(paramEntry.getKey(), param);
-                            sourceAttributes.put(paramEntry.getKey(), param.getPropertyOrAttributeName());
+                            sourceAttributes.put(paramEntry.getKey(), param.getElementNameToFetch());
                         }
                     } else {
                         simpleParams.put(paramEntry.getKey(), paramEntry.getValue());

@@ -60,42 +60,6 @@ public class CloudifyExecutorUtils {
         }
     }
 
-    //
-    static class ProcessOutputListener implements Appendable {
-    
-      private StringWriter outputBufffer = new StringWriter();
-      
-      Appendable append(char c) throws IOException {
-        System.out.append(c)
-        outputBufffer.append(c);
-        return this
-      }
-      
-      Appendable append(CharSequence csq, int start, int end) throws IOException {
-        System.out.append(csq, start, end)
-        outputBufffer.append(csq, start, end)
-        return this
-      }
-      
-      Appendable append(CharSequence csq) throws IOException {
-        System.out.append(csq)
-        outputBufffer.append(csq)
-        return this
-      }
-    
-      String getLastOutput() {
-        outputBufffer.flush()
-        def outputString = outputBufffer.toString();
-        if (outputString == null || outputString.size() == 0) {
-          return null;
-        }
-        def lineList = outputString.readLines();
-        return lineList[lineList.size() -1]
-      }
-    
-    }
-
-
     /**
      * Execute a goovy script. Argument are passed to the groovy via the GroovyShell Binding, where they are injected as variables.
      * Consider to pass them as env vars
@@ -269,5 +233,40 @@ public class CloudifyExecutorUtils {
     static private getEventLeaseInMillis(lease) {
        return lease ? Math.round(lease * 60 * 60 * 1000) : DEFAULT_LEASE;
     } 
+    
+    //
+    static class ProcessOutputListener implements Appendable {
+    
+      private StringWriter outputBufffer = new StringWriter();
+      
+      Appendable append(char c) throws IOException {
+        System.out.append(c)
+        outputBufffer.append(c);
+        return this
+      }
+      
+      Appendable append(CharSequence csq, int start, int end) throws IOException {
+        System.out.append(csq, start, end)
+        outputBufffer.append(csq, start, end)
+        return this
+      }
+      
+      Appendable append(CharSequence csq) throws IOException {
+        System.out.append(csq)
+        outputBufffer.append(csq)
+        return this
+      }
+    
+      String getLastOutput() {
+        outputBufffer.flush()
+        def outputString = outputBufffer.toString();
+        if (outputString == null || outputString.size() == 0) {
+          return null;
+        }
+        def lineList = outputString.readLines();
+        return lineList[lineList.size() -1]
+      }
+    
+    }
 
 }

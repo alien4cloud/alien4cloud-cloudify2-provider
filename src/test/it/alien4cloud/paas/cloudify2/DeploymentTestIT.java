@@ -58,7 +58,7 @@ public class DeploymentTestIT extends GenericTestCase {
         Deployment deployment = new Deployment();
         deployment.setPaasId(cloudifyAppId);
         deploymentContext.setDeployment(deployment);
-        Map<String, PaaSNodeTemplate> nodes = topologyTreeBuilderService.buildPaaSNodeTemplate(topo);
+        Map<String, PaaSNodeTemplate> nodes = topologyTreeBuilderService.buildPaaSNodeTemplates(topo);
         deploymentContext.setPaaSTopology(topologyTreeBuilderService.buildPaaSTopology(nodes));
         cloudifyPaaSPovider.deploy(deploymentContext, null);
     }
