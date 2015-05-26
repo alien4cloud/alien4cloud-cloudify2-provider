@@ -22,6 +22,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 import alien4cloud.model.components.ImplementationArtifact;
+import alien4cloud.paas.cloudify2.AlienExtentedConstants;
 import alien4cloud.paas.cloudify2.utils.VelocityUtil;
 import alien4cloud.paas.exception.PaaSDeploymentException;
 

@@ -210,7 +210,7 @@ public class FunctionProcessorTest {
     private String evaluateParam(final AbstractPropertyValue param, final IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
             final Map<String, PaaSNodeTemplate> builtPaaSTemplates) {
         IParamEvalResult result = processor.evaluate(param, basePaaSTemplate, builtPaaSTemplates, null);
-        return result != null ? result.get() : null;
+        return result.get();
     }
 
 }

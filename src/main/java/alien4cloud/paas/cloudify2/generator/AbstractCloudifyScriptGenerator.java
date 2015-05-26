@@ -32,6 +32,7 @@ import alien4cloud.model.components.IndexedToscaElement;
 import alien4cloud.model.components.Interface;
 import alien4cloud.model.components.Operation;
 import alien4cloud.paas.IPaaSTemplate;
+import alien4cloud.paas.cloudify2.AlienExtentedConstants;
 import alien4cloud.paas.cloudify2.funtion.FunctionProcessor;
 import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.cloudify2.utils.VelocityUtil;

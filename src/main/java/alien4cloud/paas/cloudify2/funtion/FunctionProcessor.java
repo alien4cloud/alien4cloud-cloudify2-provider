@@ -6,6 +6,10 @@ import java.util.Map.Entry;
 
 import javax.annotation.Resource;
 
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Component;
 
@@ -15,7 +19,7 @@ import alien4cloud.model.components.IValue;
 import alien4cloud.model.components.IndexedToscaElement;
 import alien4cloud.model.components.ScalarPropertyValue;
 import alien4cloud.paas.IPaaSTemplate;
-import alien4cloud.paas.cloudify2.generator.AlienExtentedConstants;
+import alien4cloud.paas.cloudify2.AlienExtentedConstants;
 import alien4cloud.paas.cloudify2.generator.CommandGenerator;
 import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.exception.NotSupportedException;
@@ -30,6 +34,7 @@ import alien4cloud.tosca.normative.ToscaFunctionConstants;
  * @author luc boutier
  */
 @Component
+@Slf4j
 public class FunctionProcessor {
 
     @Resource
@@ -60,7 +65,9 @@ public class FunctionProcessor {
         // first validate the params.
         /* TODO: consider doing this in the tosca yaml parser */
         if (!validParameters(functionParam.getParameters())) {
-            return null;
+            log.warn("Invalid parameters definition: < " + functionParam.getFunction() + functionParam.getParameters()
+                    + ">. The resulted value will be set to <null>.");
+            return new StringEvalResult();
         }
 
         String result = null;
@@ -71,6 +78,9 @@ public class FunctionProcessor {
         case ToscaFunctionConstants.GET_ATTRIBUTE:
             result = evaluateGetAttributeFunction(functionParam, basePaaSTemplate, builtPaaSTemplates, instanceId);
             return new RuntimeEvalResult(result);
+        case ToscaFunctionConstants.GET_OPERATION_OUTPUT:
+            // TODO: evaluate get_operation_output
+            return new RuntimeEvalResult();
         default:
             throw new NotSupportedException("The function <" + functionParam.getFunction() + "> is not supported.");
         }
@@ -88,9 +98,8 @@ public class FunctionProcessor {
      *            {@link PaaSNodeTemplate}s should have been built, thus referencing their related parents and relationships.
      * @param instanceId The Id of the instance for which we are processing the inputs
      */
-    public void processParameters(Map<String, IValue> inputParameters, Map<String, String> stringEvalResults,
-            Map<String, String> runtimeEvalResults, final IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
-            final Map<String, PaaSNodeTemplate> builtPaaSTemplates, String instanceId) {
+    public void processParameters(Map<String, IValue> inputParameters, Map<String, String> stringEvalResults, Map<String, String> runtimeEvalResults,
+            final IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate, final Map<String, PaaSNodeTemplate> builtPaaSTemplates, String instanceId) {
         if (inputParameters == null) {
             return;
         }
@@ -137,12 +146,10 @@ public class FunctionProcessor {
     }
 
     /* the result of the evaluation is a usable String value */
+    @NoArgsConstructor
+    @AllArgsConstructor
     public class StringEvalResult implements IParamEvalResult {
         private String value;
-
-        public StringEvalResult(String result) {
-            value = result;
-        }
 
         @Override
         public String get() {
@@ -151,12 +158,10 @@ public class FunctionProcessor {
     }
 
     /* The result of the evaluation is an expression to evaluate at runtime, recipe side */
+    @NoArgsConstructor
+    @AllArgsConstructor
     public class RuntimeEvalResult implements IParamEvalResult {
         private String value;
-
-        public RuntimeEvalResult(String result) {
-            value = result;
-        }
 
         @Override
         public String get() {

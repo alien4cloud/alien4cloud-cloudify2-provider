@@ -1,9 +1,9 @@
 package alien4cloud.paas.cloudify2.generator;
 
-import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_INTERFACE_NAME;
-import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_LOCATOR_OPERATION_NAME;
-import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_START_DETECTION_OPERATION_NAME;
-import static alien4cloud.paas.cloudify2.generator.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_STOP_DETECTION_OPERATION_NAME;
+import static alien4cloud.paas.cloudify2.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_INTERFACE_NAME;
+import static alien4cloud.paas.cloudify2.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_LOCATOR_OPERATION_NAME;
+import static alien4cloud.paas.cloudify2.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_START_DETECTION_OPERATION_NAME;
+import static alien4cloud.paas.cloudify2.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_STOP_DETECTION_OPERATION_NAME;
 import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.*;
 
 import java.io.IOException;
@@ -45,6 +45,7 @@ import alien4cloud.model.components.Interface;
 import alien4cloud.model.components.Operation;
 import alien4cloud.model.topology.ScalingPolicy;
 import alien4cloud.paas.IPaaSTemplate;
+import alien4cloud.paas.cloudify2.AlienExtentedConstants;
 import alien4cloud.paas.cloudify2.DeploymentPropertiesNames;
 import alien4cloud.paas.cloudify2.ServiceSetup;
 import alien4cloud.paas.cloudify2.matcher.PaaSResourceMatcher;
