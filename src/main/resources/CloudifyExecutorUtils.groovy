@@ -14,6 +14,7 @@ public class CloudifyExecutorUtils {
     static List startStates = ["initial", "created", "configured", "started", "available"];
     static List shutdownStates = ["stopped", "deleted"];
     static def DEFAULT_LEASE = 1000 * 60 * 60
+    static def OPERATION_FQN = "OPERATION_FQN";
     
 
 
@@ -22,12 +23,13 @@ public class CloudifyExecutorUtils {
      * 
      * @param script
      * @param argsMap
+     * @param expectedOutputs
      * @return
      */
-    static def executeScript(context, script, Map argsMap) {
-
-        // Execute bash script
+    static def executeScript(context, script, Map argsMap, List expectedOutputs) {
+        def operationFQN = argsMap?argsMap.remove(OPERATION_FQN):null;
         def serviceDirectory = context.getServiceDirectory()
+        
         println "service dir is: ${serviceDirectory}; script is: ${script}"
         def fullPathScript = "${serviceDirectory}/${script}";
         new AntBuilder().sequential {
@@ -66,7 +68,8 @@ public class CloudifyExecutorUtils {
      * for a closure, we should not use the ServiceContextFactory as the context instance is already injected in the service file
      * Therefore, the caller script should have a defined "context" variable
      * */
-    static def executeGroovy(context, groovyScript,  Map argsMap) {
+    static def executeGroovy(context, groovyScript, Map argsMap, List expectedOutputs) {
+        def operationFQN = argsMap?argsMap.remove(OPERATION_FQN):null;
         def serviceDirectory = context.getServiceDirectory()
 
         Binding binding = new EnvironmentBuilder().buildGroovyEnvironment(context, argsMap)
@@ -84,11 +87,11 @@ public class CloudifyExecutorUtils {
         for(script in groovyScripts) {
             println "parallel launch is $script"
             def theScript = script
-            executionList.add(call{ executeGroovy(ServiceContextFactory.getServiceContext(), theScript, null) })
+            executionList.add(call{ executeGroovy(ServiceContextFactory.getServiceContext(), theScript, null, null) })
         }
         for(script in otherScripts) {
             def theScript = script
-            executionList.add(call{ executeScript(theScript, null) })
+            executionList.add(call{ executeScript(theScript, null, null) })
         }
         for(execution in executionList) {
             execution.get();
@@ -101,11 +104,11 @@ public class CloudifyExecutorUtils {
         for(script in groovyScripts) {
             println "asynchronous launch is ${script}"
             def theScript = script
-            executionList.add(call{ executeGroovy(ServiceContextFactory.getServiceContext(), theScript, null) })
+            executionList.add(call{ executeGroovy(ServiceContextFactory.getServiceContext(), theScript, null, null) })
         }
         for(script in otherScripts) {
             def theScript = script
-            executionList.add(call{ executeScript(theScript, null) })
+            executionList.add(call{ executeScript(theScript, null, null) })
         }
     }
 

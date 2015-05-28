@@ -6,36 +6,68 @@ import org.cloudifysource.dsl.context.ServiceInstance
 
 public class CloudifyAttributesUtils {
 
-    public static IP_ADDR = "ip_address"
-    public static def ATTRIBUTES_KEYWORD = "ATTR_"
-    public static def ATTR_SEPARATOR = ","
+    public static IP_ADDR = "ip_address";
+    private static OUTPUT_SEPARATOR = ":";
+    public static def ATTR_SEPARATOR = ",";
+    public static def CLOUDIFY_OUTPUTS_ATTRIBUTE = "OPERATIONS_OUTPUTS";
 
+    /**
+     * get a specific attribute
+     * @param context
+     * @param cloudifyService
+     * @param instanceId
+     * @param attributeName
+     * @return
+     */
     static def getAttribute(context, cloudifyService, instanceId, attributeName) {
-        def parsedInstanceId = instanceId? instanceId as int : null
-        println "CloudifyGetAttributesUtils.getAttribute: getting attribute <attr: ${attributeName}> < service: ${cloudifyService}> <instanceId: ${instanceId}>"
-        def attr = null;
-        if(attributeName != null && cloudifyService != null) {
-            def serviceAttributes = context.attributes[cloudifyService];
-            if( serviceAttributes != null) {
-                 def instanceAttributes = serviceAttributes.instances[parsedInstanceId?:context.instanceId];
-                 attr = !instanceAttributes ? null : instanceAttributes[attributeName];
-            }
-        }
-        println "CloudifyGetAttributesUtils.getAttribute: Got [${attr}]"
+        println "CloudifyAttributesUtils.getAttribute: getting attribute <attr: ${attributeName}> < service: ${cloudifyService}> <instanceId: ${instanceId}>"
+        def attr = getAttributeFromContext(context, cloudifyService, instanceId, attributeName);
+        println "CloudifyAttributesUtils.getAttribute: Got [${attr}]";
         return attr;
     }
-
+    
+    /**
+     * get a specific operation output
+     * @param context
+     * @param cloudifyService
+     * @param instanceId
+     * @param formatedOutputName
+     * @param eligibleNodesNames
+     *          List of eligible nodes names for which to check the output
+     * @return
+     */
+    static def getOperationOutput(context, cloudifyService, instanceId, formatedOutputName, List eligibleNodesNames) {
+        println "CloudifyAttributesUtils.getOperationOutput: getting operation output <formatedOutputName: ${formatedOutputName}> < service: ${cloudifyService}> <instanceId: ${instanceId}>";
+        def outputValue = null;
+        if(formatedOutputName) {
+            def outputsMap = getAttributeFromContext(context, cloudifyService, instanceId, CLOUDIFY_OUTPUTS_ATTRIBUTE);
+            if(outputsMap) {
+                if(!eligibleNodesNames || eligibleNodesNames.isEmpty()) {
+                    outputValue = outputsMap[formatedOutputName];
+                }else {
+                    while(!outputValue && !eligibleNodesNames.isEmpty()) {
+                        def keyToFetch = eligibleNodesNames.get(0)+OUTPUT_SEPARATOR+formatedOutputName;
+                        outputValue = outputsMap[keyToFetch];
+                        eligibleNodesNames.remove(0);
+                    }
+                }
+            }
+        }
+        println "CloudifyAttributesUtils.getOperationOutput: Got [${outputValue}]";
+        return outputValue;
+    }
+    
     /**
      * Get the Ip of an instance
      */
     static def getIp(context, String cloudifyService, instanceId) {
         def parsedInstanceId = instanceId? instanceId as int : null
-        println "CloudifyGetAttributesUtils.getIp: retrieving the Ip address < service: ${cloudifyService}> <instanceId: ${parsedInstanceId}>"
+        println "CloudifyAttributesUtils.getIp: retrieving the Ip address < service: ${cloudifyService}> <instanceId: ${parsedInstanceId}>"
         if(!cloudifyService // no service name provided, or
             ||(cloudifyService == context.serviceName //current service name provided, and
                 && (instanceId == null || instanceId == context.instanceId) //current or null instance id provided
                )) {
-            println "CloudifyGetAttributesUtils.getIp: Returning the current instance private Ip: ${context.getPrivateAddress()}"
+            println "CloudifyAttributesUtils.getIp: Returning the current instance private Ip: ${context.getPrivateAddress()}"
             return context.getPrivateAddress();
         }
 
@@ -46,14 +78,13 @@ public class CloudifyAttributesUtils {
         requestedInstance = instances.find{ it.instanceId == parsedInstanceId } as ServiceInstance
         
         if(!requestedInstance) {
-            println "CloudifyGetAttributesUtils.getIp: Cannot find an instance of < service: ${cloudifyService}> with the id <${parsedInstanceId}>. will take the first instance of service <${cloudifyService}>> found "
+            println "CloudifyAttributesUtils.getIp: Cannot find an instance of < service: ${cloudifyService}> with the id <${parsedInstanceId}>. will take the first instance of service <${cloudifyService}>> found "
             requestedInstance = service.waitForInstances(1, 10, TimeUnit.MINUTES)[0] as ServiceInstance
         }
         ip = requestedInstance ? requestedInstance.getHostAddress() : null
-        println "CloudifyGetAttributesUtils.getIp: Got for ${cloudifyService}[${parsedInstanceId}]: ${ip}"
+        println "CloudifyAttributesUtils.getIp: Got for ${cloudifyService}[${parsedInstanceId}]: ${ip}"
         return ip
     }
-
 
     static def getTheProperAttribute(context, cloudifyService, instanceId, attributeName) {
         if(attributeName == IP_ADDR) {
@@ -63,26 +94,18 @@ public class CloudifyAttributesUtils {
         }
     }
     
-    public static Map processAttributesEnvVar(context, Map argsMap) {
-        Map attributesToProcess = [:]
-        argsMap.each { k, v ->
-            if(k.startsWith(ATTRIBUTES_KEYWORD)) {
-                attributesToProcess.put(k.substring(ATTRIBUTES_KEYWORD.size()), v)
+    private static def getAttributeFromContext(context, cloudifyService, instanceId, attributeName) {
+        def parsedInstanceId = instanceId? instanceId as int : null;
+        def attr = null;
+        cloudifyService = cloudifyService?:context.serviceName;
+        if(attributeName != null) {
+            def serviceAttributes = context.attributes[cloudifyService];
+            if( serviceAttributes != null) {
+                 def instanceAttributes = serviceAttributes.instances[parsedInstanceId?:context.instanceId];
+                 attr = !instanceAttributes ? null : instanceAttributes[attributeName];
             }
         }
-        attributesToProcess.each { k, v ->
-            println "processing: ${k} -- ${v}"
-            def index = v.indexOf(ATTR_SEPARATOR)
-            if(index >= 0) {
-                def serviceName = v.substring(0, index)
-                def attrName = v.substring(index + 1)
-                argsMap.put(k, getTheProperAttribute(context, serviceName, context.instanceId, attrName))
-                println "processed: ${k} -- ${v}"
-            }
-            //remove them from the main argsMap
-            println argsMap.remove(ATTRIBUTES_KEYWORD+k);
-        }
-        
-        return attributesToProcess;
+        return attr;
     }
+   
 }
