@@ -17,7 +17,7 @@ public class CloudifyExecutorUtils {
     static def DEFAULT_LEASE = 1000 * 60 * 60
     static def OPERATION_FQN = "OPERATION_FQN";
     
-    private static def SCRIPT_WRAPPER_PATH = "${serviceDirectory}/scriptWrapper.sh"
+    private static def SCRIPT_WRAPPER = "scriptWrapper.sh"
 
     /**
      * execute a script bash or batch
@@ -36,6 +36,7 @@ public class CloudifyExecutorUtils {
         new AntBuilder().sequential {
             echo(message: "${fullPathScript} will be mark as executable...")
             chmod(file: "${fullPathScript}", perm:"+xr")
+            chmod(file: "${serviceDirectory}/${SCRIPT_WRAPPER}", perm:"+xr")
         }
 
         // add the expected outputs to the map to pass them to the script wrapper
@@ -45,9 +46,8 @@ public class CloudifyExecutorUtils {
         
         String[] environment = new EnvironmentBuilder().buildShOrBatchEnvironment(argsMap);
 
-        println "Executing file ${serviceDirectory}/${script}.\n environment is: ${environment}"
-        def scriptProcess = "${SCRIPT_WRAPPER_PATH} ${serviceDirectory}/${script}".execute(environment, null)
-        //scriptProcess.consumeProcessOutput(System.out, System.out)
+        println "Executing command ${serviceDirectory}/${SCRIPT_WRAPPER} ${serviceDirectory}/${script}.\n environment is: ${environment}"
+        def scriptProcess = "${serviceDirectory}/${SCRIPT_WRAPPER} ${serviceDirectory}/${script}".execute(environment, null)
         def myOutputListener = new ProcessOutputListener()
         
         scriptProcess.consumeProcessOutputStream(myOutputListener)
