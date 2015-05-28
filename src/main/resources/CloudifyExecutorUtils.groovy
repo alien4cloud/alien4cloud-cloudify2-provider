@@ -1,5 +1,6 @@
 import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.regex.*
 import groovy.lang.Binding
 import groovy.transform.Synchronized
 
@@ -16,7 +17,7 @@ public class CloudifyExecutorUtils {
     static def DEFAULT_LEASE = 1000 * 60 * 60
     static def OPERATION_FQN = "OPERATION_FQN";
     
-
+    private static def SCRIPT_WRAPPER_PATH = "${serviceDirectory}/scriptWrapper.sh"
 
     /**
      * execute a script bash or batch
@@ -37,10 +38,15 @@ public class CloudifyExecutorUtils {
             chmod(file: "${fullPathScript}", perm:"+xr")
         }
 
+        // add the expected outputs to the map to pass them to the script wrapper
+        def expectedOutputsList = "";
+        expectedOutputs.each { expectedOutputsList = expectedOutputsList.length() >  0 ? "${expectedOutputsList};$it" : "$it" }
+        argsMap.put("EXPECTED_OUTPUTS", expectedOutputsList)
+        
         String[] environment = new EnvironmentBuilder().buildShOrBatchEnvironment(argsMap);
 
         println "Executing file ${serviceDirectory}/${script}.\n environment is: ${environment}"
-        def scriptProcess = "${serviceDirectory}/${script}".execute(environment, null)
+        def scriptProcess = "${SCRIPT_WRAPPER_PATH} ${serviceDirectory}/${script}".execute(environment, null)
         //scriptProcess.consumeProcessOutput(System.out, System.out)
         def myOutputListener = new ProcessOutputListener()
         
@@ -49,6 +55,12 @@ public class CloudifyExecutorUtils {
 
         scriptProcess.waitFor()
         def scriptExitValue = scriptProcess.exitValue()
+        def processResult = myOutputListener.getResult(expectedOutputs)
+        if (processResult != null && processResult.outputs != null && !processResult.outputs.isEmpty()) {
+          def operationOutputs = context.attributes.thisInstance["OPERATIONS_OUTPUTS"]
+          processResult.outputs.each { k, v -> operationOutputs.put("${operationFQN}:$k", v) }
+          context.attributes.thisInstance["OPERATIONS_OUTPUTS"] = operationOutputs
+        }
 
         print """
       ----------${script} : bash : Return Code ----------
@@ -58,7 +70,7 @@ public class CloudifyExecutorUtils {
         if(scriptExitValue) {
             throw new RuntimeException("Error executing the script ${script} (return code: $scriptExitValue)")
         } else {
-            return myOutputListener.getLastOutput()
+            return processResult != null ? processResult.result : null
         }
     }
 
@@ -242,6 +254,9 @@ public class CloudifyExecutorUtils {
     
       private StringWriter outputBufffer = new StringWriter();
       
+      // assume that the output names contains only word chars
+      private Pattern outputDetectionRegex = ~/EXPECTED_OUTPUT_(\w+)=(.*)/
+      
       Appendable append(char c) throws IOException {
         System.out.append(c)
         outputBufffer.append(c);
@@ -260,16 +275,41 @@ public class CloudifyExecutorUtils {
         return this
       }
     
-      String getLastOutput() {
+      ProcessOutputResult getResult(List expectedOutputs) {
         outputBufffer.flush()
         def outputString = outputBufffer.toString();
         if (outputString == null || outputString.size() == 0) {
+        System.out.append("size:" + outputString.size())
           return null;
         }
-        def lineList = outputString.readLines();
-        return lineList[lineList.size() -1]
-      }
+        def outputs = [:]
+        def lineList = outputString.readLines()
+        def lineIterator = lineList.iterator()
+        while(lineIterator.hasNext()) {
+          def line = lineIterator.next();
+          def ouputMatcher = outputDetectionRegex.matcher(line)
+          if (ouputMatcher.matches()) {
+            def detectedOuputName = ouputMatcher.group(1)
+            if (expectedOutputs.contains(detectedOuputName)) {
+              // add the output value in the map 
+              outputs.put(detectedOuputName, ouputMatcher.group(2));
+              // remove the iterator 
+              lineIterator.remove();
+            }
+          } 
+        }
+        // the outputs have been removed, so the last line is now the result of the exec
+        def result = lineList.size() > 0 ? lineList[lineList.size() -1] : null
+        return new ProcessOutputResult(result: result, outputs: outputs)     
+      }    
     
     }
 
+    // data structure for script result
+    static class ProcessOutputResult {
+      // the reult = the last line of the output
+      String result
+      // the expected output values
+      Map outputs
+    }
 }
