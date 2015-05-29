@@ -5,13 +5,16 @@ import java.util.Map.Entry;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import alien4cloud.model.topology.Topology;
+import alien4cloud.paas.cloudify2.rest.CloudifyRestClient;
 import alien4cloud.paas.model.InstanceInformation;
 import alien4cloud.paas.model.InstanceStatus;
 
@@ -35,13 +38,38 @@ public class OperationOutputTestIT extends GenericTestCase {
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         String cloudifyAppId = null;
 
-        String[] computes = new String[] { "comp_getOpOutput" };
+        String[] computes = new String[] { "comp_getOpOutputTarget", "comp_getOpOutputSource" };
         cloudifyAppId = deployTopology("getOperationOutput", computes, null, null);
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
         Map<String, Map<String, InstanceInformation>> instancesInformations = cloudifyPaaSPovider.getInstancesInformation(cloudifyAppId);
         printStatuses(instancesInformations);
-        assertStartedInstance("comp_getOpOutput", 1, instancesInformations);
-        assertAllInstanceStatus("comp_getOpOutput", InstanceStatus.SUCCESS, instancesInformations);
+        assertStartedInstance("comp_getOpOutputTarget", 1, instancesInformations);
+        assertStartedInstance("comp_getOpOutputSource", 1, instancesInformations);
+        assertAllInstanceStatus("comp_getOpOutputSource", InstanceStatus.SUCCESS, instancesInformations);
+        assertAllInstanceStatus("comp_getOpOutputTarget", InstanceStatus.SUCCESS, instancesInformations);
+        Map<String, String> outputs = this.cloudifyRestClientManager.getRestClient().getOperationOutputs(cloudifyAppId, "comp_getopoutputsource", "1");
+        System.out.println("OUTPUTS ==> \n" + outputs);
+
+        // TODO: test scaling
+    }
+
+    @Test
+    @Ignore
+    public void test2() throws Throwable {
+        log.info("\n\n >> Executing Test testGetOperationOutputOnAttributes \n");
+        String cloudifyAppId = "e83d61af-e3bf-4162-958c-76674cc25fd3";
+        String[] computes = new String[] { "comp_getOpOutput" };
+        CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
+        Map<String, String> outputs = null;
+        try {
+            System.out.println(restClient.getAllInstancesOperationsOutputs(cloudifyAppId, "comp_getopoutput"));
+            outputs = restClient.getOperationOutputs(cloudifyAppId, "comp_getopoutput", "1");
+        } catch (RestClientException e) {
+            log.error(e.getMessageFormattedText());
+            log.error(e.getVerbose(), e);
+            // e.printStackTrace();
+        }
+        System.out.println("OUTPUTS ==> \n" + outputs);
 
         // TODO: test scaling
     }
@@ -56,6 +84,7 @@ public class OperationOutputTestIT extends GenericTestCase {
                 sb.append("\t\tplanStatus=").append(map.getValue().getInstanceStatus()).append("\n");
                 sb.append("\t\tattributes=").append(map.getValue().getAttributes()).append("\n");
                 sb.append("\t\truntimeInfo=").append(map.getValue().getRuntimeProperties()).append("\n");
+                sb.append("\t\toutputs=").append(map.getValue().getOperationsOutputs()).append("\n");
             }
         }
 

@@ -1,6 +1,6 @@
 
 node_templates:
-  comp_getOpOutput:
+  comp_getOpOutputTarget:
     type: alien.test.TestComputeWithGetOperationOutput
     properties:
       os_type:
@@ -15,6 +15,29 @@ node_templates:
       old_hostname:
       new_hostname:
       concat_attribute:
+      
+  comp_getOpOutputSource:
+    type: alien.test.TestComputeWithGetOperationOutput
+    properties:
+      os_type:
+        value: linux
+      os_distribution:
+        value: ubuntu
+      os_version:
+        value: ubuntu
+      customHostName:
+        value: testHostname
+    attributes:
+      old_hostname:
+      new_hostname:
+      concat_attribute:
+    relationships:
+      dependsOnTarget:
+        target: comp_getOpOutputTarget
+        type: alien.test.relationships.TestOperationOutput
+        requirement_name: dependency
+        requirement_type: tosca.capabilities.Root
+        targeted_capability_name: root
         
 scaling_policies:
   comp_getOpOutput:

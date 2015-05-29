@@ -1,7 +1,8 @@
 import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicInteger
+
 import groovy.lang.Binding
-import groovy.transform.Synchronized
+
 import org.cloudifysource.dsl.context.ServiceInstance
 
 public class CloudifyAttributesUtils {
@@ -10,6 +11,7 @@ public class CloudifyAttributesUtils {
     private static OUTPUT_SEPARATOR = ":";
     public static def ATTR_SEPARATOR = ",";
     public static def CLOUDIFY_OUTPUTS_ATTRIBUTE = "OPERATIONS_OUTPUTS";
+    private static def DEFAULT_TRIAL_COUNT = 5;
 
     /**
      * get a specific attribute
@@ -28,6 +30,8 @@ public class CloudifyAttributesUtils {
     
     /**
      * get a specific operation output
+     * 
+     * Try for 5 seconds if not found at first trial
      * @param context
      * @param cloudifyService
      * @param instanceId
@@ -37,24 +41,42 @@ public class CloudifyAttributesUtils {
      * @return
      */
     static def getOperationOutput(context, cloudifyService, instanceId, formatedOutputName, List eligibleNodesNames) {
-        println "CloudifyAttributesUtils.getOperationOutput: getting operation output <formatedOutputName: ${formatedOutputName}> < service: ${cloudifyService}> <instanceId: ${instanceId}>";
+        println "CloudifyAttributesUtils.getOperationOutput: getting operation output <formatedOutputName: ${formatedOutputName}> < service: ${cloudifyService}> <instanceId: ${instanceId}> from nodes <${eligibleNodesNames}>";
         def outputValue = null;
+        def countLeft = DEFAULT_TRIAL_COUNT;
+        def check = true;
+        
         if(formatedOutputName) {
-            def outputsMap = getAttributeFromContext(context, cloudifyService, instanceId, CLOUDIFY_OUTPUTS_ATTRIBUTE);
-            if(outputsMap) {
-                if(!eligibleNodesNames || eligibleNodesNames.isEmpty()) {
-                    outputValue = outputsMap[formatedOutputName];
-                }else {
-                    while(!outputValue && !eligibleNodesNames.isEmpty()) {
-                        def keyToFetch = eligibleNodesNames.get(0)+OUTPUT_SEPARATOR+formatedOutputName;
-                        outputValue = outputsMap[keyToFetch];
-                        eligibleNodesNames.remove(0);
+            //try it for 5 seconds
+            while(check) {
+                def outputsMap = getAttributeFromContext(context, cloudifyService, instanceId, CLOUDIFY_OUTPUTS_ATTRIBUTE) as Map;
+                if(outputsMap) {
+                    if(!eligibleNodesNames || eligibleNodesNames.isEmpty()) {
+                        outputValue = outputsMap[formatedOutputName];
+                    }else {
+                        List nodeNames = eligibleNodesNames.collect() 
+                        while(!outputValue && !nodeNames.isEmpty()) {
+                            def keyToFetch = nodeNames.get(0)+OUTPUT_SEPARATOR+formatedOutputName;
+                            def foundEntry = outputsMap.find {it.key == keyToFetch}
+                            outputValue = foundEntry?foundEntry.value:null;
+                            nodeNames.remove(0);
+                        }
                     }
                 }
+                countLeft--;
+                check = wait(outputValue, countLeft);
             }
         }
         println "CloudifyAttributesUtils.getOperationOutput: Got [${outputValue}]";
         return outputValue;
+    }
+    
+    private static def wait(valueToCheck, counter) {
+        if(!valueToCheck && counter>0) {
+            sleep 1000
+            return true
+        }
+        return false;
     }
     
     /**

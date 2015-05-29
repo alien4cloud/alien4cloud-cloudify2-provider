@@ -1,0 +1,48 @@
+#!/bin/bash
+
+checkEnvVar "MY_HOSTNAME"
+echo "MY_HOSTNAME : $MY_HOSTNAME"
+
+checkEnvVar "TARGET_CREATE_OUTPUT"
+echo "TARGET_CREATE_OUTPUT : $TARGET_CREATE_OUTPUT"
+
+checkEnvVar "SOURCE_CREATE_OUTPUT"
+echo "SOURCE_CREATE_OUTPUT : $SOURCE_CREATE_OUTPUT"
+
+checkEnvVar "TARGET_CONFIGURE_OUTPUT"
+echo "TARGET_CONFIGURE_OUTPUT : $TARGET_CONFIGURE_OUTPUT"
+
+checkEnvVar "SOURCE_CONFIGURE_OUTPUT"
+echo "SOURCE_CONFIGURE_OUTPUT : $SOURCE_CONFIGURE_OUTPUT"
+
+checkEnvVar "SOURCE_POSTCONF_OUTPUT"
+echo "SOURCE_POSTCONF_OUTPUT : $SOURCE_POSTCONF_OUTPUT"
+
+echo "SOURCE_SERVICE_NAME : $SOURCE_SERVICE_NAME"
+echo "SOURCES : $SOURCES"
+echo "TARGET : $TARGET"
+echo "TARGET_NAME : $TARGET_NAME"
+echo "TARGET_SERVICE_NAME : $TARGET_SERVICE_NAME"
+echo "TARGETS : $TARGETS"
+
+count=0
+IFS=',' read -ra _SOURCES <<< "$SOURCES"
+for i in "${_SOURCES[@]}"; do
+  ((count++))
+done
+
+echo "Nb of sources is $count"
+
+count=0
+IFS=',' read -ra _TARGETS <<< "$TARGETS"
+for i in "${_TARGETS[@]}"; do
+  ((count++))
+done
+
+echo "Nb of targets is $count"
+
+echo "[$TARGET_CREATE_OUTPUT][$SOURCE_CREATE_OUTPUT][$TARGET_CONFIGURE_OUTPUT][$SOURCE_CONFIGURE_OUTPUT][$SOURCE_POSTCONF_OUTPUT]"
+
+checkEnvVar(envVar) {
+  ${!envVar:?"Empty or not valid env var $envVar"}
+}

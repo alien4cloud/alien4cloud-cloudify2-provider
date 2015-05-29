@@ -101,7 +101,7 @@ node_types:
     attributes: 
       old_hostname: { get_operation_output: [ SELF, Standard, create, old_hostnane ] }
       new_hostname: { get_operation_output: [ SELF, Standard, configure, new_hostnane ] }
-      concat_attribute: { concat: [ "old hostname /", get_operation_output: [SELF, Standard, create, old_hostnane], "/", get_attribute: [SELF, public_ip_address] ] }
+      concat_attribute: { concat: [ "old hostname /", get_operation_output: [SELF, Standard, create, old_hostnane]] }
     interfaces:
       Standard:
         create: scripts/groovy_with_output.groovy
@@ -187,7 +187,30 @@ relationship_types:
             MY_IP: { get_attribute: [SOURCE, ip_address] }
             TARGET_IP: { get_attribute: [TARGET, ip_address] }
           implementation: relationshipScripts/source_testEnv.groovy
-
+          
+  alien.test.relationships.TestOperationOutput:
+    derived_from: alien.test.relationships.TestTrigger
+    interfaces:
+      configure:
+        post_configure_source:
+          inputs:
+            SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
+            TARGET_IP: { get_attribute: [TARGET, ip_address] }
+            TARGET_CREATE_OUTPUT: {get_operation_output: [TARGET, Standard, create, old_hostnane]}
+            SOURCE_CREATE_OUTPUT: {get_operation_output: [SOURCE, Standard, create, output_from_create]}
+            TARGET_CONFIGURE_OUTPUT: {get_operation_output: [TARGET, Standard, configure, new_hostnane]}
+            SOURCE_CONFIGURE_OUTPUT: {get_operation_output: [SOURCE, Standard, configure, new_hostnane]}
+          implementation: relationshipScripts/pre_post_configure_testOperationOutput.groovy
+        add_target:
+          inputs:
+            MY_HOSTNAME: { get_property: [TARGET, customHostName] }            
+            TARGET_CREATE_OUTPUT: {get_operation_output: [TARGET, Standard, create, old_hostnane]}
+            SOURCE_CREATE_OUTPUT: {get_operation_output: [SOURCE, Standard, create, output_from_create]}
+            TARGET_CONFIGURE_OUTPUT: {get_operation_output: [TARGET, Standard, configure, new_hostnane]}
+            SOURCE_CONFIGURE_OUTPUT: {get_operation_output: [SOURCE, Standard, configure, new_hostnane]}
+            SOURCE_POSTCONF_OUTPUT: {get_operation_output: [SELF, Configure, post_configure_source, post_conf_output]}
+          implementation: relationshipScripts/target_testOperationOutput.sh
+            
   alien.test.relationships.DependsOnGetIpTest:
     derived_from: tosca.relationships.DependsOn
     interfaces:

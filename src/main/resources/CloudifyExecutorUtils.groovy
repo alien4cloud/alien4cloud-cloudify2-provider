@@ -80,7 +80,7 @@ public class CloudifyExecutorUtils {
         if(scriptExitValue) {
             throw new RuntimeException("Error executing the script ${script} (return code: $scriptExitValue)")
         } else {
-            println "result is: "+ processResult != null ? processResult.result:null
+            println "sh result is: "+ processResult != null ? processResult.result:null
             return processResult != null ? processResult.result : null
         }
     }
@@ -104,20 +104,18 @@ public class CloudifyExecutorUtils {
         def result = shell.evaluate(new File("${serviceDirectory}/${groovyScript}"))
         
         // now get the value of outputs
-        // child script should just affect them like : OUTPUT1 = "value1"
+        // child script should just affect them like : OUTPUT1 = "value1", or use the embebded method setProperty("OUTPUT1","value1")
         // but should not create local variables like : def OUTPUT1 = "value1" 
         if(expectedOutputs) {
           def operationOutputs = context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE]?:[:];
+          Map bindingVars = binding.getVariables()?:[:];
           expectedOutputs.each { 
-            def outputName = it
-            def outputValue = null
-            if (binding.hasVariable(outputName)) {
-              outputValue = binding.getVariable(outputName)
-            }
-            operationOutputs.put("${operationFQN}:$outputName", outputValue)
+            def outputValue = bindingVars.get(it)
+            operationOutputs.put("${operationFQN}:$it", outputValue)
           }
           context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE] = operationOutputs
         }
+        println "result is: "+result
         return result
     }
 
@@ -311,8 +309,8 @@ public class CloudifyExecutorUtils {
           return null;
         }
         def lineList = outputString.readLines()
+        def outputs = [:]
         if(expectedOutputs && !expectedOutputs.isEmpty()) {
-            def outputs = [:]
             def lineIterator = lineList.iterator()
             while(lineIterator.hasNext()) {
                 def line = lineIterator.next();

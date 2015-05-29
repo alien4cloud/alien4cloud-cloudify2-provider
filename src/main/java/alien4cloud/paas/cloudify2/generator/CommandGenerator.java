@@ -38,7 +38,7 @@ import com.google.common.collect.Maps;
 @Component
 public class CommandGenerator {
     private final static String[] SERVICE_RECIPE_RESOURCES = new String[] { "chmod-init.groovy", "CloudifyUtils.groovy", "CloudifyExecutorUtils.groovy",
-            "CloudifyAttributesUtils.groovy", "EnvironmentBuilder.groovy", "scriptWrapper.sh" };
+            "CloudifyAttributesUtils.groovy", "EnvironmentBuilder.groovy", "scriptWrapper/scriptWrapper.sh", "scriptWrapper/scriptWrapper.bat" };
     private final static String[] SERVICE_RECIPE_RESOURCES_VELOCITY_TEMP = new String[] { "GigaSpacesEventsManager" };
 
     private final static String OPERATION_FQN = "OPERATION_FQN";
@@ -81,7 +81,9 @@ public class CommandGenerator {
     public void copyInternalResources(Path servicePath, String deploymentId) throws IOException {
         for (String resource : SERVICE_RECIPE_RESOURCES) {
             // Files.copy(loadResourceFromClasspath("classpath:" + resource), servicePath.resolve(resource));
-            this.copyResourceFromClasspath("classpath:" + resource, servicePath.resolve(resource));
+            // copy to the service directory base
+            String resourceFinalPath = Paths.get(resource).getFileName().toString();
+            this.copyResourceFromClasspath("classpath:" + resource, servicePath.resolve(resourceFinalPath));
         }
 
         // build veocity templates
