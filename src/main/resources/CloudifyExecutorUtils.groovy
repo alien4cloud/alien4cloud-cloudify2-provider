@@ -17,7 +17,8 @@ public class CloudifyExecutorUtils {
     static def DEFAULT_LEASE = 1000 * 60 * 60
     static def OPERATION_FQN = "OPERATION_FQN";
     
-    private static def SCRIPT_WRAPPER = "scriptWrapper.sh"
+    private static def SCRIPT_WRAPPER_NUX = "scriptWrapper.sh"
+    private static def SCRIPT_WRAPPER_DOS = "scriptWrapper.bat"
 
     /**
      * execute a script bash or batch
@@ -31,12 +32,18 @@ public class CloudifyExecutorUtils {
         def operationFQN = argsMap?argsMap.remove(OPERATION_FQN):null;
         def serviceDirectory = context.getServiceDirectory()
         
+        def scripWrapper = "${SCRIPT_WRAPPER_NUX}"
+        def fileExtension = script.substring(script.lastIndexOf('.'))
+        if (fileExtension == ".bat" || fileExtension == ".cmd") {
+          scripWrapper = "${SCRIPT_WRAPPER_DOS}"
+        } 
+        
         println "service dir is: ${serviceDirectory}; script is: ${script}"
         def fullPathScript = "${serviceDirectory}/${script}";
         new AntBuilder().sequential {
             echo(message: "${fullPathScript} will be mark as executable...")
             chmod(file: "${fullPathScript}", perm:"+xr")
-            chmod(file: "${serviceDirectory}/${SCRIPT_WRAPPER}", perm:"+xr")
+            chmod(file: "${serviceDirectory}/${scripWrapper}", perm:"+xr")
         }
 
         // add the expected outputs to the map to pass them to the script wrapper
@@ -49,8 +56,8 @@ public class CloudifyExecutorUtils {
         
         String[] environment = new EnvironmentBuilder().buildShOrBatchEnvironment(argsMap);
 
-        println "Executing command ${serviceDirectory}/${SCRIPT_WRAPPER} ${serviceDirectory}/${script}.\n environment is: ${environment}"
-        def scriptProcess = "${serviceDirectory}/${SCRIPT_WRAPPER} ${serviceDirectory}/${script}".execute(environment, null)
+        println "Executing command ${serviceDirectory}/${scripWrapper} ${serviceDirectory}/${script}.\n environment is: ${environment}"
+        def scriptProcess = "${serviceDirectory}/${scripWrapper} ${serviceDirectory}/${script}".execute(environment, null)
         def myOutputListener = new ProcessOutputListener()
         
         scriptProcess.consumeProcessOutputStream(myOutputListener)
@@ -93,7 +100,24 @@ public class CloudifyExecutorUtils {
         binding.setVariable("CloudifyExecutorUtils", this)
         def shell = new GroovyShell(CloudifyExecutorUtils.class.classLoader,binding)
         println "Evaluating file ${serviceDirectory}/${groovyScript}.\n environment is: ${argsMap}"
-        return shell.evaluate(new File("${serviceDirectory}/${groovyScript}"))
+        def result = shell.evaluate(new File("${serviceDirectory}/${groovyScript}"))
+        
+        // now get the value of outputs
+        // child script should just affect them like : OUTPUT1 = "value1"
+        // but should not create local variables like : def OUTPUT1 = "value1" 
+        if(expectedOutputs) {
+          def operationOutputs = context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE]?:[:];
+          expectedOutputs.each { 
+            def outputName = it
+            def outputValue = null
+            if (binding.hasVariable(outputName)) {
+              outputValue = binding.getVariable(outputName)
+            }
+            operationOutputs.put("${operationFQN}:$outputName", outputValue)
+          }
+          context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE] = operationOutputs
+        }
+        return result
     }
 
     static def executeParallel(groovyScripts, otherScripts) {
