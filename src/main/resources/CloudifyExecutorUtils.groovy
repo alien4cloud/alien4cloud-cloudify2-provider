@@ -101,7 +101,24 @@ public class CloudifyExecutorUtils {
         binding.setVariable("CloudifyExecutorUtils", this)
         def shell = new GroovyShell(CloudifyExecutorUtils.class.classLoader,binding)
         println "Evaluating file ${serviceDirectory}/${groovyScript}.\n environment is: ${argsMap}"
-        return shell.evaluate(new File("${serviceDirectory}/${groovyScript}"))
+        def result = shell.evaluate(new File("${serviceDirectory}/${groovyScript}"))
+        
+        // now get the value of outputs
+        // child script should just affect them like : OUTPUT1 = "value1"
+        // but should not create local variables like : def OUTPUT1 = "value1" 
+        if(expectedOutputs) {
+          def operationOutputs = context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE]?:[:];
+          expectedOutputs.each { 
+            def outputName = it
+            def outputValue = null
+            if (binding.hasVariable(outputName)) {
+              outputValue = binding.getVariable(outputName)
+            }
+            operationOutputs.put("${operationFQN}:$outputName", outputValue)
+          }
+          context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE] = operationOutputs
+        }
+        return result
     }
 
     static def executeParallel(groovyScripts, otherScripts) {
