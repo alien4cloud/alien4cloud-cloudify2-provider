@@ -41,8 +41,11 @@ public class CloudifyExecutorUtils {
 
         // add the expected outputs to the map to pass them to the script wrapper
         def expectedOutputsList = "";
-        expectedOutputs.each { expectedOutputsList = expectedOutputsList.length() >  0 ? "${expectedOutputsList};$it" : "$it" }
-        argsMap.put("EXPECTED_OUTPUTS", expectedOutputsList)
+        if(expectedOutputs) {
+            expectedOutputs.each { expectedOutputsList = expectedOutputsList.length() >  0 ? "${expectedOutputsList};$it" : "$it" }
+            if(!argsMap) { argsMap = [:] }
+            argsMap.put("EXPECTED_OUTPUTS", expectedOutputsList)
+        }
         
         String[] environment = new EnvironmentBuilder().buildShOrBatchEnvironment(argsMap);
 
@@ -57,9 +60,9 @@ public class CloudifyExecutorUtils {
         def scriptExitValue = scriptProcess.exitValue()
         def processResult = myOutputListener.getResult(expectedOutputs)
         if (processResult != null && processResult.outputs != null && !processResult.outputs.isEmpty()) {
-          def operationOutputs = context.attributes.thisInstance["OPERATIONS_OUTPUTS"]
+          def operationOutputs = context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE]?:[:];
           processResult.outputs.each { k, v -> operationOutputs.put("${operationFQN}:$k", v) }
-          context.attributes.thisInstance["OPERATIONS_OUTPUTS"] = operationOutputs
+          context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE] = operationOutputs
         }
 
         print """
@@ -284,19 +287,21 @@ public class CloudifyExecutorUtils {
         }
         def outputs = [:]
         def lineList = outputString.readLines()
-        def lineIterator = lineList.iterator()
-        while(lineIterator.hasNext()) {
-          def line = lineIterator.next();
-          def ouputMatcher = outputDetectionRegex.matcher(line)
-          if (ouputMatcher.matches()) {
-            def detectedOuputName = ouputMatcher.group(1)
-            if (expectedOutputs.contains(detectedOuputName)) {
-              // add the output value in the map 
-              outputs.put(detectedOuputName, ouputMatcher.group(2));
-              // remove the iterator 
-              lineIterator.remove();
+        if(expectedOutputs && !expectedOutputs.isEmpty()) {
+            def lineIterator = lineList.iterator()
+            while(lineIterator.hasNext()) {
+                def line = lineIterator.next();
+                def ouputMatcher = outputDetectionRegex.matcher(line)
+                if (ouputMatcher.matches()) {
+                    def detectedOuputName = ouputMatcher.group(1)
+                    if (expectedOutputs.contains(detectedOuputName)) {
+                        // add the output value in the map 
+                        outputs.put(detectedOuputName, ouputMatcher.group(2));
+                        // remove the iterator 
+                        lineIterator.remove();
+                    }
+                } 
             }
-          } 
         }
         // the outputs have been removed, so the last line is now the result of the exec
         def result = lineList.size() > 0 ? lineList[lineList.size() -1] : null
