@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import alien4cloud.model.components.IndexedToscaElement;
@@ -15,7 +14,6 @@ import alien4cloud.utils.MapUtil;
 
 public class CloudifyPaaSUtils {
 
-    private static final String PREFIX_SEPARATOR = "_";
     private static final String HA_TEMPLATE_PAAS_ID_TEMPLATE = "_%s_AZ_%s";
     private static final String HA_TEMPLATE_PAAS_ID_REGEX = String.format(HA_TEMPLATE_PAAS_ID_TEMPLATE, ".*", ".*");// "\\w*_ALIEN_AZ_\\w*";
     public static final Pattern HA_TEMPLATE_PAAS_ID_PATTERN = Pattern.compile(HA_TEMPLATE_PAAS_ID_REGEX);
@@ -46,27 +44,6 @@ public class CloudifyPaaSUtils {
      */
     public static String getNodeTypeRelativePath(final IndexedToscaElement indexedToscaElement) {
         return indexedToscaElement.getElementId() + "-" + indexedToscaElement.getArchiveVersion();
-    }
-
-    /**
-     * prefix a string with another
-     *
-     * @param toPrefix
-     * @param prefixes
-     * @return
-     */
-    public static String prefixWith(String toPrefix, String... prefixes) {
-        if (toPrefix == null) {
-            return null;
-        }
-        if (ArrayUtils.isEmpty(prefixes)) {
-            return toPrefix;
-        }
-        StringBuilder builder = new StringBuilder();
-        for (String prefix : prefixes) {
-            builder.append(prefix).append(PREFIX_SEPARATOR);
-        }
-        return builder.append(toPrefix).toString();
     }
 
     public static String getAvailabilityZone(Map<String, Object> compute) {

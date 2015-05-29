@@ -113,23 +113,22 @@ public class CloudifyRestClient extends RestClient {
      * @throws URISyntaxException
      * @throws IOException
      */
-    public Map<String, Object> getCloudifyInstanceAttrbute(final String appName, final String serviceName, final Integer instanceId, final String attribute)
+    public Map<String, Object> getCloudifyInstanceAttrbute(final String appName, final String serviceName, final String instanceId, final String attribute)
             throws URISyntaxException, IOException {
         // appName and serviceName are mandatories
         if (!StringUtils.isNoneBlank(appName, serviceName)) {
-            return null;
+            Maps.newIdentityHashMap();
         }
 
         String outputString = null;
-        if (instanceId == null) { // Gets multiple attributes' values, from all instances
+        if (StringUtils.isBlank(instanceId)) { // Gets multiple attributes' values, from all instances
             outputString = get(ATTRIBUTES_CONTROLLER_URL, GET_SERVICE_ALL_INSTANCES_ATTRIBUTES_URL_FORMAT, appName, serviceName);
         } else if (StringUtils.isBlank(attribute)) { // Gets all attributes' values from an instance
-            outputString = get(ATTRIBUTES_CONTROLLER_URL, GET_SERVICE_INSTANCE_ATTRIBUTES_URL_FORMAT, appName, serviceName, String.valueOf(instanceId));
+            outputString = get(ATTRIBUTES_CONTROLLER_URL, GET_SERVICE_INSTANCE_ATTRIBUTES_URL_FORMAT, appName, serviceName, instanceId);
         } else { // Gets a specific attribute' values from an instance
-            outputString = get(ATTRIBUTES_CONTROLLER_URL, GET_SERVICE_INSTANCE_ATTRIBUTE_URL_FORMAT, appName, serviceName, String.valueOf(instanceId),
-                    attribute);
+            outputString = get(ATTRIBUTES_CONTROLLER_URL, GET_SERVICE_INSTANCE_ATTRIBUTE_URL_FORMAT, appName, serviceName, instanceId, attribute);
         }
-        return StringUtils.isNotBlank(outputString) ? JsonUtil.toMap(outputString) : null;
+        return StringUtils.isNotBlank(outputString) ? JsonUtil.toMap(outputString) : Maps.<String, Object> newIdentityHashMap();
     }
 
     /**
@@ -146,9 +145,78 @@ public class CloudifyRestClient extends RestClient {
         return getCloudifyInstanceAttrbute(appName, serviceName, null, null);
     }
 
-    public Map<String, Object> getOperationOutputs(final String appName, final String serviceName, final Integer instanceId) throws RestClientException,
+    /**
+     * Get the operations outputs of a specific instance of a service
+     *
+     * @param appName
+     * @param serviceName
+     * @param instanceId
+     * @return
+     * @throws RestClientException
+     * @throws URISyntaxException
+     * @throws IOException
+     */
+    public Map<String, String> getOperationOutputs(final String appName, final String serviceName, final String instanceId) throws RestClientException,
             URISyntaxException, IOException {
-        return getCloudifyInstanceAttrbute(appName, serviceName, instanceId, AlienExtentedConstants.CLOUDIFY_OUTPUTS_ATTRIBUTE);
+        if (StringUtils.isBlank(instanceId)) {
+            log.warn("getOperationOutputs -- InstanceId must not be null or empty");
+            return Maps.newIdentityHashMap();
+        }
+        Map<String, Object> rawMap = getCloudifyInstanceAttrbute(appName, serviceName, instanceId, AlienExtentedConstants.CLOUDIFY_OUTPUTS_ATTRIBUTE);
+        String outputAsString = JsonUtil.toString(MapUtils.getObject(rawMap, AlienExtentedConstants.CLOUDIFY_OUTPUTS_ATTRIBUTE));
+        // converts values into String
+        Map<String, String> outputsAsMap = StringUtils.isNotBlank(outputAsString) ? JsonUtil.toMap(outputAsString, String.class, String.class) : Maps
+                .<String, String> newHashMap();
+        return outputsAsMap;
+    }
+
+    /**
+     *
+     * Get the an operation output
+     *
+     * @param appName
+     * @param serviceName
+     * @param instanceId
+     * @param formatedOutputName
+     *            The formated output name: nodeId:interfaceName:operationName:outputName
+     * @return
+     *         The output value
+     * @throws RestClientException
+     * @throws URISyntaxException
+     * @throws IOException
+     */
+    public String getOperationOutput(final String appName, final String serviceName, final String instanceId, final String formatedOutputName)
+            throws RestClientException, URISyntaxException, IOException {
+        Map<String, String> outputs = getOperationOutputs(appName, serviceName, instanceId);
+        return outputs.get(formatedOutputName);
+    }
+
+    /**
+     * Get all operations outputs for all instances of a service
+     *
+     * @param appName
+     * @param serviceName
+     * @return
+     *         A map: instanceId --> Map < outputName, outputValue >
+     * @throws URISyntaxException
+     * @throws IOException
+     */
+    public Map<String, Map<String, String>> getAllInstancesOperationsOutputs(final String appName, final String serviceName) throws URISyntaxException,
+            IOException {
+        Map<String, Map<String, String>> toReturnMap = Maps.newHashMap();
+        Map<String, Object> allInstancesAttributes = getAllInstanceAttributes(appName, serviceName);
+        for (String attrKey : allInstancesAttributes.keySet()) {
+            // the attrKey here is in form: instanceId:attributeName
+            String attributeName = attrKey.substring(attrKey.indexOf(":") + 1);
+            if (AlienExtentedConstants.CLOUDIFY_OUTPUTS_ATTRIBUTE.equals(attributeName)) {
+                String instanceId = attrKey.substring(0, attrKey.indexOf(":"));
+                String outputAsString = JsonUtil.toString(MapUtils.getObject(allInstancesAttributes, attrKey));
+                Map<String, String> outputsAsMap = StringUtils.isNotBlank(outputAsString) ? JsonUtil.toMap(outputAsString, String.class, String.class) : Maps
+                        .<String, String> newHashMap();
+                toReturnMap.put(instanceId, outputsAsMap);
+            }
+        }
+        return toReturnMap;
     }
 
     private String get(String baseUrl, String format, String... args) throws URISyntaxException, IOException {
@@ -158,12 +226,6 @@ public class CloudifyRestClient extends RestClient {
         String formatedUrl = getFormattedUrl(baseUrl, format, args);
         URIBuilder builder = new URIBuilder(url.toURI().resolve(formatedUrl));
         return customExecutor.doGet(builder, false);
-    }
-
-    public String getOperationOutput(final String appName, final String serviceName, final Integer instanceId, final String formatedOutputName)
-            throws RestClientException, URISyntaxException, IOException {
-        Map<String, Object> outputs = getOperationOutputs(appName, serviceName, instanceId);
-        return MapUtils.getString(outputs, formatedOutputName);
     }
 
     /**

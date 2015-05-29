@@ -41,6 +41,7 @@ import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.cloudifysource.restclient.exceptions.RestClientIOException;
 
 import alien4cloud.cloud.DeploymentService;
+import alien4cloud.common.AlienConstants;
 import alien4cloud.dao.IGenericSearchDAO;
 import alien4cloud.exception.TechnicalException;
 import alien4cloud.model.application.DeploymentSetup;
@@ -85,6 +86,7 @@ import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.tosca.ToscaUtils;
+import alien4cloud.utils.AlienUtils;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -342,7 +344,8 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             for (int i = 1; i <= currentPlannedInstances; i++) {
                 Map<String, String> attributes = nodeTempalteEntry.getValue().getAttributes() == null ? null : Maps.newHashMap(nodeTempalteEntry.getValue()
                         .getAttributes());
-                InstanceInformation instanceInfo = new InstanceInformation(ToscaNodeLifecycleConstants.INITIAL, InstanceStatus.PROCESSING, attributes, null);
+                InstanceInformation instanceInfo = new InstanceInformation(ToscaNodeLifecycleConstants.INITIAL, InstanceStatus.PROCESSING, attributes, null,
+                        Maps.<String, String> newHashMap());
                 nodeInstanceInfos.put(String.valueOf(i), instanceInfo);
             }
             instanceInformations.put(nodeTempalteEntry.getKey(), nodeInstanceInfos);
@@ -384,9 +387,10 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                 InstanceInformation instanceInformation = nodeTemplateInstanceInformations.get(instanceId);
                 if (instanceInformation == null) {
                     Map<String, String> runtimeProperties = Maps.newHashMap();
+                    Map<String, String> operationsOutputs = Maps.newHashMap();
                     Map<String, String> attributes = Maps.newHashMap();
                     InstanceInformation newInstanceInformation = new InstanceInformation(instanceState.getInstanceState(), instanceStatus, attributes,
-                            runtimeProperties);
+                            runtimeProperties, operationsOutputs);
                     nodeTemplateInstanceInformations.put(String.valueOf(instanceId), newInstanceInformation);
                 } else {
                     instanceInformation.setState(instanceState.getInstanceState());
@@ -401,17 +405,17 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
      */
 
     /**
-     * Fill in runtime public and private ip addresses on the compute nodes of the topology.
+     * Fill in runtime informations on the compute nodes of the topology.
      *
-     * @param deploymentPaaSId The id of the deployment/ applicaiton for which to retrieve instance states.
      * @param instanceInformations The current map of instance informations to fill-in with additional states.
+     * @param applicationDescription TODO
+     * @param restClient TODO
+     *
      * @throws RestClientException In case we fail to get data from cloudify rest api.
      * @throws PluginConfigurationException
      */
-    private void fillRuntimeInformations(String deploymentPaaSId, Map<String, Map<String, InstanceInformation>> instanceInformations)
-            throws PluginConfigurationException, RestClientException {
-        CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
-        ApplicationDescription applicationDescription = restClient.getApplicationDescription(deploymentPaaSId);
+    private void fillRuntimeInformations(Map<String, Map<String, InstanceInformation>> instanceInformations, ApplicationDescription applicationDescription,
+            CloudifyRestClient restClient) throws PluginConfigurationException, RestClientException {
 
         Map<String, ServiceDescription> serviceDescriptions = Maps.newHashMap();
 
@@ -439,7 +443,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                 if (DeploymentStatus.FAILURE.equals(serviceDescription.getServiceState())) {
                     instanceInformation.setInstanceStatus(InstanceStatus.FAILURE);
                 }
-                ServiceInstanceDetails serviceInstanceDetails = restClient.getServiceInstanceDetails(deploymentPaaSId, serviceId,
+                ServiceInstanceDetails serviceInstanceDetails = restClient.getServiceInstanceDetails(serviceDescription.getApplicationName(), serviceId,
                         instanceDescription.getInstanceId());
 
                 if (instanceInformation.getAttributes() == null) {
@@ -454,7 +458,40 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                         runtimeProperties.put(entry.getKey(), entry.getValue().toString());
                     }
                 }
+
                 instanceInformation.setRuntimeProperties(runtimeProperties);
+            }
+        }
+    }
+
+    private void fillOperationsOutputs(Map<String, Map<String, InstanceInformation>> instanceInformations, ApplicationDescription applicationDescription,
+            CloudifyRestClient restClient) throws PluginConfigurationException, RestClientException, URISyntaxException, IOException {
+
+        // serviceId --> Map < instanceId, Map< formatedOutputName, outputValue > >
+        Map<String, Map<String, Map<String, String>>> outputMaps = Maps.newHashMap();
+
+        // we want to get operation outputs for all cloudify services
+        for (ServiceDescription serviceDescription : applicationDescription.getServicesDescription()) {
+            outputMaps.put(serviceDescription.getServiceName(),
+                    restClient.getAllInstancesOperationsOutputs(serviceDescription.getApplicationName(), serviceDescription.getServiceName()));
+        }
+
+        // register every outputs where it belongs
+        for (Map<String, Map<String, String>> instanceOutputs : outputMaps.values()) {
+            for (Entry<String, Map<String, String>> entry : instanceOutputs.entrySet()) {
+                String instanceId = entry.getKey();
+                Map<String, String> nodesOutputs = entry.getValue();
+                for (String formatedOutputName : nodesOutputs.keySet()) {
+                    // 0 = nodeId, 1 = interfaceName, 2 = operationName, 3 = outputName
+                    String[] parts = formatedOutputName.split(AlienConstants.COLON_SEPARATOR);
+                    Map<String, InstanceInformation> nodeTemplateInstanceInformations = instanceInformations.get(parts[0]);
+                    InstanceInformation instanceInformation = nodeTemplateInstanceInformations == null ? null : nodeTemplateInstanceInformations
+                            .get(instanceId);
+                    if (instanceInformation == null) {
+                        continue;
+                    }
+                    instanceInformation.getOperationsOutputs().put(formatedOutputName, nodesOutputs.get(formatedOutputName));
+                }
             }
         }
     }
@@ -508,8 +545,11 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         }
 
         try {
+            CloudifyRestClient restClient = cloudifyRestClientManager.getRestClient();
+            ApplicationDescription applicationDescription = restClient.getApplicationDescription(deploymentPaaSId);
             fillInstanceStates(deploymentInfo.deploymentId, instanceInformations, restEventEndpoint);
-            fillRuntimeInformations(deploymentPaaSId, instanceInformations);
+            fillRuntimeInformations(instanceInformations, applicationDescription, restClient);
+            fillOperationsOutputs(instanceInformations, applicationDescription, restClient);
             parseAttributes(instanceInformations, deploymentInfo);
             instanceStatusByDeployments.put(deploymentPaaSId, new NodesDeploymentInfo(instanceInformations));
             return instanceInformations;
@@ -761,7 +801,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         Map<String, String> operationResponse = Maps.newHashMap();
         String serviceName = retrieveServiceName(deploymentPaaSId, request.getNodeTemplateName());
         InvokeCustomCommandRequest invokeRequest = new InvokeCustomCommandRequest();
-        invokeRequest.setCommandName(CloudifyPaaSUtils.prefixWith(request.getOperationName(), request.getNodeTemplateName(), request.getInterfaceName()));
+        invokeRequest.setCommandName(AlienUtils.prefixWith(request.getOperationName(), request.getNodeTemplateName(), request.getInterfaceName()));
         buildParameters(deploymentPaaSId, request, invokeRequest);
         String operationFQN = operationFQN(serviceName, request, invokeRequest);
         try {

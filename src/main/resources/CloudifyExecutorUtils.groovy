@@ -59,7 +59,7 @@ public class CloudifyExecutorUtils {
         scriptProcess.waitFor()
         def scriptExitValue = scriptProcess.exitValue()
         def processResult = myOutputListener.getResult(expectedOutputs)
-        if (processResult != null && processResult.outputs != null && !processResult.outputs.isEmpty()) {
+        if (processResult && processResult.outputs && !processResult.outputs.isEmpty()) {
           def operationOutputs = context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE]?:[:];
           processResult.outputs.each { k, v -> operationOutputs.put("${operationFQN}:$k", v) }
           context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE] = operationOutputs
@@ -73,6 +73,7 @@ public class CloudifyExecutorUtils {
         if(scriptExitValue) {
             throw new RuntimeException("Error executing the script ${script} (return code: $scriptExitValue)")
         } else {
+            println "result is: "+ processResult != null ? processResult.result:null
             return processResult != null ? processResult.result : null
         }
     }
@@ -285,9 +286,9 @@ public class CloudifyExecutorUtils {
         System.out.append("size:" + outputString.size())
           return null;
         }
-        def outputs = [:]
         def lineList = outputString.readLines()
         if(expectedOutputs && !expectedOutputs.isEmpty()) {
+            def outputs = [:]
             def lineIterator = lineList.iterator()
             while(lineIterator.hasNext()) {
                 def line = lineIterator.next();

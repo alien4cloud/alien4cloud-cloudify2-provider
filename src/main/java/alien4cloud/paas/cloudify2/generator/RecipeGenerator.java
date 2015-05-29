@@ -57,6 +57,7 @@ import alien4cloud.paas.ha.AvailabilityZoneAllocator;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
 import alien4cloud.paas.model.PaaSTopology;
+import alien4cloud.paas.plan.AbstractWorkflowStep;
 import alien4cloud.paas.plan.BuildPlanGenerator;
 import alien4cloud.paas.plan.OperationCallActivity;
 import alien4cloud.paas.plan.ParallelGateway;
@@ -71,6 +72,7 @@ import alien4cloud.paas.plan.WorkflowStep;
 import alien4cloud.tosca.normative.NormativeBlockStorageConstants;
 import alien4cloud.tosca.normative.NormativeComputeConstants;
 import alien4cloud.tosca.normative.NormativeNetworkConstants;
+import alien4cloud.utils.AlienUtils;
 import alien4cloud.utils.FileUtil;
 import alien4cloud.utils.MapUtil;
 
@@ -312,7 +314,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
     private String getComputeTemplatePaaSResourceIdOrFail(ComputeTemplate computeTemplate) {
         String id = paaSResourceMatcher.getTemplate(computeTemplate);
         if (StringUtils.isBlank(id)) {
-            throw new ResourceMatchingFailedException("No PaaSResourceId found for compute template " + computeTemplate);
+            // throw new ResourceMatchingFailedException("No PaaSResourceId found for compute template " + computeTemplate);
         }
         return id;
     }
@@ -397,7 +399,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
                 Lists.newArrayList(commandGenerator.getReturnGroovyCommand(command)),
                 MapUtil.newHashMap(new String[] { IS_RETURN_TYPE }, new Boolean[] { true }));
         // register the execution command to check the nodes states
-        context.getStartDetectionCommands().put("checkState", commandGenerator.getGroovyCommand(fileName + ".groovy", null, null));
+        context.getStartDetectionCommands().put("checkState", commandGenerator.getGroovyCommand(fileName + ".groovy", null, null, null));
     }
 
     private void generateExtendedOperationsCommand(final RecipeGeneratorServiceContext context, PaaSNodeTemplate rootNode, String operationName,
@@ -429,7 +431,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
                     MapUtil.newHashMap(new String[] { SERVICE_DETECTION_COMMAND, "is" + stepName }, new Object[] { detectioncommand, true }));
 
             String detectionFilePath = stepName + ".groovy";
-            String groovyCommand = commandGenerator.getGroovyCommand(detectionFilePath, null, null);
+            String groovyCommand = commandGenerator.getGroovyCommand(detectionFilePath, null, null, null);
             String globalDectctionCommand = commandGenerator.getReturnGroovyCommand(groovyCommand);
             context.getAdditionalProperties().put(stepCommandName, globalDectctionCommand);
         }
@@ -445,7 +447,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
                     && !interfaceName.equals(AlienExtentedConstants.CLOUDIFY_EXTENSIONS_INTERFACE_NAME)) {
                 Map<String, Operation> operations = customInterface.getOperations();
                 for (Entry<String, Operation> entry : operations.entrySet()) {
-                    String commandUniqueName = CloudifyPaaSUtils.prefixWith(entry.getKey(), nodeTemplate.getId(), interfaceName);
+                    String commandUniqueName = AlienUtils.prefixWith(entry.getKey(), nodeTemplate.getId(), interfaceName);
                     addCustomCommand(context, nodeTemplate, interfacesEntry.getKey(), commandUniqueName, entry);
                 }
             }
@@ -542,7 +544,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             final List<String> executions) throws IOException {
 
         PaaSNodeTemplate paaSNodeTemplate = context.getNodeTemplateById(operationTriggerEvent.getNodeTemplateId());
-        String uniqueName = CloudifyPaaSUtils.prefixWith(operationTriggerEvent.getSideOperationName(), operationTriggerEvent.getSideNodeTemplateId(),
+        String uniqueName = AlienUtils.prefixWith(operationTriggerEvent.getSideOperationName(), operationTriggerEvent.getSideNodeTemplateId(),
                 operationTriggerEvent.getRelationshipId());
         PaaSRelationshipTemplate paaSRelationshipTemplate = paaSNodeTemplate.getRelationshipTemplate(operationTriggerEvent.getRelationshipId(),
                 operationTriggerEvent.getSourceRelationshipId());
@@ -555,7 +557,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         // then, trigger the main operation. Send an event to trigger it on the other pair node.
         // ex, if the operation is add_target, then trigger a custom command on the source node
         if (StringUtils.isNotBlank(operationTriggerEvent.getOperationName())) {
-            String commandToTrigger = CloudifyPaaSUtils.prefixWith(operationTriggerEvent.getOperationName(), operationTriggerEvent.getNodeTemplateId(),
+            String commandToTrigger = AlienUtils.prefixWith(operationTriggerEvent.getOperationName(), operationTriggerEvent.getNodeTemplateId(),
                     operationTriggerEvent.getRelationshipId());
             String command = commandGenerator.getFireRelationshipTriggerEvent(operationTriggerEvent.getNodeTemplateId(),
                     operationTriggerEvent.getRelationshipId(), operationTriggerEvent.getOperationName(), operationTriggerEvent.getSideNodeTemplateId(),
@@ -578,13 +580,18 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
                     envMaps.runtimes.putAll(copiedArtifactPathCmds);
                 }
             }
-            String command = getCommandFromOperation(context, paaSRelationshipTemplate, operationTriggerEvent.getInterfaceName(),
-                    operationTriggerEvent.getSideOperationName(), operationTriggerEvent.getSideOperationImplementationArtifact(),
-                    operationTriggerEvent.getSideInputParameters(), "instanceId", envMaps);
+            OperationResume opResume = getOperationResume(operationTriggerEvent);
+            String command = getCommandFromOperation(context, paaSRelationshipTemplate, opResume, "instanceId", envMaps);
             this.artifactCopier.copyImplementationArtifact(context, operationTriggerEvent.getCsarPath(),
                     operationTriggerEvent.getSideOperationImplementationArtifact(), paaSRelationshipTemplate.getIndexedToscaElement());
             context.getRelationshipCustomCommands().put(uniqueName, command);
         }
+    }
+
+    private OperationResume getOperationResume(RelationshipTriggerEvent operationTriggerEvent) {
+        return new OperationResume(operationTriggerEvent.getInterfaceName(), operationTriggerEvent.getSideOperationName(),
+                operationTriggerEvent.getSideOperationImplementationArtifact(), operationTriggerEvent.getSideInputParameters(),
+                operationTriggerEvent.getSideOutputs());
     }
 
     private void processOperationCallActivity(final RecipeGeneratorServiceContext context, final OperationCallActivity operationCall,
@@ -645,8 +652,8 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         }
 
         // now call the operation script
-        String command = getCommandFromOperation(context, basePaaSTemplate, operationCall.getInterfaceName(), operationCall.getOperationName(),
-                operationCall.getImplementationArtifact(), operationCall.getInputParameters(), null, envMaps);
+        OperationResume opResume = getOperationResume(operationCall);
+        String command = getCommandFromOperation(context, basePaaSTemplate, opResume, null, envMaps);
 
         if (isAsynchronous) {
             final String serviceId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(operationCall.getNodeTemplateId());
@@ -681,6 +688,19 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         } else {
             executions.add(command);
         }
+    }
+
+    private OperationResume getOperationResume(AbstractWorkflowStep step) {
+        if (step instanceof OperationCallActivity) {
+            OperationCallActivity converted = (OperationCallActivity) step;
+            return new OperationResume(converted.getInterfaceName(), converted.getOperationName(), converted.getImplementationArtifact(),
+                    converted.getInputParameters(), converted.getOutputs());
+        } else if (step instanceof RelationshipTriggerEvent) {
+            RelationshipTriggerEvent converted = (RelationshipTriggerEvent) step;
+            return new OperationResume(converted.getInterfaceName(), converted.getSideOperationName(), converted.getSideOperationImplementationArtifact(),
+                    converted.getSideInputParameters(), converted.getSideOutputs());
+        }
+        return null;
     }
 
     private Map<String, String> formatToAbsolutePathCmds(Map<String, String> paths) {

@@ -11,6 +11,10 @@ node_templates:
         value: ubuntu
       customHostName:
         value: testHostname
+    attributes:
+      old_hostname:
+      new_hostname:
+      concat_attribute:
         
 scaling_policies:
   comp_getOpOutput:

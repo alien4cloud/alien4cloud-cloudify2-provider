@@ -1,5 +1,6 @@
 package alien4cloud.paas.cloudify2.funtion;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -208,7 +209,7 @@ public class FunctionProcessorTest {
     }
 
     private String evaluateParam(final AbstractPropertyValue param, final IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
-            final Map<String, PaaSNodeTemplate> builtPaaSTemplates) {
+            final Map<String, PaaSNodeTemplate> builtPaaSTemplates) throws IOException {
         IParamEvalResult result = processor.evaluate(param, basePaaSTemplate, builtPaaSTemplates, null);
         return result.get();
     }

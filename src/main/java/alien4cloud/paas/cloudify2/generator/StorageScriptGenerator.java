@@ -98,7 +98,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
                 commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.STOPPED, context.getEventsLeaseInHour()));
         velocityProps.put(SHUTDOWN_COMMAND, unmountDeleteCommand);
         generateScriptWorkflow(context.getServicePath(), shutdownBlockStorageScriptDescriptorPath, STORAGE_SHUTDOWN_FILE_NAME, null, velocityProps);
-        executions.add(commandGenerator.getGroovyCommand(STORAGE_SHUTDOWN_FILE_NAME.concat(".groovy"), null, null));
+        executions.add(commandGenerator.getGroovyCommand(STORAGE_SHUTDOWN_FILE_NAME.concat(".groovy"), null, null, null));
     }
 
     private void generateInitVolumeIdsScript(RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode, String storageName,
@@ -130,7 +130,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         velocityProps.put("instancesVolumeIds", volumeIdsAsArrayString);
 
         generateScriptWorkflow(context.getServicePath(), initStorageScriptDescriptorPath, INIT_STORAGE_SCRIPT_FILE_NAME, null, velocityProps);
-        executions.add(commandGenerator.getGroovyCommand(INIT_STORAGE_SCRIPT_FILE_NAME.concat(".groovy"), null, null));
+        executions.add(commandGenerator.getGroovyCommand(INIT_STORAGE_SCRIPT_FILE_NAME.concat(".groovy"), null, null, null));
     }
 
     private String[] parseVolumesIds(String volumeIds) {
@@ -170,7 +170,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
 
         // generate startup BS
         generateScriptWorkflow(context.getServicePath(), startupBlockStorageScriptDescriptorPath, STORAGE_STARTUP_FILE_NAME, null, velocityProps);
-        executions.add(commandGenerator.getGroovyCommand(STORAGE_STARTUP_FILE_NAME.concat(".groovy"), null, null));
+        executions.add(commandGenerator.getGroovyCommand(STORAGE_STARTUP_FILE_NAME.concat(".groovy"), null, null, null));
     }
 
     private String getStorageFormatMountCommand(RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode) throws IOException {
@@ -197,7 +197,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
             envMaps.strings.put(LOCATION_KEY, storageLocation);
 
             generateScriptWorkflow(context.getServicePath(), formatMountBlockStorageScriptDescriptorPath, DEFAULT_STORAGE_MOUNT_FILE_NAME, null, null);
-            formatMountCommand = commandGenerator.getGroovyCommand(DEFAULT_STORAGE_MOUNT_FILE_NAME.concat(".groovy"), envMaps.runtimes, envMaps.strings);
+            formatMountCommand = commandGenerator.getGroovyCommand(DEFAULT_STORAGE_MOUNT_FILE_NAME.concat(".groovy"), envMaps.runtimes, envMaps.strings, null);
         }
         return formatMountCommand;
     }
@@ -219,7 +219,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
             }
             generateScriptWorkflow(context.getServicePath(), createAttachBlockStorageScriptDescriptorPath, DEFAULT_STORAGE_CREATE_FILE_NAME, null, null);
             createAttachCommand = commandGenerator.getGroovyCommand(DEFAULT_STORAGE_CREATE_FILE_NAME.concat(".groovy"), envMaps.runtimes,
-                    MapUtil.newHashMap(new String[] { DEVICE_KEY }, new String[] { device }));
+                    MapUtil.newHashMap(new String[] { DEVICE_KEY }, new String[] { device }), null);
         }
         return createAttachCommand;
     }
@@ -244,7 +244,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
             generateScriptWorkflow(context.getServicePath(), unmountDeleteBlockStorageSCriptDescriptorPath, DEFAULT_STORAGE_UNMOUNT_FILE_NAME, null,
                     additionalProps);
 
-            unmountDeleteCommand = commandGenerator.getGroovyCommand(DEFAULT_STORAGE_UNMOUNT_FILE_NAME.concat(".groovy"), envMaps.runtimes, null);
+            unmountDeleteCommand = commandGenerator.getGroovyCommand(DEFAULT_STORAGE_UNMOUNT_FILE_NAME.concat(".groovy"), envMaps.runtimes, null, null);
         }
         return unmountDeleteCommand;
     }

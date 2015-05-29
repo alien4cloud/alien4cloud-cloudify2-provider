@@ -1,5 +1,6 @@
 package alien4cloud.paas.cloudify2.funtion;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -13,7 +14,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Component;
 
+import alien4cloud.common.AlienConstants;
 import alien4cloud.model.components.AbstractPropertyValue;
+import alien4cloud.model.components.ConcatPropertyValue;
 import alien4cloud.model.components.FunctionPropertyValue;
 import alien4cloud.model.components.IValue;
 import alien4cloud.model.components.IndexedToscaElement;
@@ -27,6 +30,9 @@ import alien4cloud.paas.function.FunctionEvaluator;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
 import alien4cloud.tosca.normative.ToscaFunctionConstants;
+import alien4cloud.utils.AlienUtils;
+
+import com.google.common.collect.Lists;
 
 /**
  * Utility class to process functions
@@ -35,6 +41,7 @@ import alien4cloud.tosca.normative.ToscaFunctionConstants;
  */
 @Component
 @Slf4j
+@SuppressWarnings("rawtypes")
 public class FunctionProcessor {
 
     @Resource
@@ -51,12 +58,20 @@ public class FunctionProcessor {
      * @return
      *         StringEvalResult if the result of the valuation is a usable string value
      *         RuntimeEvalResult if the result of the evaluation is an expression to evaluate at runtime.
+     * @throws IOException
      */
     public IParamEvalResult evaluate(final AbstractPropertyValue param, final IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
-            final Map<String, PaaSNodeTemplate> builtPaaSTemplates, final String instanceId) {
+            final Map<String, PaaSNodeTemplate> builtPaaSTemplates, final String instanceId) throws IOException {
+
         // if it is a scalar param, just return its value
         if (param instanceof ScalarPropertyValue) {
             return new StringEvalResult(((ScalarPropertyValue) param).getValue());
+        }
+
+        // concat function is not supported as operations intputs
+        if (param instanceof ConcatPropertyValue) {
+            log.warn("function : < " + ((ConcatPropertyValue) param).getFunction_concat() + ">. not supported as operation input parameter.");
+            return new StringEvalResult();
         }
 
         // if not, it is a function. evaluate it
@@ -79,8 +94,8 @@ public class FunctionProcessor {
             result = evaluateGetAttributeFunction(functionParam, basePaaSTemplate, builtPaaSTemplates, instanceId);
             return new RuntimeEvalResult(result);
         case ToscaFunctionConstants.GET_OPERATION_OUTPUT:
-            // TODO: evaluate get_operation_output
-            return new RuntimeEvalResult();
+            result = evaluateGetOperationOutputFunction(functionParam, basePaaSTemplate, builtPaaSTemplates, instanceId);
+            return new RuntimeEvalResult(result);
         default:
             throw new NotSupportedException("The function <" + functionParam.getFunction() + "> is not supported.");
         }
@@ -97,9 +112,11 @@ public class FunctionProcessor {
      * @param builtPaaSTemplates A map < {@link String}, {@link PaaSNodeTemplate}> of built nodetemplates of the processed topology. Note that these
      *            {@link PaaSNodeTemplate}s should have been built, thus referencing their related parents and relationships.
      * @param instanceId The Id of the instance for which we are processing the inputs
+     * @throws IOException
      */
     public void processParameters(Map<String, IValue> inputParameters, Map<String, String> stringEvalResults, Map<String, String> runtimeEvalResults,
-            final IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate, final Map<String, PaaSNodeTemplate> builtPaaSTemplates, String instanceId) {
+            final IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate, final Map<String, PaaSNodeTemplate> builtPaaSTemplates, String instanceId)
+            throws IOException {
         if (inputParameters == null) {
             return;
         }
@@ -115,7 +132,6 @@ public class FunctionProcessor {
         }
     }
 
-    @SuppressWarnings("rawtypes")
     private String evaluateGetAttributeFunction(FunctionPropertyValue functionParam, IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
             Map<String, PaaSNodeTemplate> builtPaaSTemplates, String instanceId) {
         List<? extends IPaaSTemplate> paaSTemplates = FunctionEvaluator.getPaaSTemplatesFromKeyword(basePaaSTemplate, functionParam.getTemplateName(),
@@ -123,6 +139,23 @@ public class FunctionProcessor {
         // getting the top hierarchical parent
         String serviceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate((PaaSNodeTemplate) paaSTemplates.get(paaSTemplates.size() - 1));
         return evaluateAttributeName(functionParam.getElementNameToFetch(), serviceName, instanceId);
+    }
+
+    private String evaluateGetOperationOutputFunction(FunctionPropertyValue functionParam, IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
+            Map<String, PaaSNodeTemplate> builtPaaSTemplates, String instanceId) throws IOException {
+        List<? extends IPaaSTemplate> paaSTemplates = FunctionEvaluator.getPaaSTemplatesFromKeyword(basePaaSTemplate, functionParam.getTemplateName(),
+                builtPaaSTemplates);
+
+        // getting the top hierarchical parent
+        IPaaSTemplate paaSTemplate = paaSTemplates.get(paaSTemplates.size() - 1);
+        String serviceName = null;
+
+        // might be a PaaSRelationshipTemplate. In this case, there is no host
+        if (paaSTemplate instanceof PaaSNodeTemplate) {
+            serviceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate((PaaSNodeTemplate) paaSTemplate);
+        }
+
+        return evaluateOperationOutputName(functionParam, serviceName, instanceId, paaSTemplates);
     }
 
     /* consider doing this in the tosca yaml parser */
@@ -138,6 +171,24 @@ public class FunctionProcessor {
         default:
             return cloudifyCommandGen.getAttributeCommand(attributeName, serviceName, instanceId);
         }
+    }
+
+    private String evaluateOperationOutputName(FunctionPropertyValue function, String serviceName, String instanceId,
+            List<? extends IPaaSTemplate> paaSTemplates) throws IOException {
+
+        // NOTE: to be able to search an output through all possibles parents of a node, we should give to the executor a list of eligibles nodes names and a
+        // relative qualified name of the output (interfaceName:operationName:output)
+        // EX: for two parents A and B, and an output output, we want to look for the outputs name: A:interfaceName:operationName:output and
+        // B:interfaceName:operationName:output
+
+        List<String> nodeNames = Lists.newArrayList();
+        for (IPaaSTemplate iPaaSTemplate : paaSTemplates) {
+            nodeNames.add(iPaaSTemplate.getId());
+        }
+        // Output relative qualified name ==> interfaceName:operationName:output
+        String outputRQN = AlienUtils.prefixWith(AlienConstants.COLON_SEPARATOR, function.getElementNameToFetch(), new String[] { function.getInterfaceName(),
+                function.getOperationName() });
+        return cloudifyCommandGen.getOperationOutputCommand(outputRQN, nodeNames, serviceName, instanceId);
     }
 
     public interface IParamEvalResult {
