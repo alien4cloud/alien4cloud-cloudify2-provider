@@ -41,9 +41,9 @@ public class CloudifyPaaSPoviderTest {
 
     @Test
     public void loopedGroovyCommand() throws IOException {
-        String first = "while(!CloudifyExecutorUtils.executeGroovy(context, \"totototot/titit\", null)){\n\t  \n}";
-        String second = "while(true){\n\t CloudifyExecutorUtils.executeGroovy(context, \"totototot/titit\", [\"ha\":\"ho\"]) \n}";
-        String third = "while(true){\n\t CloudifyExecutorUtils.executeGroovy(context, \"totototot/titit\", [\"hi\":\"hu\", \"ha\":ho]) \n}";
+        String first = "while(!CloudifyExecutorUtils.executeGroovy(context, \"totototot/titit\", null, null)){\n\t  \n}";
+        String second = "while(true){\n\t CloudifyExecutorUtils.executeGroovy(context, \"totototot/titit\", [\"ha\":\"ho\"], null) \n}";
+        String third = "while(true){\n\t CloudifyExecutorUtils.executeGroovy(context, \"totototot/titit\", [\"hi\":\"hu\", \"ha\":ho], null) \n}";
         assertEquals(first, generator.getLoopedGroovyCommand(null, "!" + generator.getGroovyCommand("totototot/titit", null, null, null)));
         assertEquals(
                 second,
