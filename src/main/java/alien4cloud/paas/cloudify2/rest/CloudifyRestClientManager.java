@@ -164,7 +164,7 @@ public class CloudifyRestClientManager {
             CloudifyEventsListener cloudifyEventsListener = new CloudifyEventsListener(this.restEventEndpoint);
             cloudifyEventsListener.test();
             return true;
-        } catch (RestClientException | URISyntaxException | IOException e) {
+        } catch (Exception e) {
             String cause = e instanceof RestClientException ? ((RestClientException) e).getMessageFormattedText() : e.getMessage();
             log.warn("Fail to connect to cloudify manager rest endpoint: " + cause);
             log.debug("", e);

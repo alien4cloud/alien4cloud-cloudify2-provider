@@ -161,7 +161,7 @@ public class GenericTestCase {
         System.out.println(resource);
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        cloudifyURL = cloudifyURL == null ? "http://129.185.67.65:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "http://129.185.67.68:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.setCloudifyURLs(Lists.newArrayList(cloudifyURL));
         pluginConfigurationBean.setVersion("2.7.1");
@@ -348,7 +348,7 @@ public class GenericTestCase {
         deployment.setPaasId(topology.getId());
         deploymentContext.setDeployment(deployment);
         deploymentContext.setTopology(topology);
-        Map<String, PaaSNodeTemplate> nodes = topologyTreeBuilderService.buildPaaSNodeTemplate(topology);
+        Map<String, PaaSNodeTemplate> nodes = topologyTreeBuilderService.buildPaaSNodeTemplates(topology);
         PaaSTopology paaSTopology = topologyTreeBuilderService.buildPaaSTopology(nodes);
         deploymentContext.setPaaSTopology(paaSTopology);
         for (PaaSNodeTemplate volume : paaSTopology.getVolumes()) {

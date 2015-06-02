@@ -28,7 +28,7 @@ scaling_policies:
   comp_envartest:
     min_instances: 1
     max_instances: 4
-    initial_instances: 2
+    initial_instances: 1
 
 dependencies:
   - name: tosca-normative-types

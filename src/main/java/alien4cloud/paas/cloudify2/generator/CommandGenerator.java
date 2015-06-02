@@ -8,13 +8,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import javax.annotation.Resource;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -22,6 +25,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 import alien4cloud.model.components.ImplementationArtifact;
+import alien4cloud.paas.cloudify2.AlienExtentedConstants;
 import alien4cloud.paas.cloudify2.utils.VelocityUtil;
 import alien4cloud.paas.exception.PaaSDeploymentException;
 
@@ -34,8 +38,10 @@ import com.google.common.collect.Maps;
 @Component
 public class CommandGenerator {
     private final static String[] SERVICE_RECIPE_RESOURCES = new String[] { "chmod-init.groovy", "CloudifyUtils.groovy", "CloudifyExecutorUtils.groovy",
-            "CloudifyAttributesUtils.groovy", "EnvironmentBuilder.groovy" };
+            "CloudifyAttributesUtils.groovy", "EnvironmentBuilder.groovy", "scriptWrapper/scriptWrapper.sh", "scriptWrapper/scriptWrapper.bat" };
     private final static String[] SERVICE_RECIPE_RESOURCES_VELOCITY_TEMP = new String[] { "GigaSpacesEventsManager" };
+
+    private final static String OPERATION_FQN = "OPERATION_FQN";
 
     private static final String FIRE_EVENT_FORMAT = "CloudifyExecutorUtils.fireEvent(\"%s\", \"%s\", %s)";
     private static final String FIRE_BLOCKSTORAGE_EVENT_FORMAT = "CloudifyExecutorUtils.fireBlockStorageEvent(\"%s\", \"%s\", %s, %s)";
@@ -43,8 +49,8 @@ public class CommandGenerator {
     private static final String IS_NODE_STARTED_FORMAT = "CloudifyExecutorUtils.isNodeStarted(context, \"%s\")";
     private static final String EXECUTE_PARALLEL_FORMAT = "CloudifyExecutorUtils.executeParallel(%s, %s)";
     private static final String EXECUTE_ASYNC_FORMAT = "CloudifyExecutorUtils.executeAsync(%s, %s)";
-    private static final String EXECUTE_GROOVY_FORMAT = "CloudifyExecutorUtils.executeGroovy(context, \"%s\", %s)";
-    private static final String EXECUTE_SCRIPT_FORMAT = "CloudifyExecutorUtils.executeScript(context, \"%s\", %s)";
+    private static final String EXECUTE_GROOVY_FORMAT = "CloudifyExecutorUtils.executeGroovy(context, \"%s\", %s, %s)";
+    private static final String EXECUTE_SCRIPT_FORMAT = "CloudifyExecutorUtils.executeScript(context, \"%s\", %s, %s)";
     public static final String SHUTDOWN_COMMAND = "CloudifyExecutorUtils.shutdown()";
     public static final String DESTROY_COMMAND = "CloudifyUtils.destroy()";
     private static final String EXECUTE_LOOPED_GROOVY_FORMAT = "while(%s){\n\t %s \n}";
@@ -54,6 +60,8 @@ public class CommandGenerator {
 
     private static final String GET_INSTANCE_ATTRIBUTE_FORMAT = "CloudifyAttributesUtils.getAttribute(context, %s, %s, %s)";
     private static final String GET_IP_FORMAT = "CloudifyAttributesUtils.getIp(context, %s, %s)";
+
+    private static final String GET_OPERATION_OUTPUT_FORMAT = "CloudifyAttributesUtils.getOperationOutput(context, %s, %s, %s, %s)";
 
     private static final String GET_TOSCA_RELATIONSHIP_ENVS_FORMAT = "EnvironmentBuilder.getTOSCARelationshipEnvs(context, %s, %s, %s, %s, %s)";
     private static final String TO_ABSOLUTE_PATH_FORMAT = "CloudifyUtils.toAbsolutePath(context, \"%s\")";
@@ -67,13 +75,15 @@ public class CommandGenerator {
      * Copy all internal extensions files to the service recipe directory.
      *
      * @param servicePath Path to the service recipe directory.
-     * @param deploymentId TODO
+     * @param deploymentId The id of the current deployment
      * @throws IOException In case of a copy failure.
      */
     public void copyInternalResources(Path servicePath, String deploymentId) throws IOException {
         for (String resource : SERVICE_RECIPE_RESOURCES) {
             // Files.copy(loadResourceFromClasspath("classpath:" + resource), servicePath.resolve(resource));
-            this.copyResourceFromClasspath("classpath:" + resource, servicePath.resolve(resource));
+            // copy to the service directory base
+            String resourceFinalPath = Paths.get(resource).getFileName().toString();
+            this.copyResourceFromClasspath("classpath:" + resource, servicePath.resolve(resourceFinalPath));
         }
 
         // build veocity templates
@@ -110,11 +120,12 @@ public class CommandGenerator {
     /**
      * Return the execution command for an artifact implementation, based on it artifact type.
      *
-     * @param operationFQN The full qualified name of the artifact implementation: nodeId.interface.operation
+     * @param operationFQN The full qualified name of the artifact implementation: nodeId:interface:operation
      * @param artifact The artifact to process
      * @param varParamsMap The names of the vars to pass as params for the command. This assumes the var is defined before calling this
      *            command
      * @param stringParamsMap The string params to pass in the command.
+     * @param expectedOutputs TODO
      * @param scriptPath Path to the script relative to the service root directory.
      * @param supportedArtifactTypes The supported artifacts types for the related operation
      * @return
@@ -122,15 +133,16 @@ public class CommandGenerator {
      */
 
     public String getCommandBasedOnArtifactType(final String operationFQN, final ImplementationArtifact artifact, Map<String, String> varParamsMap,
-            Map<String, String> stringParamsMap, String scriptPath, String... supportedArtifactTypes) throws IOException {
+            Map<String, String> stringParamsMap, Set<String> expectedOutputs, String scriptPath, String... supportedArtifactTypes) throws IOException {
 
         if (ArrayUtils.isEmpty(supportedArtifactTypes) || ArrayUtils.contains(supportedArtifactTypes, artifact.getArtifactType())) {
+            stringParamsMap.put(OPERATION_FQN, operationFQN);
             switch (artifact.getArtifactType()) {
             case AlienExtentedConstants.GROOVY_ARTIFACT_TYPE:
-                return getGroovyCommand(scriptPath, varParamsMap, stringParamsMap);
+                return getGroovyCommand(scriptPath, varParamsMap, stringParamsMap, expectedOutputs);
             case AlienExtentedConstants.SHELL_ARTIFACT_TYPE:
             case AlienExtentedConstants.BATCH_ARTIFACT_TYPE:
-                return getScriptCommand(scriptPath, varParamsMap, stringParamsMap);
+                return getScriptCommand(scriptPath, varParamsMap, stringParamsMap, expectedOutputs);
             default:
                 throw new PaaSDeploymentException("Operation implementation <" + operationFQN + "> is defined using an unsupported artifact type <"
                         + artifact.getArtifactType() + ">.");
@@ -147,12 +159,15 @@ public class CommandGenerator {
      * @param varParamsMap The names of the vars to pass as params for the command. This assumes the var is defined before calling this
      *            command
      * @param stringParamsMap The string params to pass in the command.
+     * @param expectedOutputs List of expected outputs' names
      * @return The execution command.
      * @throws IOException
      */
-    public String getGroovyCommand(String groovyScriptRelativePath, Map<String, String> varParamsMap, Map<String, String> stringParamsMap) throws IOException {
+    public String getGroovyCommand(String groovyScriptRelativePath, Map<String, String> varParamsMap, Map<String, String> stringParamsMap,
+            Collection<String> expectedOutputs) throws IOException {
         String formatedParams = formatParams(stringParamsMap, varParamsMap);
-        return String.format(EXECUTE_GROOVY_FORMAT, groovyScriptRelativePath, formatedParams);
+        String formatedOutputs = serializeCollection(expectedOutputs);
+        return String.format(EXECUTE_GROOVY_FORMAT, groovyScriptRelativePath, formatedParams, formatedOutputs);
     }
 
     /**
@@ -227,12 +242,15 @@ public class CommandGenerator {
      * @param varParamsMap The names of the vars to pass as params for the command. This assumes the var is defined before calling this
      *            command
      * @param stringParamsMap The string params to pass in the command.
+     * @param expectedOutputs List of expected outputs' names
      * @return The execution command.
      * @throws IOException
      */
-    public String getScriptCommand(String scriptRelativePath, Map<String, String> varParamsMap, Map<String, String> stringParamsMap) throws IOException {
+    public String getScriptCommand(String scriptRelativePath, Map<String, String> varParamsMap, Map<String, String> stringParamsMap,
+            Collection<String> expectedOutputs) throws IOException {
         String formatedParams = formatParams(stringParamsMap, varParamsMap);
-        return String.format(EXECUTE_SCRIPT_FORMAT, scriptRelativePath, formatedParams);
+        String formatedOutputs = serializeCollection(expectedOutputs);
+        return String.format(EXECUTE_SCRIPT_FORMAT, scriptRelativePath, formatedParams, formatedOutputs);
     }
 
     /**
@@ -334,6 +352,25 @@ public class CommandGenerator {
     }
 
     /**
+     * Return the execution command to get an operation output from the context .
+     *
+     * @param formatedOutputName
+     * @param eligibleNodeNames
+     * @param cloudifyServiceName
+     * @param instanceId
+     * @return
+     * @throws IOException
+     */
+    public String getOperationOutputCommand(String formatedOutputName, List<String> eligibleNodeNames, String cloudifyServiceName, String instanceId)
+            throws IOException {
+        cloudifyServiceName = formatString(cloudifyServiceName);
+        formatedOutputName = formatString(formatedOutputName);
+        String nodesnames = serializeCollection(eligibleNodeNames);
+        return String.format(GET_OPERATION_OUTPUT_FORMAT, cloudifyServiceName, instanceId, formatedOutputName, nodesnames);
+
+    }
+
+    /**
      * Return the execution command to get the IP address of a service .
      *
      * @param cloudifyServiceName
@@ -394,8 +431,8 @@ public class CommandGenerator {
         return String.format(FIRE_RELATIONSHIP_TRIGGER_EVENT, nodeId, relationshipId, event, associatedNodeId, associatedNodeService, command, eventLease);
     }
 
-    private String formatString(String serviceName) {
-        return serviceName == null ? null : "\"" + serviceName + "\"";
+    private String formatString(String toFormat) {
+        return toFormat == null ? null : "\"" + toFormat + "\"";
     }
 
     private static void buildParamsAsString(Map<String, String> stringParamsMap, StringBuilder parametersSb) throws IOException {
@@ -424,6 +461,13 @@ public class CommandGenerator {
         buildParamsAsString(stringParamsMap, parametersSb);
         buildParamsAsVar(varParamsMap, parametersSb);
         return parametersSb.toString().trim().isEmpty() ? null : "[" + parametersSb.toString().trim() + "]";
+    }
+
+    private String serializeCollection(Collection<String> collection) throws IOException {
+        if (CollectionUtils.isEmpty(collection)) {
+            return null;
+        }
+        return (new ObjectMapper()).writeValueAsString(collection);
     }
 
     protected Path loadResourceFromClasspath(String resource) throws IOException {

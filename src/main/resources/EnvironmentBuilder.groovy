@@ -90,19 +90,17 @@ public class EnvironmentBuilder {
     }
     
     private def parseNameValueIfExist(Map argsMap) {
-        if(argsMap.containsKey(NAME_VALUE_KEYWORD)) {
+        def toParse = argsMap.remove(NAME_VALUE_KEYWORD);
+        if(toParse) {
             def parsed = [:];
-            def toParse = argsMap.remove(NAME_VALUE_KEYWORD);
-            if(toParse) {
-                toParse.each {
+            toParse.each {
                 def index = it.indexOf(NAME_VALUE_SEPARATOR)
-                    if(index > 0) {
-                        def key = it.substring(0, index)
-                        parsed.put(key, it.substring(key.size()+1))
-                    }
+                if(index > 0) {
+                    def key = it.substring(0, index)
+                    parsed.put(key, it.substring(key.size()+1))
                 }
-                argsMap.putAll(parsed)
             }
+            argsMap.putAll(parsed)
         }
     }
     

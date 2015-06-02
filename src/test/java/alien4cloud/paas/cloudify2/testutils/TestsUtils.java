@@ -27,7 +27,7 @@ import alien4cloud.dao.ElasticSearchDAO;
 import alien4cloud.git.RepositoryManager;
 import alien4cloud.model.components.Csar;
 import alien4cloud.model.topology.Topology;
-import alien4cloud.security.Role;
+import alien4cloud.security.model.Role;
 import alien4cloud.tosca.ArchiveUploadService;
 import alien4cloud.tosca.parser.ParsingError;
 import alien4cloud.tosca.parser.ParsingErrorLevel;

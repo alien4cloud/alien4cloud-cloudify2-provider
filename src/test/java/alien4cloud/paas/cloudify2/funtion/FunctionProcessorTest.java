@@ -1,5 +1,6 @@
 package alien4cloud.paas.cloudify2.funtion;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -20,7 +21,7 @@ import alien4cloud.model.application.DeploymentSetup;
 import alien4cloud.model.components.AbstractPropertyValue;
 import alien4cloud.model.components.Csar;
 import alien4cloud.model.components.FunctionPropertyValue;
-import alien4cloud.model.components.IOperationParameter;
+import alien4cloud.model.components.IValue;
 import alien4cloud.model.components.IndexedToscaElement;
 import alien4cloud.model.components.Operation;
 import alien4cloud.model.deployment.Deployment;
@@ -90,7 +91,7 @@ public class FunctionProcessorTest {
         PaaSNodeTemplate computePaaS = builtPaaSNodeTemplates.get(computeName);
         Operation configOp = computePaaS.getIndexedToscaElement().getInterfaces().get(ToscaNodeLifecycleConstants.STANDARD).getOperations()
                 .get(ToscaNodeLifecycleConstants.CONFIGURE);
-        IOperationParameter param = configOp.getInputParameters().get("testScalar");
+        IValue param = configOp.getInputParameters().get("testScalar");
 
         Assert.assertEquals("test", evaluateParam((AbstractPropertyValue) param, computePaaS, builtPaaSNodeTemplates));
     }
@@ -104,7 +105,7 @@ public class FunctionProcessorTest {
         PaaSNodeTemplate computePaaS = builtPaaSNodeTemplates.get(computeName);
         Operation configOp = computePaaS.getIndexedToscaElement().getInterfaces().get(ToscaNodeLifecycleConstants.STANDARD).getOperations()
                 .get(ToscaNodeLifecycleConstants.CONFIGURE);
-        IOperationParameter param = configOp.getInputParameters().get("customHostName");
+        IValue param = configOp.getInputParameters().get("customHostName");
 
         Assert.assertEquals(FunctionEvaluator.getScalarValue(computePaaS.getNodeTemplate().getProperties().get("customHostName")),
                 evaluateParam((AbstractPropertyValue) param, computePaaS, builtPaaSNodeTemplates));
@@ -137,7 +138,7 @@ public class FunctionProcessorTest {
                 .get(ToscaRelationshipLifecycleConstants.POST_CONFIGURE_SOURCE);
 
         // test SOURCE keyword
-        IOperationParameter param = configOp.getInputParameters().get("contextPath");
+        IValue param = configOp.getInputParameters().get("contextPath");
         Assert.assertEquals(FunctionEvaluator.getScalarValue(warPaaS.getNodeTemplate().getProperties().get("context_path")),
                 evaluateParam((AbstractPropertyValue) param, hostedOnRelTemp, builtPaaSNodeTemplates));
 
@@ -167,7 +168,7 @@ public class FunctionProcessorTest {
                 .get(ToscaNodeLifecycleConstants.CONFIGURE);
 
         // case insufficient params for the function prop
-        IOperationParameter param = configOp.getInputParameters().get("insufficientParams");
+        IValue param = configOp.getInputParameters().get("insufficientParams");
         Assert.assertNull(evaluateParam((AbstractPropertyValue) param, computePaaS, builtPaaSNodeTemplates));
 
         // case keyword SOURCE used on a NodeType
@@ -197,7 +198,7 @@ public class FunctionProcessorTest {
 
         // test SOURCE keyword
         String expected = String.format(GET_INSTANCE_ATTRIBUTE_FORMAT, "\"" + computeName + "\"", null, "\"warNodeContext\"");
-        IOperationParameter param = configOp.getInputParameters().get("warNodeContext");
+        IValue param = configOp.getInputParameters().get("warNodeContext");
         Assert.assertEquals(expected, evaluateParam((AbstractPropertyValue) param, hostedOnRelTemp, builtPaaSNodeTemplates));
 
         // test TARGET keyword
@@ -208,9 +209,9 @@ public class FunctionProcessorTest {
     }
 
     private String evaluateParam(final AbstractPropertyValue param, final IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
-            final Map<String, PaaSNodeTemplate> builtPaaSTemplates) {
+            final Map<String, PaaSNodeTemplate> builtPaaSTemplates) throws IOException {
         IParamEvalResult result = processor.evaluate(param, basePaaSTemplate, builtPaaSTemplates, null);
-        return result != null ? result.get() : null;
+        return result.get();
     }
 
 }

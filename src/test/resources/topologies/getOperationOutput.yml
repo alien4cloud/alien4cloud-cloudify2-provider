@@ -1,0 +1,52 @@
+
+node_templates:
+  comp_getOpOutputTarget:
+    type: alien.test.TestComputeWithGetOperationOutput
+    properties:
+      os_type:
+        value: linux
+      os_distribution:
+        value: ubuntu
+      os_version:
+        value: ubuntu
+      customHostName:
+        value: testHostname
+    attributes:
+      old_hostname:
+      new_hostname:
+      concat_attribute:
+      
+  comp_getOpOutputSource:
+    type: alien.test.TestComputeWithGetOperationOutput
+    properties:
+      os_type:
+        value: linux
+      os_distribution:
+        value: ubuntu
+      os_version:
+        value: ubuntu
+      customHostName:
+        value: testHostname
+    attributes:
+      old_hostname:
+      new_hostname:
+      concat_attribute:
+    relationships:
+      dependsOnTarget:
+        target: comp_getOpOutputTarget
+        type: alien.test.relationships.TestOperationOutput
+        requirement_name: dependency
+        requirement_type: tosca.capabilities.Root
+        targeted_capability_name: root
+        
+scaling_policies:
+  comp_getOpOutput:
+    min_instances: 1
+    max_instances: 4
+    initial_instances: 1
+
+dependencies:
+  - name: tosca-normative-types
+    version: 1.0.0.wd03-SNAPSHOT
+  - name: test-types
+    version: 1.0-SNAPSHOT

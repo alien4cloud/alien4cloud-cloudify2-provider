@@ -1,5 +1,6 @@
 import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.regex.*
 import groovy.lang.Binding
 import groovy.transform.Synchronized
 
@@ -14,32 +15,49 @@ public class CloudifyExecutorUtils {
     static List startStates = ["initial", "created", "configured", "started", "available"];
     static List shutdownStates = ["stopped", "deleted"];
     static def DEFAULT_LEASE = 1000 * 60 * 60
+    static def OPERATION_FQN = "OPERATION_FQN";
     
-
+    private static def SCRIPT_WRAPPER_NUX = "scriptWrapper.sh"
+    private static def SCRIPT_WRAPPER_DOS = "scriptWrapper.bat"
 
     /**
      * execute a script bash or batch
      * 
      * @param script
      * @param argsMap
+     * @param expectedOutputs
      * @return
      */
-    static def executeScript(context, script, Map argsMap) {
-
-        // Execute bash script
+    static def executeScript(context, script, Map argsMap, List expectedOutputs) {
+        def operationFQN = argsMap?argsMap.remove(OPERATION_FQN):null;
         def serviceDirectory = context.getServiceDirectory()
+        
+        def scripWrapper = "${SCRIPT_WRAPPER_NUX}"
+        def fileExtension = script.substring(script.lastIndexOf('.'))
+        if (fileExtension == ".bat" || fileExtension == ".cmd") {
+          scripWrapper = "${SCRIPT_WRAPPER_DOS}"
+        } 
+        
         println "service dir is: ${serviceDirectory}; script is: ${script}"
         def fullPathScript = "${serviceDirectory}/${script}";
         new AntBuilder().sequential {
             echo(message: "${fullPathScript} will be mark as executable...")
             chmod(file: "${fullPathScript}", perm:"+xr")
+            chmod(file: "${serviceDirectory}/${scripWrapper}", perm:"+xr")
         }
 
+        // add the expected outputs to the map to pass them to the script wrapper
+        def expectedOutputsList = "";
+        if(expectedOutputs) {
+            expectedOutputs.each { expectedOutputsList = expectedOutputsList.length() >  0 ? "${expectedOutputsList};$it" : "$it" }
+            if(!argsMap) { argsMap = [:] }
+            argsMap.put("EXPECTED_OUTPUTS", expectedOutputsList)
+        }
+        
         String[] environment = new EnvironmentBuilder().buildShOrBatchEnvironment(argsMap);
 
-        println "Executing file ${serviceDirectory}/${script}.\n environment is: ${environment}"
-        def scriptProcess = "${serviceDirectory}/${script}".execute(environment, null)
-        //scriptProcess.consumeProcessOutput(System.out, System.out)
+        println "Executing command ${serviceDirectory}/${scripWrapper} ${serviceDirectory}/${script}.\n environment is: ${environment}"
+        def scriptProcess = "${serviceDirectory}/${scripWrapper} ${serviceDirectory}/${script}".execute(environment, null)
         def myOutputListener = new ProcessOutputListener()
         
         scriptProcess.consumeProcessOutputStream(myOutputListener)
@@ -47,6 +65,12 @@ public class CloudifyExecutorUtils {
 
         scriptProcess.waitFor()
         def scriptExitValue = scriptProcess.exitValue()
+        def processResult = myOutputListener.getResult(expectedOutputs)
+        if (processResult && processResult.outputs && !processResult.outputs.isEmpty()) {
+          def operationOutputs = context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE]?:[:];
+          processResult.outputs.each { k, v -> operationOutputs.put("${operationFQN}:$k", v) }
+          context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE] = operationOutputs
+        }
 
         print """
       ----------${script} : bash : Return Code ----------
@@ -56,45 +80,10 @@ public class CloudifyExecutorUtils {
         if(scriptExitValue) {
             throw new RuntimeException("Error executing the script ${script} (return code: $scriptExitValue)")
         } else {
-            return myOutputListener.getLastOutput()
+            println "sh result is: "+ processResult != null ? processResult.result:null
+            return processResult != null ? processResult.result : null
         }
     }
-
-    //
-    static class ProcessOutputListener implements Appendable {
-    
-      private StringWriter outputBufffer = new StringWriter();
-      
-      Appendable append(char c) throws IOException {
-        System.out.append(c)
-        outputBufffer.append(c);
-        return this
-      }
-      
-      Appendable append(CharSequence csq, int start, int end) throws IOException {
-        System.out.append(csq, start, end)
-        outputBufffer.append(csq, start, end)
-        return this
-      }
-      
-      Appendable append(CharSequence csq) throws IOException {
-        System.out.append(csq)
-        outputBufffer.append(csq)
-        return this
-      }
-    
-      String getLastOutput() {
-        outputBufffer.flush()
-        def outputString = outputBufffer.toString();
-        if (outputString == null || outputString.size() == 0) {
-          return null;
-        }
-        def lineList = outputString.readLines();
-        return lineList[lineList.size() -1]
-      }
-    
-    }
-
 
     /**
      * Execute a goovy script. Argument are passed to the groovy via the GroovyShell Binding, where they are injected as variables.
@@ -102,7 +91,8 @@ public class CloudifyExecutorUtils {
      * for a closure, we should not use the ServiceContextFactory as the context instance is already injected in the service file
      * Therefore, the caller script should have a defined "context" variable
      * */
-    static def executeGroovy(context, groovyScript,  Map argsMap) {
+    static def executeGroovy(context, groovyScript, Map argsMap, List expectedOutputs) {
+        def operationFQN = argsMap?argsMap.remove(OPERATION_FQN):null;
         def serviceDirectory = context.getServiceDirectory()
 
         Binding binding = new EnvironmentBuilder().buildGroovyEnvironment(context, argsMap)
@@ -111,7 +101,22 @@ public class CloudifyExecutorUtils {
         binding.setVariable("CloudifyExecutorUtils", this)
         def shell = new GroovyShell(CloudifyExecutorUtils.class.classLoader,binding)
         println "Evaluating file ${serviceDirectory}/${groovyScript}.\n environment is: ${argsMap}"
-        return shell.evaluate(new File("${serviceDirectory}/${groovyScript}"))
+        def result = shell.evaluate(new File("${serviceDirectory}/${groovyScript}"))
+        
+        // now get the value of outputs
+        // child script should just affect them like : OUTPUT1 = "value1", or use the embebded method setProperty("OUTPUT1","value1")
+        // but should not create local variables like : def OUTPUT1 = "value1" 
+        if(expectedOutputs) {
+          def operationOutputs = context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE]?:[:];
+          Map bindingVars = binding.getVariables()?:[:];
+          expectedOutputs.each { 
+            def outputValue = bindingVars.get(it)
+            operationOutputs.put("${operationFQN}:$it", outputValue)
+          }
+          context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE] = operationOutputs
+        }
+        println "result is: "+result
+        return result
     }
 
     static def executeParallel(groovyScripts, otherScripts) {
@@ -120,11 +125,11 @@ public class CloudifyExecutorUtils {
         for(script in groovyScripts) {
             println "parallel launch is $script"
             def theScript = script
-            executionList.add(call{ executeGroovy(ServiceContextFactory.getServiceContext(), theScript, null) })
+            executionList.add(call{ executeGroovy(ServiceContextFactory.getServiceContext(), theScript, null, null) })
         }
         for(script in otherScripts) {
             def theScript = script
-            executionList.add(call{ executeScript(theScript, null) })
+            executionList.add(call{ executeScript(theScript, null, null) })
         }
         for(execution in executionList) {
             execution.get();
@@ -137,11 +142,11 @@ public class CloudifyExecutorUtils {
         for(script in groovyScripts) {
             println "asynchronous launch is ${script}"
             def theScript = script
-            executionList.add(call{ executeGroovy(ServiceContextFactory.getServiceContext(), theScript, null) })
+            executionList.add(call{ executeGroovy(ServiceContextFactory.getServiceContext(), theScript, null, null) })
         }
         for(script in otherScripts) {
             def theScript = script
-            executionList.add(call{ executeScript(theScript, null) })
+            executionList.add(call{ executeScript(theScript, null, null) })
         }
     }
 
@@ -269,5 +274,70 @@ public class CloudifyExecutorUtils {
     static private getEventLeaseInMillis(lease) {
        return lease ? Math.round(lease * 60 * 60 * 1000) : DEFAULT_LEASE;
     } 
+    
+    //
+    static class ProcessOutputListener implements Appendable {
+    
+      private StringWriter outputBufffer = new StringWriter();
+      
+      // assume that the output names contains only word chars
+      private Pattern outputDetectionRegex = ~/EXPECTED_OUTPUT_(\w+)=(.*)/
+      
+      Appendable append(char c) throws IOException {
+        System.out.append(c)
+        outputBufffer.append(c);
+        return this
+      }
+      
+      Appendable append(CharSequence csq, int start, int end) throws IOException {
+        System.out.append(csq, start, end)
+        outputBufffer.append(csq, start, end)
+        return this
+      }
+      
+      Appendable append(CharSequence csq) throws IOException {
+        System.out.append(csq)
+        outputBufffer.append(csq)
+        return this
+      }
+    
+      ProcessOutputResult getResult(List expectedOutputs) {
+        outputBufffer.flush()
+        def outputString = outputBufffer.toString();
+        if (outputString == null || outputString.size() == 0) {
+        System.out.append("size:" + outputString.size())
+          return null;
+        }
+        def lineList = outputString.readLines()
+        def outputs = [:]
+        if(expectedOutputs && !expectedOutputs.isEmpty()) {
+            def lineIterator = lineList.iterator()
+            while(lineIterator.hasNext()) {
+                def line = lineIterator.next();
+                def ouputMatcher = outputDetectionRegex.matcher(line)
+                if (ouputMatcher.matches()) {
+                    def detectedOuputName = ouputMatcher.group(1)
+                    if (expectedOutputs.contains(detectedOuputName)) {
+                        // add the output value in the map 
+                        outputs.put(detectedOuputName, ouputMatcher.group(2));
+                        // remove the iterator 
+                        lineIterator.remove();
+                    }
+                } 
+            }
+        }
+        // the outputs have been removed, so the last line is now the result of the exec
+        def result = lineList.size() > 0 ? lineList[lineList.size() -1] : null
+        return new ProcessOutputResult(result: result, outputs: outputs)     
+      }    
+    
+    }
 
+    // data structure for script result
+    static class ProcessOutputResult {
+      // the reult = the last line of the output
+      String result
+      // the expected output values
+      Map outputs
+    }
 }

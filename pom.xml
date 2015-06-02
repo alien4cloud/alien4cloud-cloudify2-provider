@@ -3,7 +3,7 @@
 
     <groupId>alien4cloud</groupId>
     <artifactId>alien4cloud-cloudify2-provider</artifactId>
-    <version>1.0.0-SM25</version>
+    <version>1.0.0-SM26</version>
 
     <name>Cloudify 2.x PaaS Provider for Alien 4 Cloud</name>
 
@@ -130,6 +130,13 @@
             <version>${spring.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webmvc</artifactId>
+            <version>${spring.version}</version>
+            <scope>test</scope>
+        </dependency>
+        
         <dependency>
             <groupId>javax.servlet</groupId>
             <artifactId>javax.servlet-api</artifactId>

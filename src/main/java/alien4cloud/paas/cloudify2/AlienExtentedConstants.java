@@ -1,4 +1,4 @@
-package alien4cloud.paas.cloudify2.generator;
+package alien4cloud.paas.cloudify2;
 
 public final class AlienExtentedConstants {
     // interfaces
@@ -17,5 +17,6 @@ public final class AlienExtentedConstants {
 
     // attributes
     public static final String IP_ADDRESS = "ip_address";
+    public static final String CLOUDIFY_OUTPUTS_ATTRIBUTE = "OPERATIONS_OUTPUTS";
 
 }
