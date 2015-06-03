@@ -33,6 +33,7 @@ import alien4cloud.model.components.IndexedArtifactToscaElement;
 import alien4cloud.model.components.IndexedToscaElement;
 import alien4cloud.model.components.Interface;
 import alien4cloud.model.components.Operation;
+import alien4cloud.model.components.OperationOutput;
 import alien4cloud.paas.IPaaSTemplate;
 import alien4cloud.paas.cloudify2.AlienExtentedConstants;
 import alien4cloud.paas.cloudify2.funtion.FunctionProcessor;
@@ -44,8 +45,8 @@ import alien4cloud.paas.model.PaaSRelationshipTemplate;
 import alien4cloud.paas.plan.ToscaRelationshipLifecycleConstants;
 import alien4cloud.tosca.normative.ToscaFunctionConstants;
 import alien4cloud.utils.AlienUtils;
-import alien4cloud.utils.CollectionUtils;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 abstract class AbstractCloudifyScriptGenerator {
@@ -104,30 +105,33 @@ abstract class AbstractCloudifyScriptGenerator {
         String relativePath = CloudifyPaaSUtils.getNodeTypeRelativePath(basePaaSTemplate.getIndexedToscaElement());
         String scriptPath = relativePath + "/" + operationResume.artifact.getArtifactRef();
         // nodeId:interface:operation
-        String operationFQN = AlienUtils.prefixWith(AlienConstants.COLON_SEPARATOR, operationResume.operationName, new String[] { basePaaSTemplate.getId(),
-                operationResume.interfaceName });
+        String operationFQN = AlienUtils.prefixWith(AlienConstants.OPERATION_NAME_SEPARATOR, operationResume.operationName,
+                new String[] { basePaaSTemplate.getId(), operationResume.interfaceName });
         return commandGenerator.getCommandBasedOnArtifactType(operationFQN, operationResume.artifact, envMaps.runtimes, envMaps.strings,
                 operationResume.outputs, scriptPath);
     }
 
-    private void addRelationshipEnvVars(String operationName, Map<String, IValue> inputParameters, PaaSRelationshipTemplate basePaaSTemplate,
+    private void addRelationshipEnvVars(String operationName, Map<String, IValue> inputParameters, PaaSRelationshipTemplate relShipPaaSTemplate,
             Map<String, PaaSNodeTemplate> builtPaaSTemplates, String instanceId, ExecEnvMaps envMaps) throws IOException {
 
         Map<String, String> sourceAttributes = Maps.newHashMap();
         Map<String, String> targetAttributes = Maps.newHashMap();
+
+        PaaSNodeTemplate sourcePaaSTemplate = builtPaaSTemplates.get(relShipPaaSTemplate.getSource());
+        PaaSNodeTemplate targetPaaSTemplate = builtPaaSTemplates.get(relShipPaaSTemplate.getRelationshipTemplate().getTarget());
 
         // for some cases we need to use a value provided in the velocity template.
         // for example for relationship add_source, the source ip_address and instanceId are var provided in the velocity script.
         // The target ip_address and instanceId will remain unchanged and handled by the default routine
         String sourceInstanceId = getProperValueForRelEnvsBuilding(operationName, ToscaFunctionConstants.SOURCE, instanceId);
         String sourceIpAddrVar = getProperValueForRelEnvsBuilding(operationName, ToscaFunctionConstants.SOURCE, "ip_address");
-        String sourceId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(basePaaSTemplate.getSource());
+        String sourceId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(sourcePaaSTemplate.getId());
+        String sourceServiceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(sourcePaaSTemplate);
+
         String targetInstanceId = getProperValueForRelEnvsBuilding(operationName, ToscaFunctionConstants.TARGET, instanceId);
         String targetIpAddrVar = getProperValueForRelEnvsBuilding(operationName, ToscaFunctionConstants.TARGET, "ip_address");
-        String targetId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(basePaaSTemplate.getRelationshipTemplate().getTarget());
-        String sourceServiceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(builtPaaSTemplates.get(basePaaSTemplate.getSource()));
-        String targetServiceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(builtPaaSTemplates.get(basePaaSTemplate.getRelationshipTemplate()
-                .getTarget()));
+        String targetId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(targetPaaSTemplate.getId());
+        String targetServiceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(targetPaaSTemplate);
 
         // separate parameters using TARGET and SOURCE keywords before processing them
         if (inputParameters != null) {
@@ -152,9 +156,9 @@ abstract class AbstractCloudifyScriptGenerator {
             }
 
             // evaluate params
-            funtionProcessor.processParameters(simpleParams, envMaps.strings, envMaps.runtimes, basePaaSTemplate, builtPaaSTemplates, null);
-            funtionProcessor.processParameters(sourceAttrParams, envMaps.strings, envMaps.runtimes, basePaaSTemplate, builtPaaSTemplates, sourceInstanceId);
-            funtionProcessor.processParameters(targetAttrParams, envMaps.strings, envMaps.runtimes, basePaaSTemplate, builtPaaSTemplates, targetInstanceId);
+            funtionProcessor.processParameters(simpleParams, envMaps.strings, envMaps.runtimes, relShipPaaSTemplate, builtPaaSTemplates, null);
+            funtionProcessor.processParameters(sourceAttrParams, envMaps.strings, envMaps.runtimes, relShipPaaSTemplate, builtPaaSTemplates, sourceInstanceId);
+            funtionProcessor.processParameters(targetAttrParams, envMaps.strings, envMaps.runtimes, relShipPaaSTemplate, builtPaaSTemplates, targetInstanceId);
 
             // override ip attributes' way of getting if needed
             overrideIpAttributesIfNeeded(sourceAttributes, envMaps.runtimes, sourceIpAddrVar);
@@ -163,18 +167,19 @@ abstract class AbstractCloudifyScriptGenerator {
         }
 
         // custom alien env vars
-        envMaps.strings.put(SOURCE_NAME, basePaaSTemplate.getSource());
-        envMaps.strings.put(TARGET_NAME, basePaaSTemplate.getRelationshipTemplate().getTarget());
-        envMaps.strings.put(SOURCE_SERVICE_NAME, CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(builtPaaSTemplates.get(basePaaSTemplate.getSource())));
-        envMaps.strings.put(TARGET_SERVICE_NAME,
-                CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(builtPaaSTemplates.get(basePaaSTemplate.getRelationshipTemplate().getTarget())));
+        envMaps.strings.put(SOURCE_NAME, sourcePaaSTemplate.getId());
+        envMaps.strings.put(TARGET_NAME, targetPaaSTemplate.getId());
+        envMaps.strings.put(SOURCE_SERVICE_NAME, CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(sourcePaaSTemplate));
+        envMaps.strings.put(TARGET_SERVICE_NAME, CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(targetPaaSTemplate));
 
         // TOSCA SOURCE/SOURCES and TARGET/TARGETS
         envMaps.runtimes.put(MAP_TO_ADD_KEYWORD + ToscaFunctionConstants.SOURCE, commandGenerator.getTOSCARelationshipEnvsCommand(
-                ToscaFunctionConstants.SOURCE, sourceId, sourceServiceName, sourceInstanceId, sourceAttributes));
+                ToscaFunctionConstants.SOURCE, sourceId, sourceServiceName, sourceInstanceId, sourceAttributes,
+                sourceAttributes.isEmpty() ? null : Lists.newArrayList(sourcePaaSTemplate.getId())));
 
         envMaps.runtimes.put(MAP_TO_ADD_KEYWORD + ToscaFunctionConstants.TARGET, commandGenerator.getTOSCARelationshipEnvsCommand(
-                ToscaFunctionConstants.TARGET, targetId, targetServiceName, targetInstanceId, targetAttributes));
+                ToscaFunctionConstants.TARGET, targetId, targetServiceName, targetInstanceId, targetAttributes,
+                targetAttributes.isEmpty() ? null : Lists.newArrayList(targetPaaSTemplate.getId())));
     }
 
     private void overrideIpAttributesIfNeeded(Map<String, String> attributes, Map<String, String> evaluated, String overrideValue) {
@@ -207,7 +212,7 @@ abstract class AbstractCloudifyScriptGenerator {
         Map<String, Object> properties = Maps.newHashMap();
         properties.put(SCRIPT_LIFECYCLE, lifecycle);
         properties.put(SCRIPTS, executions);
-        properties = CollectionUtils.merge(additionalPropeties, properties, true);
+        properties = alien4cloud.utils.CollectionUtils.merge(additionalPropeties, properties, true);
         VelocityUtil.writeToOutputFile(velocityDescriptorPath, outputPath, properties);
     }
 
@@ -247,10 +252,26 @@ abstract class AbstractCloudifyScriptGenerator {
         String operationName;
         ImplementationArtifact artifact;
         Map<String, IValue> inputParameters;
-        Set<String> outputs;
+        Map<String, Set<String>> outputs;
+
+        OperationResume(String interfaceName, String operationName, ImplementationArtifact artifact, Map<String, IValue> inputParameters,
+                Set<OperationOutput> outputsSet) {
+            this(interfaceName, operationName, artifact, inputParameters, toOutputMap(outputsSet));
+        }
     }
 
     private OperationResume getOperationResume(String interfaceName, String operationName, Operation operation) {
-        return new OperationResume(interfaceName, operationName, operation.getImplementationArtifact(), operation.getInputParameters(), operation.getOutputs());
+        return new OperationResume(interfaceName, operationName, operation.getImplementationArtifact(), operation.getInputParameters(),
+                toOutputMap(operation.getOutputs()));
+    }
+
+    protected Map<String, Set<String>> toOutputMap(Set<OperationOutput> outputsSet) {
+        Map<String, Set<String>> outputsAsMap = Maps.newHashMap();
+        if (outputsSet != null) {
+            for (OperationOutput output : outputsSet) {
+                outputsAsMap.put(output.getName(), output.getRelatedAttributes());
+            }
+        }
+        return outputsAsMap;
     }
 }

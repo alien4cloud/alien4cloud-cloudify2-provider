@@ -196,6 +196,7 @@ relationship_types:
           inputs:
             SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
             TARGET_IP: { get_attribute: [TARGET, ip_address] }
+            ATTR_LAMBDA: { get_attribute: [SOURCE, attr_lambda] }
             TARGET_CREATE_OUTPUT: {get_operation_output: [TARGET, Standard, create, old_hostnane]}
             SOURCE_CREATE_OUTPUT: {get_operation_output: [SOURCE, Standard, create, output_from_create]}
             TARGET_CONFIGURE_OUTPUT: {get_operation_output: [TARGET, Standard, configure, new_hostnane]}

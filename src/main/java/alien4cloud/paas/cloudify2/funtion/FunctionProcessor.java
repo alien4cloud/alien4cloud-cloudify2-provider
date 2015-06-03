@@ -138,7 +138,7 @@ public class FunctionProcessor {
                 builtPaaSTemplates);
         // getting the top hierarchical parent
         String serviceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate((PaaSNodeTemplate) paaSTemplates.get(paaSTemplates.size() - 1));
-        return evaluateAttributeName(functionParam.getElementNameToFetch(), serviceName, instanceId);
+        return evaluateAttributeName(functionParam.getElementNameToFetch(), serviceName, instanceId, paaSTemplates);
     }
 
     private String evaluateGetOperationOutputFunction(FunctionPropertyValue functionParam, IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
@@ -164,12 +164,16 @@ public class FunctionProcessor {
         return CollectionUtils.isNotEmpty(parameters) && parameters.size() >= 2;
     }
 
-    private String evaluateAttributeName(String attributeName, String serviceName, String instanceId) {
+    private String evaluateAttributeName(String attributeName, String serviceName, String instanceId, List<? extends IPaaSTemplate> paaSTemplates) {
         switch (attributeName) {
         case AlienExtentedConstants.IP_ADDRESS:
             return cloudifyCommandGen.getIpCommand(serviceName, instanceId);
         default:
-            return cloudifyCommandGen.getAttributeCommand(attributeName, serviceName, instanceId);
+            List<String> nodeNames = Lists.newArrayList();
+            for (IPaaSTemplate iPaaSTemplate : paaSTemplates) {
+                nodeNames.add(iPaaSTemplate.getId());
+            }
+            return cloudifyCommandGen.getAttributeCommand(attributeName, serviceName, instanceId, nodeNames);
         }
     }
 
@@ -186,8 +190,8 @@ public class FunctionProcessor {
             nodeNames.add(iPaaSTemplate.getId());
         }
         // Output relative qualified name ==> interfaceName:operationName:output
-        String outputRQN = AlienUtils.prefixWith(AlienConstants.COLON_SEPARATOR, function.getElementNameToFetch(), new String[] { function.getInterfaceName(),
-                function.getOperationName() });
+        String outputRQN = AlienUtils.prefixWith(AlienConstants.OPERATION_NAME_SEPARATOR, function.getElementNameToFetch(),
+                new String[] { function.getInterfaceName(), function.getOperationName() });
         return cloudifyCommandGen.getOperationOutputCommand(outputRQN, nodeNames, serviceName, instanceId);
     }
 

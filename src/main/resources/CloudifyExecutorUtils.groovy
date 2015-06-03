@@ -28,7 +28,7 @@ public class CloudifyExecutorUtils {
      * @param expectedOutputs
      * @return
      */
-    static def executeScript(context, script, Map argsMap, List expectedOutputs) {
+    static def executeScript(context, script, Map argsMap, Map expectedOutputsToAttributes) {
         def operationFQN = argsMap?argsMap.remove(OPERATION_FQN):null;
         def serviceDirectory = context.getServiceDirectory()
         
@@ -47,8 +47,11 @@ public class CloudifyExecutorUtils {
         }
 
         // add the expected outputs to the map to pass them to the script wrapper
+        List expectedOutputs = null;
         def expectedOutputsList = "";
-        if(expectedOutputs) {
+        if(expectedOutputsToAttributes) {
+            //outpts names
+            expectedOutputs = expectedOutputsToAttributes.keySet();
             expectedOutputs.each { expectedOutputsList = expectedOutputsList.length() >  0 ? "${expectedOutputsList};$it" : "$it" }
             if(!argsMap) { argsMap = [:] }
             argsMap.put("EXPECTED_OUTPUTS", expectedOutputsList)
@@ -66,10 +69,10 @@ public class CloudifyExecutorUtils {
         scriptProcess.waitFor()
         def scriptExitValue = scriptProcess.exitValue()
         def processResult = myOutputListener.getResult(expectedOutputs)
+        
+        //process outputs
         if (processResult && processResult.outputs && !processResult.outputs.isEmpty()) {
-          def operationOutputs = context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE]?:[:];
-          processResult.outputs.each { k, v -> operationOutputs.put("${operationFQN}:$k", v) }
-          context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE] = operationOutputs
+            registerOutputsAndReferencingAttributes(context, operationFQN, processResult.outputs, expectedOutputsToAttributes);
         }
 
         print """
@@ -91,7 +94,7 @@ public class CloudifyExecutorUtils {
      * for a closure, we should not use the ServiceContextFactory as the context instance is already injected in the service file
      * Therefore, the caller script should have a defined "context" variable
      * */
-    static def executeGroovy(context, groovyScript, Map argsMap, List expectedOutputs) {
+    static def executeGroovy(context, groovyScript, Map argsMap, Map expectedOutputsToAttributes) {
         def operationFQN = argsMap?argsMap.remove(OPERATION_FQN):null;
         def serviceDirectory = context.getServiceDirectory()
 
@@ -103,20 +106,36 @@ public class CloudifyExecutorUtils {
         println "Evaluating file ${serviceDirectory}/${groovyScript}.\n environment is: ${argsMap}"
         def result = shell.evaluate(new File("${serviceDirectory}/${groovyScript}"))
         
-        // now get the value of outputs
+        // now collect the value of outputs
         // child script should just affect them like : OUTPUT1 = "value1", or use the embebded method setProperty("OUTPUT1","value1")
-        // but should not create local variables like : def OUTPUT1 = "value1" 
-        if(expectedOutputs) {
-          def operationOutputs = context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE]?:[:];
-          Map bindingVars = binding.getVariables()?:[:];
-          expectedOutputs.each { 
-            def outputValue = bindingVars.get(it)
-            operationOutputs.put("${operationFQN}:$it", outputValue)
-          }
-          context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE] = operationOutputs
+        // but should not create local variables like : def OUTPUT1 = "value1"
+        if(expectedOutputsToAttributes) {
+            Map outputsWithValues = [:];
+            Map bindingVars = binding.getVariables()?:[:];
+            expectedOutputsToAttributes.keySet().each {
+                outputsWithValues.put(it, bindingVars.get(it));
+            }
+            registerOutputsAndReferencingAttributes(context, operationFQN, outputsWithValues, expectedOutputsToAttributes);
         }
         println "result is: "+result
         return result
+    }
+    
+    private def registerOutputsAndReferencingAttributes(context, String operationFQN, Map outputsWithValues, Map outputsToAttributes) {
+        def operationOutputs = context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE]?:[:];
+        outputsWithValues.each { k, v ->
+            //register outputs
+            operationOutputs.put("${operationFQN}:$k", v)
+
+            //register if needed referencing attributes
+            def attributesToRegister = outputsToAttributes[k];
+            if(attributesToRegister) {
+                attributesToRegister.each {
+                    context.attributes.thisInstance[it] = v;
+                }
+            }
+        }
+        context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE] = operationOutputs
     }
 
     static def executeParallel(groovyScripts, otherScripts) {
