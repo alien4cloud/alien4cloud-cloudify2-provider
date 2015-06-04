@@ -48,8 +48,8 @@ import alien4cloud.model.application.DeploymentSetup;
 import alien4cloud.model.components.IValue;
 import alien4cloud.model.components.IndexedNodeType;
 import alien4cloud.model.deployment.Deployment;
+import alien4cloud.model.topology.Capability;
 import alien4cloud.model.topology.NodeTemplate;
-import alien4cloud.model.topology.ScalingPolicy;
 import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.IConfigurablePaaSProvider;
 import alien4cloud.paas.IPaaSCallback;
@@ -85,7 +85,9 @@ import alien4cloud.paas.model.PaaSTopology;
 import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
+import alien4cloud.topology.TopologyUtils;
 import alien4cloud.tosca.ToscaUtils;
+import alien4cloud.tosca.normative.NormativeComputeConstants;
 import alien4cloud.utils.AlienUtils;
 
 import com.google.common.collect.Lists;
@@ -305,7 +307,9 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
             ServiceDescription serviceDescription = restClient.getServiceDescription(deploymentPaaSId, serviceId);
             int plannedInstances = serviceDescription.getPlannedInstances() + instances;
-            statusByDeployments.get(deploymentPaaSId).topology.getScalingPolicies().get(nodeTemplateId).setInitialInstances(plannedInstances);
+            Topology topology = statusByDeployments.get(deploymentPaaSId).topology;
+            Capability capability = TopologyUtils.getScalableCapability(topology, nodeTemplateId, true);
+            TopologyUtils.setScalingProperty(NormativeComputeConstants.SCALABLE_DEFAULT_INSTANCES, plannedInstances, capability);
             log.info("Change number of instance of {}.{} from {} to {} ", deploymentPaaSId, serviceId, serviceDescription.getPlannedInstances(),
                     plannedInstances);
             SetServiceInstancesRequest request = new SetServiceInstancesRequest();
@@ -522,14 +526,9 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     }
 
     private int getPlannedInstancesCount(PaaSNodeTemplate paaSNodeTemplate, Topology topology) {
-        if (topology.getScalingPolicies() != null) {
-            String computeNodeId = ToscaUtils.getMandatoryHostTemplate(paaSNodeTemplate).getId();
-            ScalingPolicy scalingPolicy = topology.getScalingPolicies().get(computeNodeId);
-            if (scalingPolicy != null) {
-                return scalingPolicy.getInitialInstances();
-            }
-        }
-        return 1;
+        String computeNodeId = ToscaUtils.getMandatoryHostTemplate(paaSNodeTemplate).getId();
+        Capability scalableCapability = TopologyUtils.getScalableCapability(topology, computeNodeId, true);
+        return TopologyUtils.getScalingProperty(NormativeComputeConstants.SCALABLE_DEFAULT_INSTANCES, scalableCapability);
     }
 
     public Map<String, Map<String, InstanceInformation>> getInstancesInformation(String deploymentPaaSId) {
