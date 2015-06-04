@@ -6,6 +6,8 @@ import org.cloudifysource.dsl.context.ServiceInstance
 
 import org.cloudifysource.utilitydomain.context.ServiceContextFactory
 
+import java.util.logging.Logger
+
 public class EnvironmentBuilder {
 
     private static def NAME_VALUE_KEYWORD = "NAME_VALUE_TO_PARSE"
@@ -25,6 +27,7 @@ public class EnvironmentBuilder {
         Binding binding = new Binding()
         //set the context variable
         binding.setVariable("context", context)
+        binding.setVariable("logger", Logger.getLogger("${context.serviceName}-stdout"))
         
         if(argsMap != null && !argsMap.isEmpty()) {
             buildEnvForGroovy(argsMap, binding)
