@@ -47,7 +47,7 @@ public class CloudifyExecutorUtils {
         }
 
         // add the expected outputs to the map to pass them to the script wrapper
-        List expectedOutputs = null;
+        Set expectedOutputs = null;
         def expectedOutputsList = "";
         if(expectedOutputsToAttributes) {
             //outpts names
@@ -121,7 +121,7 @@ public class CloudifyExecutorUtils {
         return result
     }
     
-    private def registerOutputsAndReferencingAttributes(context, String operationFQN, Map outputsWithValues, Map outputsToAttributes) {
+    private static def registerOutputsAndReferencingAttributes(context, String operationFQN, Map outputsWithValues, Map outputsToAttributes) {
         def operationOutputs = context.attributes.thisInstance[CloudifyAttributesUtils.CLOUDIFY_OUTPUTS_ATTRIBUTE]?:[:];
         outputsWithValues.each { k, v ->
             //register outputs
@@ -279,7 +279,7 @@ public class CloudifyExecutorUtils {
      * @param state
      * @return
      */
-    static private getValidStates(String state) {
+    private static def getValidStates(String state) {
         if(startStates.contains(state) ) {
             int index =startStates.indexOf(state); 
             return startStates.subList(index, startStates.size())   
@@ -290,7 +290,7 @@ public class CloudifyExecutorUtils {
         return null;
     }
     
-    static private getEventLeaseInMillis(lease) {
+    private static def getEventLeaseInMillis(lease) {
        return lease ? Math.round(lease * 60 * 60 * 1000) : DEFAULT_LEASE;
     } 
     
@@ -320,7 +320,7 @@ public class CloudifyExecutorUtils {
         return this
       }
     
-      ProcessOutputResult getResult(List expectedOutputs) {
+      ProcessOutputResult getResult(Collection expectedOutputs) {
         outputBufffer.flush()
         def outputString = outputBufffer.toString();
         if (outputString == null || outputString.size() == 0) {

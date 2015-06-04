@@ -26,6 +26,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.ApplicationContext;
 
 import alien4cloud.common.AlienConstants;
+import alien4cloud.model.components.ConcatPropertyValue;
 import alien4cloud.model.components.FunctionPropertyValue;
 import alien4cloud.model.components.IValue;
 import alien4cloud.model.components.ImplementationArtifact;
@@ -39,7 +40,6 @@ import alien4cloud.paas.cloudify2.AlienExtentedConstants;
 import alien4cloud.paas.cloudify2.funtion.FunctionProcessor;
 import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.cloudify2.utils.VelocityUtil;
-import alien4cloud.paas.function.FunctionEvaluator;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
 import alien4cloud.paas.plan.ToscaRelationshipLifecycleConstants;
@@ -139,18 +139,25 @@ abstract class AbstractCloudifyScriptGenerator {
             Map<String, IValue> targetAttrParams = Maps.newHashMap();
             Map<String, IValue> simpleParams = Maps.newHashMap();
             for (Entry<String, IValue> paramEntry : inputParameters.entrySet()) {
-                if (!paramEntry.getValue().isDefinition()) {
-                    if (FunctionEvaluator.isGetAttribute((FunctionPropertyValue) paramEntry.getValue())) {
-                        FunctionPropertyValue param = (FunctionPropertyValue) paramEntry.getValue();
+                if (!paramEntry.getValue().isDefinition() && !(paramEntry.getValue() instanceof ConcatPropertyValue)) {
+                    FunctionPropertyValue param = (FunctionPropertyValue) paramEntry.getValue();
+                    switch (param.getFunction()) {
+                    case ToscaFunctionConstants.GET_ATTRIBUTE:
+                    case ToscaFunctionConstants.GET_OPERATION_OUTPUT:
                         if (ToscaFunctionConstants.TARGET.equals(param.getTemplateName())) {
                             targetAttrParams.put(paramEntry.getKey(), param);
                             targetAttributes.put(paramEntry.getKey(), param.getElementNameToFetch());
                         } else if (ToscaFunctionConstants.SOURCE.equals(param.getTemplateName())) {
                             sourceAttrParams.put(paramEntry.getKey(), param);
                             sourceAttributes.put(paramEntry.getKey(), param.getElementNameToFetch());
+                        } else {
+                            simpleParams.put(paramEntry.getKey(), param);
                         }
-                    } else {
+                        break;
+
+                    default:
                         simpleParams.put(paramEntry.getKey(), paramEntry.getValue());
+                        break;
                     }
                 }
             }

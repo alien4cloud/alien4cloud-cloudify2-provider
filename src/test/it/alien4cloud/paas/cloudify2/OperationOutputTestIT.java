@@ -5,23 +5,22 @@ import java.util.Map.Entry;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import alien4cloud.model.topology.Topology;
-import alien4cloud.paas.cloudify2.rest.CloudifyRestClient;
 import alien4cloud.paas.model.InstanceInformation;
 import alien4cloud.paas.model.InstanceStatus;
+import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
+import alien4cloud.paas.plan.ToscaRelationshipLifecycleConstants;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("classpath:application-context-testit.xml")
 @Slf4j
-public class OperationOutputTestIT extends GenericTestCase {
+public class OperationOutputTestIT extends GenericRelationshipTriggeringTestCase {
 
     public OperationOutputTestIT() {
     }
@@ -43,36 +42,43 @@ public class OperationOutputTestIT extends GenericTestCase {
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
         Map<String, Map<String, InstanceInformation>> instancesInformations = cloudifyPaaSPovider.getInstancesInformation(cloudifyAppId);
         printStatuses(instancesInformations);
+
+        testEvents(cloudifyAppId, new String[] { "comp_getOpOutputTarget", "comp_getOpOutputSource" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
+                ToscaNodeLifecycleConstants.CONFIGURED, ToscaNodeLifecycleConstants.STARTED, ToscaNodeLifecycleConstants.AVAILABLE);
+
+        testRelationsEventsSucceeded(cloudifyAppId, null, lastRelIndex, 20000L, ToscaRelationshipLifecycleConstants.ADD_TARGET);
+
         assertStartedInstance("comp_getOpOutputTarget", 1, instancesInformations);
         assertStartedInstance("comp_getOpOutputSource", 1, instancesInformations);
         assertAllInstanceStatus("comp_getOpOutputSource", InstanceStatus.SUCCESS, instancesInformations);
         assertAllInstanceStatus("comp_getOpOutputTarget", InstanceStatus.SUCCESS, instancesInformations);
+
         Map<String, String> outputs = this.cloudifyRestClientManager.getRestClient().getOperationOutputs(cloudifyAppId, "comp_getopoutputsource", "1");
         System.out.println("OUTPUTS ==> \n" + outputs);
 
         // TODO: test scaling
     }
 
-    @Test
-    @Ignore
-    public void test2() throws Throwable {
-        log.info("\n\n >> Executing Test testGetOperationOutputOnAttributes \n");
-        String cloudifyAppId = "e83d61af-e3bf-4162-958c-76674cc25fd3";
-        String[] computes = new String[] { "comp_getOpOutput" };
-        CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
-        Map<String, String> outputs = null;
-        try {
-            System.out.println(restClient.getAllInstancesOperationsOutputs(cloudifyAppId, "comp_getopoutput"));
-            outputs = restClient.getOperationOutputs(cloudifyAppId, "comp_getopoutput", "1");
-        } catch (RestClientException e) {
-            log.error(e.getMessageFormattedText());
-            log.error(e.getVerbose(), e);
-            // e.printStackTrace();
-        }
-        System.out.println("OUTPUTS ==> \n" + outputs);
-
-        // TODO: test scaling
-    }
+    // @Test
+    // @Ignore
+    // public void test2() throws Throwable {
+    // log.info("\n\n >> Executing Test testGetOperationOutputOnAttributes \n");
+    // String cloudifyAppId = "e83d61af-e3bf-4162-958c-76674cc25fd3";
+    // String[] computes = new String[] { "comp_getOpOutput" };
+    // CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
+    // Map<String, String> outputs = null;
+    // try {
+    // System.out.println(restClient.getAllInstancesOperationsOutputs(cloudifyAppId, "comp_getopoutput"));
+    // outputs = restClient.getOperationOutputs(cloudifyAppId, "comp_getopoutput", "1");
+    // } catch (RestClientException e) {
+    // log.error(e.getMessageFormattedText());
+    // log.error(e.getVerbose(), e);
+    // // e.printStackTrace();
+    // }
+    // System.out.println("OUTPUTS ==> \n" + outputs);
+    //
+    // // TODO: test scaling
+    // }
 
     private void printStatuses(Map<String, Map<String, InstanceInformation>> instancesInformations) {
         StringBuilder sb = new StringBuilder("\n");
