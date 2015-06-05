@@ -316,7 +316,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         if (StringUtils.isBlank(id)) {
             // TODO
             log.error("No PaaSResourceId found for compute template " + computeTemplate);
-            // throw new ResourceMatchingFailedException("No PaaSResourceId found for compute template " + computeTemplate);
+            throw new ResourceMatchingFailedException("No PaaSResourceId found for compute template " + computeTemplate);
         }
         return id;
     }
@@ -559,8 +559,8 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         // then, trigger the main operation. Send an event to trigger it on the other pair node.
         // ex, if the operation is add_target, then trigger a custom command on the source node
         if (StringUtils.isNotBlank(operationTriggerEvent.getOperationName())) {
-            String commandToTrigger = AlienUtils.prefixWithDefaultSeparator(operationTriggerEvent.getOperationName(), operationTriggerEvent.getNodeTemplateId(),
-                    operationTriggerEvent.getRelationshipId());
+            String commandToTrigger = AlienUtils.prefixWithDefaultSeparator(operationTriggerEvent.getOperationName(),
+                    operationTriggerEvent.getNodeTemplateId(), operationTriggerEvent.getRelationshipId());
             String command = commandGenerator.getFireRelationshipTriggerEvent(operationTriggerEvent.getNodeTemplateId(),
                     operationTriggerEvent.getRelationshipId(), operationTriggerEvent.getOperationName(), operationTriggerEvent.getSideNodeTemplateId(),
                     sideServiceName, commandToTrigger, context.getEventsLeaseInHour());
