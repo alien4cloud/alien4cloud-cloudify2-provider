@@ -7,6 +7,7 @@ import java.util.regex.Pattern;
 import org.apache.commons.lang3.StringUtils;
 
 import alien4cloud.model.components.IndexedToscaElement;
+import alien4cloud.paas.exception.ComputeConflictNameException;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.rest.utils.JsonUtil;
 import alien4cloud.tosca.ToscaUtils;
@@ -22,7 +23,15 @@ public class CloudifyPaaSUtils {
     }
 
     public static String serviceIdFromNodeTemplateId(final String nodeTemplateId) {
-        return nodeTemplateId.toLowerCase().replaceAll(" ", "-");
+        return nodeTemplateId.toLowerCase().replaceAll(" ", "-").replaceAll("_", "-");
+    }
+
+    public static void checkIfTemplateIdIsUniqueOrFail(final String id, final List<PaaSNodeTemplate> list) {
+        for (PaaSNodeTemplate node : list) {
+            if (serviceIdFromNodeTemplateId(node.getId()).equals(id)) {
+                throw new ComputeConflictNameException("At least two of your computer has a conflict name : " + id);
+            }
+        }
     }
 
     /**
