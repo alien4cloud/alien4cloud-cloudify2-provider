@@ -487,7 +487,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                 Map<String, String> nodesOutputs = entry.getValue();
                 for (String formatedOutputName : nodesOutputs.keySet()) {
                     // 0 = nodeId, 1 = interfaceName, 2 = operationName, 3 = outputName
-                    String[] parts = formatedOutputName.split(AlienConstants.COLON_SEPARATOR);
+                    String[] parts = formatedOutputName.split(AlienConstants.OPERATION_NAME_SEPARATOR);
                     Map<String, InstanceInformation> nodeTemplateInstanceInformations = instanceInformations.get(parts[0]);
                     InstanceInformation instanceInformation = nodeTemplateInstanceInformations == null ? null : nodeTemplateInstanceInformations
                             .get(instanceId);
@@ -800,7 +800,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         Map<String, String> operationResponse = Maps.newHashMap();
         String serviceName = retrieveServiceName(deploymentPaaSId, request.getNodeTemplateName());
         InvokeCustomCommandRequest invokeRequest = new InvokeCustomCommandRequest();
-        invokeRequest.setCommandName(AlienUtils.prefixWith(request.getOperationName(), request.getNodeTemplateName(), request.getInterfaceName()));
+        invokeRequest.setCommandName(AlienUtils.prefixWithDefaultSeparator(request.getOperationName(), request.getNodeTemplateName(), request.getInterfaceName()));
         buildParameters(deploymentPaaSId, request, invokeRequest);
         String operationFQN = operationFQN(serviceName, request, invokeRequest);
         try {

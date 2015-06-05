@@ -314,6 +314,8 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
     private String getComputeTemplatePaaSResourceIdOrFail(ComputeTemplate computeTemplate) {
         String id = paaSResourceMatcher.getTemplate(computeTemplate);
         if (StringUtils.isBlank(id)) {
+            // TODO
+            log.error("No PaaSResourceId found for compute template " + computeTemplate);
             // throw new ResourceMatchingFailedException("No PaaSResourceId found for compute template " + computeTemplate);
         }
         return id;
@@ -447,7 +449,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
                     && !interfaceName.equals(AlienExtentedConstants.CLOUDIFY_EXTENSIONS_INTERFACE_NAME)) {
                 Map<String, Operation> operations = customInterface.getOperations();
                 for (Entry<String, Operation> entry : operations.entrySet()) {
-                    String commandUniqueName = AlienUtils.prefixWith(entry.getKey(), nodeTemplate.getId(), interfaceName);
+                    String commandUniqueName = AlienUtils.prefixWithDefaultSeparator(entry.getKey(), nodeTemplate.getId(), interfaceName);
                     addCustomCommand(context, nodeTemplate, interfacesEntry.getKey(), commandUniqueName, entry);
                 }
             }
@@ -544,7 +546,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             final List<String> executions) throws IOException {
 
         PaaSNodeTemplate paaSNodeTemplate = context.getNodeTemplateById(operationTriggerEvent.getNodeTemplateId());
-        String uniqueName = AlienUtils.prefixWith(operationTriggerEvent.getSideOperationName(), operationTriggerEvent.getSideNodeTemplateId(),
+        String uniqueName = AlienUtils.prefixWithDefaultSeparator(operationTriggerEvent.getSideOperationName(), operationTriggerEvent.getSideNodeTemplateId(),
                 operationTriggerEvent.getRelationshipId());
         PaaSRelationshipTemplate paaSRelationshipTemplate = paaSNodeTemplate.getRelationshipTemplate(operationTriggerEvent.getRelationshipId(),
                 operationTriggerEvent.getSourceRelationshipId());
@@ -557,7 +559,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         // then, trigger the main operation. Send an event to trigger it on the other pair node.
         // ex, if the operation is add_target, then trigger a custom command on the source node
         if (StringUtils.isNotBlank(operationTriggerEvent.getOperationName())) {
-            String commandToTrigger = AlienUtils.prefixWith(operationTriggerEvent.getOperationName(), operationTriggerEvent.getNodeTemplateId(),
+            String commandToTrigger = AlienUtils.prefixWithDefaultSeparator(operationTriggerEvent.getOperationName(), operationTriggerEvent.getNodeTemplateId(),
                     operationTriggerEvent.getRelationshipId());
             String command = commandGenerator.getFireRelationshipTriggerEvent(operationTriggerEvent.getNodeTemplateId(),
                     operationTriggerEvent.getRelationshipId(), operationTriggerEvent.getOperationName(), operationTriggerEvent.getSideNodeTemplateId(),
@@ -586,12 +588,6 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
                     operationTriggerEvent.getSideOperationImplementationArtifact(), paaSRelationshipTemplate.getIndexedToscaElement());
             context.getRelationshipCustomCommands().put(uniqueName, command);
         }
-    }
-
-    private OperationResume getOperationResume(RelationshipTriggerEvent operationTriggerEvent) {
-        return new OperationResume(operationTriggerEvent.getInterfaceName(), operationTriggerEvent.getSideOperationName(),
-                operationTriggerEvent.getSideOperationImplementationArtifact(), operationTriggerEvent.getSideInputParameters(),
-                operationTriggerEvent.getSideOutputs());
     }
 
     private void processOperationCallActivity(final RecipeGeneratorServiceContext context, final OperationCallActivity operationCall,

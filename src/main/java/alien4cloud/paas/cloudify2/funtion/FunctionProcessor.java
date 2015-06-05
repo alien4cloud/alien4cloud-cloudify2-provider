@@ -29,6 +29,7 @@ import alien4cloud.paas.exception.NotSupportedException;
 import alien4cloud.paas.function.FunctionEvaluator;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSRelationshipTemplate;
+import alien4cloud.paas.plan.ToscaRelationshipLifecycleConstants;
 import alien4cloud.tosca.normative.ToscaFunctionConstants;
 import alien4cloud.utils.AlienUtils;
 
@@ -138,7 +139,7 @@ public class FunctionProcessor {
                 builtPaaSTemplates);
         // getting the top hierarchical parent
         String serviceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate((PaaSNodeTemplate) paaSTemplates.get(paaSTemplates.size() - 1));
-        return evaluateAttributeName(functionParam.getElementNameToFetch(), serviceName, instanceId);
+        return evaluateAttributeName(functionParam.getElementNameToFetch(), serviceName, instanceId, paaSTemplates);
     }
 
     private String evaluateGetOperationOutputFunction(FunctionPropertyValue functionParam, IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
@@ -150,12 +151,41 @@ public class FunctionProcessor {
         IPaaSTemplate paaSTemplate = paaSTemplates.get(paaSTemplates.size() - 1);
         String serviceName = null;
 
-        // might be a PaaSRelationshipTemplate. In this case, there is no host
         if (paaSTemplate instanceof PaaSNodeTemplate) {
             serviceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate((PaaSNodeTemplate) paaSTemplate);
+        } else {
+            // might be a PaaSRelationshipTemplate. In this case, there is no host
+            // depending on the requested operation, return the source / target host service name
+            serviceName = getProperServiceNameForRelShip(paaSTemplate, builtPaaSTemplates, functionParam);
         }
 
         return evaluateOperationOutputName(functionParam, serviceName, instanceId, paaSTemplates);
+    }
+
+    /**
+     * Depending on the operation requested by the function, return the source or target host service name
+     * 
+     * @param paaSTemplate
+     * @param builtPaaSTemplates
+     * @param functionParam
+     * @return
+     */
+    private String getProperServiceNameForRelShip(IPaaSTemplate paaSTemplate, Map<String, PaaSNodeTemplate> builtPaaSTemplates,
+            FunctionPropertyValue functionParam) {
+        PaaSRelationshipTemplate relTemplate = (PaaSRelationshipTemplate) paaSTemplate;
+        if (ToscaRelationshipLifecycleConstants.CONFIGURE.equals(functionParam.getInterfaceName())) {
+            switch (functionParam.getOperationName()) {
+            case ToscaRelationshipLifecycleConstants.PRE_CONFIGURE_SOURCE:
+            case ToscaRelationshipLifecycleConstants.POST_CONFIGURE_SOURCE:
+                return CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(builtPaaSTemplates.get(relTemplate.getSource()));
+            case ToscaRelationshipLifecycleConstants.PRE_CONFIGURE_TARGET:
+            case ToscaRelationshipLifecycleConstants.POST_CONFIGURE_TARGET:
+                return CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(builtPaaSTemplates.get(relTemplate.getRelationshipTemplate().getTarget()));
+            default:
+                return null;
+            }
+        }
+        return null;
     }
 
     /* consider doing this in the tosca yaml parser */
@@ -164,12 +194,16 @@ public class FunctionProcessor {
         return CollectionUtils.isNotEmpty(parameters) && parameters.size() >= 2;
     }
 
-    private String evaluateAttributeName(String attributeName, String serviceName, String instanceId) {
+    private String evaluateAttributeName(String attributeName, String serviceName, String instanceId, List<? extends IPaaSTemplate> paaSTemplates) {
         switch (attributeName) {
         case AlienExtentedConstants.IP_ADDRESS:
             return cloudifyCommandGen.getIpCommand(serviceName, instanceId);
         default:
-            return cloudifyCommandGen.getAttributeCommand(attributeName, serviceName, instanceId);
+            List<String> nodeNames = Lists.newArrayList();
+            for (IPaaSTemplate iPaaSTemplate : paaSTemplates) {
+                nodeNames.add(iPaaSTemplate.getId());
+            }
+            return cloudifyCommandGen.getAttributeCommand(attributeName, serviceName, instanceId, nodeNames);
         }
     }
 
@@ -186,8 +220,8 @@ public class FunctionProcessor {
             nodeNames.add(iPaaSTemplate.getId());
         }
         // Output relative qualified name ==> interfaceName:operationName:output
-        String outputRQN = AlienUtils.prefixWith(AlienConstants.COLON_SEPARATOR, function.getElementNameToFetch(), new String[] { function.getInterfaceName(),
-                function.getOperationName() });
+        String outputRQN = AlienUtils.prefixWith(AlienConstants.OPERATION_NAME_SEPARATOR, function.getElementNameToFetch(),
+                new String[] { function.getInterfaceName(), function.getOperationName() });
         return cloudifyCommandGen.getOperationOutputCommand(outputRQN, nodeNames, serviceName, instanceId);
     }
 

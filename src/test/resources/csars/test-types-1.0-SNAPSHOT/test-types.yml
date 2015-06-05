@@ -196,6 +196,8 @@ relationship_types:
           inputs:
             SOURCE_IP: { get_attribute: [SOURCE, ip_address] }
             TARGET_IP: { get_attribute: [TARGET, ip_address] }
+            RANDOM_ATTR: { get_attribute: [SOURCE, random_attr] }
+            TARGET_OLD_HOSTNAME_ATTR: { get_attribute: [TARGET, old_hostname] }
             TARGET_CREATE_OUTPUT: {get_operation_output: [TARGET, Standard, create, old_hostnane]}
             SOURCE_CREATE_OUTPUT: {get_operation_output: [SOURCE, Standard, create, output_from_create]}
             TARGET_CONFIGURE_OUTPUT: {get_operation_output: [TARGET, Standard, configure, new_hostnane]}
@@ -203,7 +205,8 @@ relationship_types:
           implementation: relationshipScripts/pre_post_configure_testOperationOutput.groovy
         add_target:
           inputs:
-            MY_HOSTNAME: { get_property: [TARGET, customHostName] }            
+            MY_HOSTNAME: { get_property: [TARGET, customHostName] }    
+            TARGET_NEW_HOSTNAME_ATTR: { get_attribute: [TARGET, new_hostname] }            
             TARGET_CREATE_OUTPUT: {get_operation_output: [TARGET, Standard, create, old_hostnane]}
             SOURCE_CREATE_OUTPUT: {get_operation_output: [SOURCE, Standard, create, output_from_create]}
             TARGET_CONFIGURE_OUTPUT: {get_operation_output: [TARGET, Standard, configure, new_hostnane]}

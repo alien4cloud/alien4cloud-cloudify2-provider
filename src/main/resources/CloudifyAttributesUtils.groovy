@@ -8,8 +8,7 @@ import org.cloudifysource.dsl.context.ServiceInstance
 public class CloudifyAttributesUtils {
 
     public static IP_ADDR = "ip_address";
-    private static OUTPUT_SEPARATOR = ":";
-    public static def ATTR_SEPARATOR = ",";
+    private static COLON_SEPARATOR = ":";
     public static def CLOUDIFY_OUTPUTS_ATTRIBUTE = "OPERATIONS_OUTPUTS";
     private static def DEFAULT_TRIAL_COUNT = 5;
 
@@ -21,9 +20,28 @@ public class CloudifyAttributesUtils {
      * @param attributeName
      * @return
      */
-    static def getAttribute(context, cloudifyService, instanceId, attributeName) {
-        println "CloudifyAttributesUtils.getAttribute: getting attribute <attr: ${attributeName}> < service: ${cloudifyService}> <instanceId: ${instanceId}>"
-        def attr = getAttributeFromContext(context, cloudifyService, instanceId, attributeName);
+    static def getAttribute(context, cloudifyService, instanceId, attributeName, List eligibleNodesNames) {
+        println "CloudifyAttributesUtils.getAttribute: getting attribute <attr: ${attributeName}> < service: ${cloudifyService}> <instanceId: ${instanceId}> from nodes <${eligibleNodesNames}>"
+        def attr = null;
+        def countLeft = DEFAULT_TRIAL_COUNT;
+        def check = true;
+        if(attributeName) {
+            //try it for 5 seconds
+            while(check) {
+                if(!eligibleNodesNames || eligibleNodesNames.isEmpty()) {
+                    attr = getAttributeFromContext(context, cloudifyService, instanceId, attributeName);
+                }else {
+                    List nodeNames = eligibleNodesNames.collect()
+                    while(!attr && !nodeNames.isEmpty()) {
+                        def keyToFetch = nodeNames.get(0)+COLON_SEPARATOR+attributeName;
+                        attr = getAttributeFromContext(context, cloudifyService, instanceId, keyToFetch);
+                        nodeNames.remove(0);
+                    }
+                }
+                countLeft--;
+                check = wait(attr, countLeft);
+            }
+        }
         println "CloudifyAttributesUtils.getAttribute: Got [${attr}]";
         return attr;
     }
@@ -56,7 +74,7 @@ public class CloudifyAttributesUtils {
                     }else {
                         List nodeNames = eligibleNodesNames.collect() 
                         while(!outputValue && !nodeNames.isEmpty()) {
-                            def keyToFetch = nodeNames.get(0)+OUTPUT_SEPARATOR+formatedOutputName;
+                            def keyToFetch = nodeNames.get(0)+COLON_SEPARATOR+formatedOutputName;
                             def foundEntry = outputsMap.find {it.key == keyToFetch}
                             outputValue = foundEntry?foundEntry.value:null;
                             nodeNames.remove(0);
@@ -108,11 +126,11 @@ public class CloudifyAttributesUtils {
         return ip
     }
 
-    static def getTheProperAttribute(context, cloudifyService, instanceId, attributeName) {
+    static def getTheProperAttribute(context, cloudifyService, instanceId, attributeName, List eligibleNodesNames) {
         if(attributeName == IP_ADDR) {
             return getIp(context, cloudifyService, instanceId)
         }else {
-            return getAttribute(context, cloudifyService, instanceId, attributeName)
+            return getAttribute(context, cloudifyService, instanceId, attributeName, eligibleNodesNames)
         }
     }
     
