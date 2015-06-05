@@ -93,7 +93,7 @@ public class GenericTestCase {
 
     protected static final String ALIEN_FLAVOR = "alienFlavor";
 
-    public static final String IAAS_IMAGE_ID = "RegionOne/2b4475df-b6d6-49b7-a062-a3a20d45ab7c";
+    public static final String IAAS_IMAGE_ID = "RegionOne/c3fcd822-0693-4fac-b8bb-c0f268225800";
     public static final String IAAS_WIN_IMAGE_ID = "RegionOne/16b1bb77-b0df-4a4a-adf1-b81fb30ab1f7";
 
     public static final String EXTENDED_TYPES_REPO = "alien-extended-types";
@@ -161,7 +161,7 @@ public class GenericTestCase {
         System.out.println(resource);
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        cloudifyURL = cloudifyURL == null ? "http://129.185.67.68:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "http://129.185.67.120:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.setCloudifyURLs(Lists.newArrayList(cloudifyURL));
         pluginConfigurationBean.setVersion("2.7.1");
