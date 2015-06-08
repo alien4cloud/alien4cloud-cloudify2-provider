@@ -23,14 +23,10 @@ public class CloudifyPaaSUtils {
     }
 
     public static String serviceIdFromNodeTemplateId(final String nodeTemplateId) {
-        return nodeTemplateId.toLowerCase().replaceAll(" ", "-");
-    }
-
-    public static String computeServiceIdFromNodeTemplateId(final String nodeTemplateId) {
         return nodeTemplateId.toLowerCase().replaceAll(" ", "-").replaceAll("_", "-");
     }
 
-    public static void checkIfComputeTemplateIdIsUniqueOrFail(final String id, final List<PaaSNodeTemplate> list) {
+    public static void checkIfTemplateIdIsUniqueOrFail(final String id, final List<PaaSNodeTemplate> list) {
         for (PaaSNodeTemplate node : list) {
             if (serviceIdFromNodeTemplateId(node.getId()).equals(id)) {
                 throw new ComputeConflictNameException("At least two of your computer has a conflict name : " + id);
