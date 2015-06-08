@@ -25,12 +25,6 @@ public class OperationOutputTestIT extends GenericRelationshipTriggeringTestCase
     public OperationOutputTestIT() {
     }
 
-    @Override
-    public void after() {
-        // TODO Auto-generated method stub
-        // super.after();
-    }
-
     @Test
     public void testGetOperationOutputOnAttributes() throws Throwable {
         log.info("\n\n >> Executing Test testGetOperationOutputOnAttributes \n");
@@ -52,6 +46,15 @@ public class OperationOutputTestIT extends GenericRelationshipTriggeringTestCase
         assertStartedInstance("comp_getOpOutputSource", 1, instancesInformations);
         assertAllInstanceStatus("comp_getOpOutputSource", InstanceStatus.SUCCESS, instancesInformations);
         assertAllInstanceStatus("comp_getOpOutputTarget", InstanceStatus.SUCCESS, instancesInformations);
+
+        Map<String, String> sourceAttributes = instancesInformations.get("comp_getOpOutputSource").get("1").getAttributes();
+        Map<String, String> targetAttributes = instancesInformations.get("comp_getOpOutputTarget").get("1").getAttributes();
+
+        Assert.assertNotNull(sourceAttributes);
+        Assert.assertNotNull(targetAttributes);
+
+        Assert.assertEquals("concat/thisIsATestForConcat", sourceAttributes.get("concat_attribute"));
+        Assert.assertEquals("concat/thisIsATestForConcat", targetAttributes.get("concat_attribute"));
 
         Map<String, String> outputs = this.cloudifyRestClientManager.getRestClient().getOperationOutputs(cloudifyAppId, "comp_getopoutputsource", "1");
         System.out.println("OUTPUTS ==> \n" + outputs);
