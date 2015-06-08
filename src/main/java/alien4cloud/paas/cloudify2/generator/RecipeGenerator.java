@@ -178,7 +178,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             }
 
             String templateId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(nodeName);
-            CloudifyPaaSUtils.checkIfTemplateIdIsUniqueOrFail(templateId, paasTopology.getComputes());
+            CloudifyPaaSUtils.checkIfTemplateIdIsUniqueOrFail(templateId, root.getId(), paasTopology.getComputes());
             serviceSetup.setId(templateId);
             generateService(paasTopology.getAllNodes(), recipePath, root, serviceSetup);
             serviceIds.add(serviceSetup.getId());
