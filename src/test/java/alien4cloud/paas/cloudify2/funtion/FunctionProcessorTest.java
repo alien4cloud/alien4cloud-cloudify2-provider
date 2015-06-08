@@ -85,7 +85,7 @@ public class FunctionProcessorTest {
 
     @Test
     public void scalarParamSucessTest() throws Throwable {
-        String computeName = "comp_tomcat_war";
+        String computeName = "comp-tomcat-war";
         Topology topology = testsUtils.parseYamlTopology("functionsKeywordsTest");
         Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSTopology(topology).getAllNodes();
         PaaSNodeTemplate computePaaS = builtPaaSNodeTemplates.get(computeName);
@@ -99,7 +99,7 @@ public class FunctionProcessorTest {
     @Test
     public void getPropertyKeywordsOnNodeTemplateSucessTest() throws Throwable {
 
-        String computeName = "comp_tomcat_war";
+        String computeName = "comp-tomcat-war";
         Topology topology = testsUtils.parseYamlTopology("functionsKeywordsTest");
         Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSTopology(topology).getAllNodes();
         PaaSNodeTemplate computePaaS = builtPaaSNodeTemplates.get(computeName);
@@ -160,7 +160,7 @@ public class FunctionProcessorTest {
     @Test(expected = BadUsageKeywordException.class)
     public void getPropertyWrongDefOrUSageTest() throws Throwable {
 
-        String computeName = "comp_tomcat_war";
+        String computeName = "comp-tomcat-war";
         Topology topology = testsUtils.parseYamlTopology("functionsKeywordsTest");
         Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSTopology(topology).getAllNodes();
         PaaSNodeTemplate computePaaS = builtPaaSNodeTemplates.get(computeName);
@@ -187,7 +187,7 @@ public class FunctionProcessorTest {
     public void getAttributeKeywordsSucessTest() throws Throwable {
 
         String warName = "war_1";
-        String computeName = "comp_tomcat_war";
+        String computeName = "comp-tomcat-war";
         Topology topology = testsUtils.parseYamlTopology("functionsKeywordsTest");
         Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSTopology(topology).getAllNodes();
         PaaSNodeTemplate warPaaS = builtPaaSNodeTemplates.get(warName);
