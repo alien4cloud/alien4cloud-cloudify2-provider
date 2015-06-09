@@ -16,6 +16,7 @@ import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.PoolingClientConnectionManager;
 import org.apache.http.util.EntityUtils;
 import org.springframework.http.MediaType;
 
@@ -29,7 +30,7 @@ public class RestExecutor {
     private DefaultHttpClient httpClient;
 
     public RestExecutor() {
-        this.httpClient = new DefaultHttpClient();
+        this.httpClient = new DefaultHttpClient(new PoolingClientConnectionManager());
     }
 
     public String doGet(URIBuilder builder, boolean failOnError) throws URISyntaxException, IOException {
@@ -44,8 +45,14 @@ public class RestExecutor {
 
     private Response execRequest(HttpRequestBase request) throws URISyntaxException, IOException {
         HttpResponse httpResponse = httpClient.execute(request);
-        return new Response(httpResponse.getStatusLine().getStatusCode(), httpResponse.getStatusLine().getReasonPhrase(), EntityUtils.toString(httpResponse
-                .getEntity()));
+        try {
+            return new Response(httpResponse.getStatusLine().getStatusCode(), httpResponse.getStatusLine().getReasonPhrase(), EntityUtils.toString(httpResponse
+                    .getEntity()));
+        } finally {
+            if (httpResponse != null) {
+                EntityUtils.consumeQuietly(httpResponse.getEntity());
+            }
+        }
     }
 
     private Response doGet(URIBuilder builder) throws URISyntaxException, IOException {
