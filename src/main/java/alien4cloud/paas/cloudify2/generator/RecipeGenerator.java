@@ -4,7 +4,28 @@ import static alien4cloud.paas.cloudify2.AlienExtentedConstants.CLOUDIFY_EXTENSI
 import static alien4cloud.paas.cloudify2.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_LOCATOR_OPERATION_NAME;
 import static alien4cloud.paas.cloudify2.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_START_DETECTION_OPERATION_NAME;
 import static alien4cloud.paas.cloudify2.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_STOP_DETECTION_OPERATION_NAME;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.*;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.AND_OPERATOR;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.APPLICATION_NAME;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.APPLICATION_SERVICES;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.CONTEXT_THIS_INSTANCE_ATTRIBUTES;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.INIT_COMMAND;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.INIT_LIFECYCLE;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.LOCATORS;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.OR_OPERATOR;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.RELATIONSHIP_CUSTOM_COMMANDS;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_COMPUTE_TEMPLATE_NAME;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_CUSTOM_COMMANDS;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_DETECTION_COMMAND;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_MAX_ALLOWED_INSTANCES;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_MIN_ALLOWED_INSTANCES;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_NAME;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_NETWORK_NAME;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_NUM_INSTANCES;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_START_DETECTION_COMMAND;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_STOP_DETECTION_COMMAND;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SHUTDOWN_COMMAND;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SHUTDOWN_LIFECYCLE;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.START_DETECTION_TIMEOUT_SEC;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -155,7 +176,10 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             if (MapUtils.isNotEmpty(deploymenySetup.getProviderDeploymentProperties())) {
                 serviceSetup.setProviderDeploymentProperties(deploymenySetup.getProviderDeploymentProperties());
             }
-            serviceSetup.setId(CloudifyPaaSUtils.serviceIdFromNodeTemplateId(nodeName));
+
+            String templateId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(nodeName);
+            CloudifyPaaSUtils.checkIfTemplateIdIsUniqueOrFail(templateId, root.getId(), paasTopology.getComputes());
+            serviceSetup.setId(templateId);
             generateService(paasTopology.getAllNodes(), recipePath, root, serviceSetup);
             serviceIds.add(serviceSetup.getId());
         }

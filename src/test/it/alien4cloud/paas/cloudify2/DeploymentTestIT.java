@@ -87,10 +87,10 @@ public class DeploymentTestIT extends GenericTestCase {
     public void testRelationshipToscaEnvVars() throws Throwable {
         this.uploadGitArchive("samples", "tomcat-war");
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
-        String[] computesId = new String[] { "comp_envartest" };
+        String[] computesId = new String[] { "comp-envartest" };
         String cloudifyAppId = deployTopology("envVarTest", computesId, null, null);
         this.assertApplicationIsInstalled(cloudifyAppId);
-        testEvents(cloudifyAppId, new String[] { "comp_envartest", "test_component" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
+        testEvents(cloudifyAppId, new String[] { "comp-envartest", "test_component" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
                 ToscaNodeLifecycleConstants.CONFIGURED, ToscaNodeLifecycleConstants.STARTED, ToscaNodeLifecycleConstants.AVAILABLE);
     }
 }

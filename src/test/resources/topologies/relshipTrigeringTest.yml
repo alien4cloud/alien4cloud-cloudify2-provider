@@ -1,6 +1,6 @@
 
 node_templates:
-  source_comp:
+  source-comp:
     type: alien.test.TestCompute
     properties:
       os_type:
@@ -12,14 +12,14 @@ node_templates:
       customHostName:
         value: source
     relationships:
-      dependsOnTarget_comp:
-        target: target_comp
+      dependsOntarget-comp:
+        target: target-comp
         type: alien.test.relationships.TestTrigger
         requirement_name: dependency
         requirement_type: tosca.capabilities.Root
         targeted_capability_name: root
 
-  target_comp:
+  target-comp:
     type: alien.test.TestCompute
     properties:
       os_type:
@@ -32,11 +32,11 @@ node_templates:
         value: target
         
 scaling_policies:
-  source_comp:
+  source-comp:
     min_instances: 1
     max_instances: 4
     initial_instances: 2
-  target_comp:
+  target-comp:
     min_instances: 1
     max_instances: 4
     initial_instances: 1

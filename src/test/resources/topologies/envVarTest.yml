@@ -1,6 +1,6 @@
 
 node_templates:
-  comp_envartest:
+  comp-envartest:
     type: alien.test.TestCompute
     properties:
       os_type:
@@ -18,14 +18,14 @@ node_templates:
         value: testComponent
     relationships:
       hostedOnServeurWeb:
-        target: comp_envartest
+        target: comp-envartest
         type: alien.test.relationships.HostedOn
         requirement_name: host
         requirement_type: tosca.capabilities.Container
         targeted_capability_name: host
         
 scaling_policies:
-  comp_envartest:
+  comp-envartest:
     min_instances: 1
     max_instances: 4
     initial_instances: 1

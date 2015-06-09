@@ -21,19 +21,19 @@ public class RelationshipOperationTriggeringTestIT extends GenericRelationshipTr
     @Test
     public void testRelationshipOperationTrigger() throws Throwable {
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
-        String[] computesId = new String[] { "source_comp", "target_comp" };
+        String[] computesId = new String[] { "source-comp", "target-comp" };
         String cloudifyAppId = deployTopology("relshipTrigeringTest", computesId, null, null);
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
         this.assertApplicationIsInstalled(cloudifyAppId);
-        testEvents(cloudifyAppId, new String[] { "source_comp", "target_comp" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
+        testEvents(cloudifyAppId, new String[] { "source-comp", "target-comp" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
                 ToscaNodeLifecycleConstants.CONFIGURED, ToscaNodeLifecycleConstants.STARTED, ToscaNodeLifecycleConstants.AVAILABLE);
 
         testRelationsEventsSucceeded(cloudifyAppId, null, lastRelIndex, 10000L, ToscaRelationshipLifecycleConstants.ADD_SOURCE,
                 ToscaRelationshipLifecycleConstants.ADD_TARGET);
 
-        scale("source_comp", -1, cloudifyAppId, topo, 10);
+        scale("source-comp", -1, cloudifyAppId, topo, 10);
 
-        testEvents(cloudifyAppId, new String[] { "source_comp" }, 30000L, ToscaNodeLifecycleConstants.DELETED);
+        testEvents(cloudifyAppId, new String[] { "source-comp" }, 30000L, ToscaNodeLifecycleConstants.DELETED);
 
         testRelationsEventsSucceeded(cloudifyAppId, null, lastRelIndex, 20000L, ToscaRelationshipLifecycleConstants.REMOVE_SOURCE);
 

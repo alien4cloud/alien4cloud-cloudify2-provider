@@ -1,6 +1,6 @@
 
 node_templates:
-  comp_tomcat_war:
+  comp-tomcat-war:
     type: tosca.nodes.Compute
     properties:
       os_type:
@@ -18,7 +18,7 @@ node_templates:
         value: /opt/java
     relationships:
       hostedOnServeurWeb:
-        target: comp_tomcat_war
+        target: comp-tomcat-war
         type: tosca.relationships.HostedOn
         requirement_name: host
         requirement_type: tosca.capabilities.Container
@@ -40,7 +40,7 @@ node_templates:
         requirement_type: alien.capabilities.Java
         targeted_capability_name: java
       hostedOnServeurWeb:
-        target: comp_tomcat_war
+        target: comp-tomcat-war
         type: tosca.relationships.HostedOn
         requirement_name: host
         requirement_type: tosca.capabilities.Container
