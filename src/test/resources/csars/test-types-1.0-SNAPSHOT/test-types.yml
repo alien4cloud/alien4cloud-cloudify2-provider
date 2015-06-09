@@ -101,7 +101,7 @@ node_types:
     attributes: 
       old_hostname: { get_operation_output: [ SELF, Standard, create, old_hostnane ] }
       new_hostname: { get_operation_output: [ SELF, Standard, configure, new_hostnane ] }
-      concat_attribute: { concat: [ "concat ", get_operation_output: [SELF, Standard, create, test_for_concat]] }
+      concat_attribute: { concat: [ "concat/", get_operation_output: [SELF, Standard, create, test_for_concat]] }
     interfaces:
       Standard:
         create: scripts/groovy_with_output.groovy
