@@ -50,6 +50,7 @@ import alien4cloud.model.cloud.ComputeTemplate;
 import alien4cloud.model.cloud.StorageTemplate;
 import alien4cloud.model.components.Csar;
 import alien4cloud.model.deployment.Deployment;
+import alien4cloud.model.topology.Capability;
 import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.IPaaSCallback;
 import alien4cloud.paas.cloudify2.events.AlienEvent;
@@ -69,7 +70,9 @@ import alien4cloud.paas.model.PaaSTopology;
 import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.plugin.PluginConfiguration;
+import alien4cloud.topology.TopologyUtils;
 import alien4cloud.tosca.ArchiveUploadService;
+import alien4cloud.tosca.normative.NormativeComputeConstants;
 import alien4cloud.tosca.parser.ParsingException;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -528,9 +531,10 @@ public class GenericTestCase {
     }
 
     protected void scale(String nodeID, int nbToAdd, String appId, Topology topo, Integer sleepTimeSec) throws Exception {
-        int plannedInstance = topo.getScalingPolicies().get(nodeID).getInitialInstances() + nbToAdd;
+        Capability scalableCapability = TopologyUtils.getScalableCapability(topo, nodeID, true);
+        int plannedInstance = TopologyUtils.getScalingProperty(NormativeComputeConstants.SCALABLE_DEFAULT_INSTANCES, scalableCapability) + nbToAdd;
         log.info("Scaling to " + plannedInstance);
-        topo.getScalingPolicies().get(nodeID).setInitialInstances(plannedInstance);
+        TopologyUtils.setScalingProperty(NormativeComputeConstants.SCALABLE_DEFAULT_INSTANCES, plannedInstance, scalableCapability);
         alienDAO.save(topo);
         PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
         Deployment deployment = new Deployment();
