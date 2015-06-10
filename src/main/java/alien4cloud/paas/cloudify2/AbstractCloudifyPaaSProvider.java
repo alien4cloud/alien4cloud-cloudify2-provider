@@ -500,31 +500,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         }
     }
 
-    private void parseAttributes(Map<String, Map<String, InstanceInformation>> instanceInformations, DeploymentInfo deploymentInfo) {
-        Topology topology = deploymentInfo.topology;
-        // parse attributes
-        for (Entry<String, Map<String, InstanceInformation>> nodeInstanceId : instanceInformations.entrySet()) {
-
-            for (Entry<String, InstanceInformation> nodeInstanceNumber : nodeInstanceId.getValue().entrySet()) {
-
-                if (nodeInstanceNumber.getValue().getAttributes() != null) {
-                    for (Entry<String, String> attributeEntry : nodeInstanceNumber.getValue().getAttributes().entrySet()) {
-                        PaaSNodeTemplate nodeTemplate = deploymentInfo.paaSTopology.getAllNodes().get(nodeInstanceId.getKey());
-                        Map<String, IValue> nodeTemplateAttributes = nodeTemplate.getIndexedToscaElement().getAttributes();
-                        IValue attributeValue = nodeTemplateAttributes.get(attributeEntry.getKey());
-                        if (attributeValue != null) {
-                            String parsedAttribute = FunctionEvaluator.parseAttribute(attributeEntry.getKey(), attributeValue, topology, instanceInformations,
-                                    nodeInstanceNumber.getKey(), nodeTemplate, deploymentInfo.paaSTopology.getAllNodes());
-                            attributeEntry.setValue(parsedAttribute);
-                        }
-                    }
-                }
-
-            }
-
-        }
-    }
-
     private int getPlannedInstancesCount(PaaSNodeTemplate paaSNodeTemplate, Topology topology) {
         String computeNodeId = ToscaUtils.getMandatoryHostTemplate(paaSNodeTemplate).getId();
         Capability scalableCapability = TopologyUtils.getScalableCapability(topology, computeNodeId, true);
@@ -549,7 +524,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             fillInstanceStates(deploymentInfo.deploymentId, instanceInformations, restEventEndpoint);
             fillRuntimeInformations(instanceInformations, applicationDescription, restClient);
             fillOperationsOutputs(instanceInformations, applicationDescription, restClient);
-            parseAttributes(instanceInformations, deploymentInfo);
+            FunctionEvaluator.postProcessInstanceInformation(instanceInformations, deploymentInfo.topology, deploymentInfo.paaSTopology);
             instanceStatusByDeployments.put(deploymentPaaSId, new NodesDeploymentInfo(instanceInformations));
             return instanceInformations;
         } catch (RestClientException e) {
@@ -566,8 +541,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     }
 
     @Override
-    public void getInstancesInformation(PaaSDeploymentContext deploymentContext, Topology topology,
-            IPaaSCallback<Map<String, Map<String, InstanceInformation>>> callback) {
+    public void getInstancesInformation(PaaSTopologyDeploymentContext deploymentContext, IPaaSCallback<Map<String, Map<String, InstanceInformation>>> callback) {
         callback.onSuccess(getInstancesInformation(deploymentContext.getDeploymentPaaSId()));
     }
 
@@ -800,7 +774,8 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         Map<String, String> operationResponse = Maps.newHashMap();
         String serviceName = retrieveServiceName(deploymentPaaSId, request.getNodeTemplateName());
         InvokeCustomCommandRequest invokeRequest = new InvokeCustomCommandRequest();
-        invokeRequest.setCommandName(AlienUtils.prefixWithDefaultSeparator(request.getOperationName(), request.getNodeTemplateName(), request.getInterfaceName()));
+        invokeRequest.setCommandName(AlienUtils.prefixWithDefaultSeparator(request.getOperationName(), request.getNodeTemplateName(),
+                request.getInterfaceName()));
         buildParameters(deploymentPaaSId, request, invokeRequest);
         String operationFQN = operationFQN(serviceName, request, invokeRequest);
         try {
