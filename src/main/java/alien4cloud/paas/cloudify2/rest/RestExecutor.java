@@ -30,7 +30,10 @@ public class RestExecutor {
     private DefaultHttpClient httpClient;
 
     public RestExecutor() {
-        this.httpClient = new DefaultHttpClient(new PoolingClientConnectionManager());
+        PoolingClientConnectionManager cm = new PoolingClientConnectionManager();
+        cm.setMaxTotal(200);
+        cm.setDefaultMaxPerRoute(20);
+        this.httpClient = new DefaultHttpClient(cm);
     }
 
     public String doGet(URIBuilder builder, boolean failOnError) throws URISyntaxException, IOException {
