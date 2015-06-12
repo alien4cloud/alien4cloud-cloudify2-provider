@@ -83,8 +83,13 @@ public class CloudifyExecutorUtils {
         if(scriptExitValue) {
             throw new RuntimeException("Error executing the script ${script} (return code: $scriptExitValue)")
         } else {
-            println "sh result is: "+ processResult != null ? processResult.result:null
-            return processResult != null ? processResult.result : null
+            if (processResult != null){
+				println "sh result is: "+ processResult.result
+				return processResult.result
+			}else{
+				 println "sh result is: null"
+				 return null
+			}
         }
     }
 
