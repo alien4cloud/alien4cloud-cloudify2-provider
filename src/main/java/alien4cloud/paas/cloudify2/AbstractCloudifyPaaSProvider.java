@@ -379,12 +379,20 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             }
             String instanceId = instanceState.getInstanceId();
 
-            InstanceStatus instanceStatus = InstanceStatus.PROCESSING;
-            if (ToscaNodeLifecycleConstants.STARTED.equals(instanceState.getInstanceState())
-                    || ToscaNodeLifecycleConstants.AVAILABLE.equals(instanceState.getInstanceState())) {
+            InstanceStatus instanceStatus = null;
+            switch (instanceState.getInstanceState()) {
+            case ToscaNodeLifecycleConstants.STARTED:
+            case ToscaNodeLifecycleConstants.AVAILABLE:
                 instanceStatus = InstanceStatus.SUCCESS;
-            } else if (InstanceStatus.MAINTENANCE.toString().toLowerCase().equals(instanceState.getInstanceState())) {
+                break;
+            case ToscaNodeLifecycleConstants.ERROR:
+                instanceStatus = InstanceStatus.FAILURE;
+                break;
+            case ToscaNodeLifecycleConstants.MAINTENANCE:
                 instanceStatus = InstanceStatus.MAINTENANCE;
+            default:
+                instanceStatus = InstanceStatus.PROCESSING;
+                break;
             }
 
             if (!(ToscaNodeLifecycleConstants.DELETED.equals(instanceState.getInstanceState()))) {

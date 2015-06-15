@@ -4,28 +4,7 @@ import static alien4cloud.paas.cloudify2.AlienExtentedConstants.CLOUDIFY_EXTENSI
 import static alien4cloud.paas.cloudify2.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_LOCATOR_OPERATION_NAME;
 import static alien4cloud.paas.cloudify2.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_START_DETECTION_OPERATION_NAME;
 import static alien4cloud.paas.cloudify2.AlienExtentedConstants.CLOUDIFY_EXTENSIONS_STOP_DETECTION_OPERATION_NAME;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.AND_OPERATOR;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.APPLICATION_NAME;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.APPLICATION_SERVICES;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.CONTEXT_THIS_INSTANCE_ATTRIBUTES;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.INIT_COMMAND;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.INIT_LIFECYCLE;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.LOCATORS;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.OR_OPERATOR;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.RELATIONSHIP_CUSTOM_COMMANDS;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_COMPUTE_TEMPLATE_NAME;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_CUSTOM_COMMANDS;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_DETECTION_COMMAND;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_MAX_ALLOWED_INSTANCES;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_MIN_ALLOWED_INSTANCES;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_NAME;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_NETWORK_NAME;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_NUM_INSTANCES;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_START_DETECTION_COMMAND;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SERVICE_STOP_DETECTION_COMMAND;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SHUTDOWN_COMMAND;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.SHUTDOWN_LIFECYCLE;
-import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.START_DETECTION_TIMEOUT_SEC;
+import static alien4cloud.paas.cloudify2.generator.RecipeGeneratorConstants.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -109,8 +88,6 @@ import com.google.common.collect.Maps;
 public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
     private static final int DEFAULT_INIT_MIN_INSTANCE = 1;
     private static final int DEFAULT_MAX_INSTANCE = 1;
-    private static final int DEFAULT_START_DETECTION_TIMEOUT = 600;
-
     private static final String START_DETECTION_SCRIPT_FILE_NAME = "startDetection";
     private static final String STOP_DETECTION_SCRIPT_FILE_NAME = "stopDetection";
     private static final String NAME_VALUE_TO_PARSE_KEWORD = "NAME_VALUE_TO_PARSE";
@@ -130,6 +107,8 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
     private Path scriptDescriptorPath;
     private Path closureScriptDescriptorPath;
     private Path globalDetectionScriptDescriptorPath;
+    private Path startSnippetVelocityPath;
+    private Path resourcesDestroyableScriptDescriptorPath;
 
     @PostConstruct
     public void initialize() throws IOException {
@@ -146,6 +125,8 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         scriptDescriptorPath = commandGenerator.loadResourceFromClasspath("classpath:velocity/ScriptDescriptor.vm");
         closureScriptDescriptorPath = commandGenerator.loadResourceFromClasspath("classpath:velocity/ClosureScriptDescriptor.vm");
         globalDetectionScriptDescriptorPath = commandGenerator.loadResourceFromClasspath("classpath:velocity/GlobalDetectionScriptDescriptor.vm");
+        startSnippetVelocityPath = commandGenerator.loadResourceFromClasspath("classpath:velocity/startSnippet.vm");
+        resourcesDestroyableScriptDescriptorPath = commandGenerator.loadResourceFromClasspath("classpath:velocity/ResourcesDestroyableScriptDescriptor.vm");
     }
 
     public Path generateRecipe(final String deploymentId, final String deploymentPaaSId, final PaaSTopology paasTopology, DeploymentSetup deploymenySetup)
@@ -297,6 +278,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         context.setServicePath(servicePath);
         context.setEventsLeaseInHour(setup.getProviderDeploymentProperties().get(DeploymentPropertiesNames.EVENTS_LEASE_INHOUR));
         context.setDeleteStorages(setup.getProviderDeploymentProperties().get(DeploymentPropertiesNames.DELETABLE_BLOCKSTORAGE));
+        context.setStartDetectionTimeoutInSec(setup.getProviderDeploymentProperties().get(DeploymentPropertiesNames.STARTDETECTION_TIMEOUT_INSECOND));
 
         // copy internal static resources for the service
         commandGenerator.copyInternalResources(servicePath, setup.getDeploymentId());
@@ -331,8 +313,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         generateShutdownScript(context, computeNode);
 
         // generate the service descriptor
-        generateServiceDescriptor(context, setup.getId(), computeTemplate, networkName, computeNode.getScalingPolicy(), setup.getProviderDeploymentProperties()
-                .get(DeploymentPropertiesNames.STARTDETECTION_TIMEOUT_INSECOND));
+        generateServiceDescriptor(context, computeTemplate, networkName, computeNode.getScalingPolicy());
     }
 
     private String getComputeTemplatePaaSResourceIdOrFail(ComputeTemplate computeTemplate) {
@@ -340,7 +321,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         if (StringUtils.isBlank(id)) {
             // TODO
             log.error("No PaaSResourceId found for compute template " + computeTemplate);
-            throw new ResourceMatchingFailedException("No PaaSResourceId found for compute template " + computeTemplate);
+            // throw new ResourceMatchingFailedException("No PaaSResourceId found for compute template " + computeTemplate);
         }
         return id;
     }
@@ -505,20 +486,17 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
 
     private void generateScript(final StartEvent startEvent, final String lifecycleName, final RecipeGeneratorServiceContext context) throws IOException {
         List<String> executions = Lists.newArrayList();
-
         WorkflowStep currentStep = startEvent.getNextStep();
         while (currentStep != null && !(currentStep instanceof StopEvent)) {
             processWorkflowStep(context, currentStep, executions);
             currentStep = currentStep.getNextStep();
         }
-        if (lifecycleName.equals("stop")) {
-            executions.add(CommandGenerator.SHUTDOWN_COMMAND);
-            executions.add(CommandGenerator.DESTROY_COMMAND);
+
+        Path velocityTemplate = scriptDescriptorPath;
+        if (lifecycleName.equals("stop") || lifecycleName.equals("start")) {
+            velocityTemplate = resourcesDestroyableScriptDescriptorPath;
         }
-        if (lifecycleName.equals("start")) {
-            executions.add(CommandGenerator.DESTROY_COMMAND);
-        }
-        generateScriptWorkflow(context.getServicePath(), scriptDescriptorPath, lifecycleName, executions, null);
+        generateScriptWorkflow(context.getServicePath(), velocityTemplate, lifecycleName, executions, null);
     }
 
     private void processWorkflowStep(final RecipeGeneratorServiceContext context, final WorkflowStep workflowStep, final List<String> executions)
@@ -529,10 +507,6 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             processOperationCallActivity(context, (OperationCallActivity) workflowStep, executions);
         } else if (workflowStep instanceof StateUpdateEvent) {
             StateUpdateEvent stateUpdateEvent = (StateUpdateEvent) workflowStep;
-            // execute (if provided) the startDetection before firering the event started
-            if (stateUpdateEvent.getState().equals(ToscaNodeLifecycleConstants.STARTED)) {
-                addLoppedCommandToExecutions(context.getStartDetectionCommands().get(stateUpdateEvent.getElementId()), executions);
-            }
             String command = commandGenerator.getFireEventCommand(stateUpdateEvent.getElementId(), stateUpdateEvent.getState(), context.getEventsLeaseInHour());
             executions.add(command);
         } else if (workflowStep instanceof ParallelJoinStateGateway) {
@@ -631,13 +605,6 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         }
     }
 
-    private void addLoppedCommandToExecutions(final String command, final List<String> executions) {
-        if (StringUtils.isNotBlank(command)) {
-            // here, we should add a looped ( "while" wrapped) command to the executions of the node template
-            executions.add(commandGenerator.getLoopedGroovyCommand(null, "!" + command));
-        }
-    }
-
     private void generateNodeOperationCall(final RecipeGeneratorServiceContext context, final OperationCallActivity operationCall,
             final List<String> executions, final PaaSNodeTemplate paaSNodeTemplate, final boolean isAsynchronous) throws IOException {
         this.artifactCopier.copyImplementationArtifact(context, operationCall.getCsarPath(), operationCall.getImplementationArtifact(),
@@ -685,29 +652,43 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             // so that we should only start the node if in restart case and the node is down (startDetetions(stopDetection) failure(success)), or if we are not
             // in the restart case
             if (operationCall.getOperationName().equals(ToscaNodeLifecycleConstants.START)) {
-                String restartCondition = getRestartCondition(context, operationCall);
-                String contextInstanceAttrRestart = CONTEXT_THIS_INSTANCE_ATTRIBUTES + ".restart";
-                if (restartCondition != null) {
-                    String trigger = contextInstanceAttrRestart + " != true || (" + restartCondition + ")";
-                    // TODO: fire already started state instead
-                    String alreadyStartedCommand = commandGenerator.getFireEventCommand(operationCall.getNodeTemplateId(), ToscaNodeLifecycleConstants.STARTED,
-                            context.getEventsLeaseInHour());
-                    String elseCommand = alreadyStartedCommand;
-                    asyncCommand = commandGenerator.getConditionalSnippet(trigger, asyncCommand, elseCommand);
-                } else {
-                    // here we try to display a warning message for the restart case
-                    log.warn("Node <{}> doesn't have neither startDetection, nor stopDetection lyfecycle event.", serviceId);
-                    String warningTrigger = contextInstanceAttrRestart + " == true";
-                    String warning = "println \"Neither startDetection nor stopDetetion found for <" + serviceId
-                            + ">! will restart the node even if already started.\"";
-                    String warningSnippet = commandGenerator.getConditionalSnippet(warningTrigger, warning, null);
-                    executions.add(warningSnippet);
-                }
+                processAsynchStart(context, serviceId, operationCall, executions, asyncCommand);
+            } else {
+                executions.add(asyncCommand);
             }
-            executions.add(asyncCommand);
         } else {
             executions.add(command);
         }
+    }
+
+    private void processAsynchStart(final RecipeGeneratorServiceContext context, final String serviceId, final OperationCallActivity operationCall,
+            final List<String> executions, final String asyncCommand) throws IOException {
+
+        Map<String, Object> velocityProps = Maps.newHashMap();
+        String startDetectionCommand = context.getStartDetectionCommands().get(operationCall.getNodeTemplateId());
+        velocityProps.put("startDetectionCommand", startDetectionCommand);
+        String stopDetectionCommand = context.getStopDetectionCommands().get(operationCall.getNodeTemplateId());
+        velocityProps.put("stopDetectionCommand", stopDetectionCommand);
+
+        velocityProps.put("nodeId", operationCall.getNodeTemplateId());
+        velocityProps.put("startAsynchCommand", asyncCommand);
+
+        String restartCondition = null;
+        if (StringUtils.isNotBlank(stopDetectionCommand)) {
+            restartCondition = stopDetectionCommand;
+        } else if (StringUtils.isNotBlank(startDetectionCommand)) {
+            restartCondition = "!" + startDetectionCommand;
+        }
+
+        velocityProps.put("restartCondition", restartCondition);
+
+        // execution timeout
+        // For now, startDetectionTimeout*9/10
+        velocityProps.put("execTimeout", context.getStartExecutionTimeout());
+
+        String startSnippet = VelocityUtil.writeToString(startSnippetVelocityPath, velocityProps);
+        executions.add(startSnippet);
+
     }
 
     private OperationResume getOperationResume(AbstractWorkflowStep step) {
@@ -750,13 +731,13 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         return restartCondition;
     }
 
-    private void generateServiceDescriptor(final RecipeGeneratorServiceContext context, final String serviceName, final String computeTemplate,
-            final String networkName, final ScalingPolicy scalingPolicy, String startDetectionTimeoutSec) throws IOException {
+    private void generateServiceDescriptor(final RecipeGeneratorServiceContext context, final String computeTemplate, final String networkName,
+            final ScalingPolicy scalingPolicy) throws IOException {
         Path outputPath = context.getServicePath().resolve(context.getServiceId() + DSLUtils.SERVICE_DSL_FILE_NAME_SUFFIX);
 
         // configure and write the service descriptor thanks to velocity.
         HashMap<String, Object> properties = Maps.newHashMap();
-        properties.put(SERVICE_NAME, serviceName);
+        properties.put(SERVICE_NAME, context.getServiceId());
         properties.put(SERVICE_COMPUTE_TEMPLATE_NAME, computeTemplate);
         properties.put(SERVICE_NETWORK_NAME, networkName);
         if (scalingPolicy != null) {
@@ -768,7 +749,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             properties.put(SERVICE_MIN_ALLOWED_INSTANCES, DEFAULT_INIT_MIN_INSTANCE);
             properties.put(SERVICE_MAX_ALLOWED_INSTANCES, DEFAULT_MAX_INSTANCE);
         }
-        properties.put(START_DETECTION_TIMEOUT_SEC, startDetectionTimeoutSec == null ? DEFAULT_START_DETECTION_TIMEOUT : startDetectionTimeoutSec);
+        properties.put(START_DETECTION_TIMEOUT_SEC, context.getStartDetectionTimeoutInSec());
         properties.put(SERVICE_CUSTOM_COMMANDS, context.getCustomCommands());
         properties.put(RELATIONSHIP_CUSTOM_COMMANDS, context.getRelationshipCustomCommands());
         for (Entry<String, String> entry : context.getAdditionalProperties().entrySet()) {

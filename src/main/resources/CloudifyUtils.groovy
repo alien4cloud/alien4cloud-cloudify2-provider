@@ -50,4 +50,15 @@ public class CloudifyUtils {
   static def destroy() {
       manager.destroy()
   }
+  
+  /**
+   * et the end time given a timeout. If timeoutInSec = null, then default one (600 seconds) is used 
+   * 
+   * @param timeoutInSec
+   * @return
+   */
+  static def getTimeoutTime(def timeoutInSec) {
+      def finalTimeout = timeoutInSec > 0 ? timeoutInSec : 600;
+      return java.lang.System.currentTimeMillis() + finalTimeout * 1000
+  }
 }

@@ -164,13 +164,13 @@ public class GenericTestCase {
         System.out.println(resource);
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        cloudifyURL = cloudifyURL == null ? "http://129.185.67.120:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "https://129.185.67.91:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.setCloudifyURLs(Lists.newArrayList(cloudifyURL));
         pluginConfigurationBean.setVersion("2.7.1");
         pluginConfigurationBean.setConnectionTimeOutInSeconds(5);
-        // pluginConfigurationBean.setUsername("Superuser");
-        // pluginConfigurationBean.setPassword("Superuser");
+        pluginConfigurationBean.setUsername("Superuser");
+        pluginConfigurationBean.setPassword("Superuser");
         cloudifyPaaSPovider.setConfiguration(pluginConfigurationBean);
         cloudifyRestClientManager = cloudifyPaaSPovider.getCloudifyRestClientManager();
         CloudResourceMatcherConfig matcherConf = new CloudResourceMatcherConfig();
@@ -511,10 +511,6 @@ public class GenericTestCase {
     }
 
     private void assertApplicationIsUninstalled(String applicationId) throws RestClientException {
-
-        // RestClient restClient = cloudifyRestClientManager.getRestClient();
-        // ApplicationDescription appliDesc = restClient.getApplicationDescription(applicationId);
-        // Assert.assertNull("Application " + applicationId + " is not undeloyed!", appliDesc);
 
         // FIXME this is a hack, for the provider to set the status of the application to UNDEPLOYED
         cloudifyPaaSPovider.getEventsSince(new Date(), 1, new IPaaSCallback<AbstractMonitorEvent[]>() {
