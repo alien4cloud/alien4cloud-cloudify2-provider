@@ -11,6 +11,16 @@ node_templates:
         value: ubuntu
       customHostName:
         value: testHostname
+    capabilities:
+      scalable:
+        type: tosca.capabilities.Scalable
+        properties:
+          min_instances:
+            value: "1"
+          max_instances:
+            value: "1"
+          default_instances:
+            value: "1"
   java:
     type: alien.nodes.Java
     properties:

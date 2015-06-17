@@ -9,6 +9,16 @@ node_templates:
         value: ubuntu
       os_version:
         value: ubuntu
+    capabilities:
+      scalable:
+        type: tosca.capabilities.Scalable
+        properties:
+          min_instances:
+            value: "1"
+          max_instances:
+            value: "1"
+          default_instances:
+            value: "1"
   blockstorage:
     type: tosca.nodes.BlockStorage
     properties:
@@ -21,14 +31,6 @@ node_templates:
         requirement_name: attachment
         requirement_type: tosca.capabilities.Attachment
         targeted_capability_name: attach
-
-
-# scaling_policies:
-scaling_policies:
-  serveur_web:
-    min_instances: 1
-    max_instances: 3
-    initial_instances: 1
 
 dependencies:
   - name: tosca-normative-types

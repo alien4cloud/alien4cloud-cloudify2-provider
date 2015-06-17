@@ -11,7 +11,16 @@ node_templates:
         value: ubuntu
       customHostName:
         value: testCompute
-
+    capabilities:
+      scalable:
+        type: tosca.capabilities.Scalable
+        properties:
+          min_instances:
+            value: "1"
+          max_instances:
+            value: "1"
+          default_instances:
+            value: "1"
 dependencies:
   - name: test-types
     version: 1.0-SNAPSHOT

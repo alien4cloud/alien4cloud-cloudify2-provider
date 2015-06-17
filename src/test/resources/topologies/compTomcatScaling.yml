@@ -9,6 +9,16 @@ node_templates:
         value: ubuntu
       os_version:
         value: ubuntu
+    capabilities:
+      scalable:
+        type: tosca.capabilities.Scalable
+        properties:
+          min_instances:
+            value: "1"
+          max_instances:
+            value: "3"
+          default_instances:
+            value: "1"
   java:
     type: alien.nodes.Java
     properties:
@@ -45,12 +55,6 @@ node_templates:
         requirement_name: host
         requirement_type: tosca.capabilities.Container
         targeted_capability_name: host
-
-scaling_policies:
-  comp_tomcat_scaling:
-    min_instances: 1
-    max_instances: 3
-    initial_instances: 1 
 
 dependencies:
   - name: tosca-normative-types

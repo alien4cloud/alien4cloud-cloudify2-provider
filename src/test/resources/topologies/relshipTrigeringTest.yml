@@ -11,6 +11,16 @@ node_templates:
         value: ubuntu
       customHostName:
         value: source
+    capabilities:
+      scalable:
+        type: tosca.capabilities.Scalable
+        properties:
+          min_instances:
+            value: "1"
+          max_instances:
+            value: "4"
+          default_instances:
+            value: "2"
     relationships:
       dependsOntarget-comp:
         target: target-comp
@@ -30,16 +40,16 @@ node_templates:
         value: ubuntu
       customHostName:
         value: target
-        
-scaling_policies:
-  source-comp:
-    min_instances: 1
-    max_instances: 4
-    initial_instances: 2
-  target-comp:
-    min_instances: 1
-    max_instances: 4
-    initial_instances: 1
+    capabilities:
+      scalable:
+        type: tosca.capabilities.Scalable
+        properties:
+          min_instances:
+            value: "1"
+          max_instances:
+            value: "4"
+          default_instances:
+            value: "1"
 
 dependencies:
   - name: tosca-normative-types
