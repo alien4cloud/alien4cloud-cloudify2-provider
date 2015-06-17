@@ -11,6 +11,16 @@ node_templates:
         value: ubuntu
       customHostName:
         value: testHostname
+    capabilities:
+      scalable:
+        type: tosca.capabilities.Scalable
+        properties:
+          min_instances:
+            value: "1"
+          max_instances:
+            value: "1"
+          default_instances:
+            value: "1"
     attributes:
       old_hostname:
       new_hostname:
@@ -27,6 +37,16 @@ node_templates:
         value: ubuntu
       customHostName:
         value: testHostname
+    capabilities:
+      scalable:
+        type: tosca.capabilities.Scalable
+        properties:
+          min_instances:
+            value: "1"
+          max_instances:
+            value: "1"
+          default_instances:
+            value: "1"
     attributes:
       old_hostname:
       new_hostname:
@@ -38,12 +58,6 @@ node_templates:
         requirement_name: dependency
         requirement_type: tosca.capabilities.Root
         targeted_capability_name: root
-        
-scaling_policies:
-  comp_getOpOutput:
-    min_instances: 1
-    max_instances: 4
-    initial_instances: 1
 
 dependencies:
   - name: tosca-normative-types

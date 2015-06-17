@@ -6,7 +6,16 @@ node_templates:
         value: windows
       os_arch:
         value: x86_64
-
+    capabilities:
+      scalable:
+        type: tosca.capabilities.Scalable
+        properties:
+          min_instances:
+            value: "1"
+          max_instances:
+            value: "1"
+          default_instances:
+            value: "1"
 dependencies:
   - name: test-types
     version: 1.0-SNAPSHOT
