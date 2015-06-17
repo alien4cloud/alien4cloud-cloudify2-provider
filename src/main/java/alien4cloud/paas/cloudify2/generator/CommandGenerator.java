@@ -111,8 +111,24 @@ public class CommandGenerator {
     }
 
     private void copyAdditionnalLibs(Path servicePath) throws IOException {
-        Path libs = Paths.get(USM_LIB_DIR);
-        FileUtils.copyDirectory(libs.toFile(), servicePath.resolve(RECIPE_USM_LIB_DIR).toFile());
+        FileSystem fs = null;
+        try {
+            URI uri = applicationContext.getResource(RECIPE_USM_LIB_DIR).getURI();
+            String uriStr = uri.toString();
+            Path path = null;
+            if (uriStr.contains("!")) {
+                String[] array = uriStr.split("!");
+                fs = FileSystems.newFileSystem(URI.create(array[0]), new HashMap<String, Object>());
+                path = fs.getPath(array[1]);
+            } else {
+                path = Paths.get(uri);
+            }
+            FileUtils.copyDirectory(path.toFile(), servicePath.resolve(RECIPE_USM_LIB_DIR).toFile());
+        } finally {
+            if (fs != null) {
+                fs.close();
+            }
+        }
     }
 
     protected void copyResourceFromClasspath(String resource, Path target) throws IOException {

@@ -120,6 +120,6 @@ public class CloudifyPaaSProviderFactory implements IConfigurablePaaSProviderFac
         logLevelConstraint.setValidValues(validLevels);
 
         logLevel.setConstraints(Arrays.asList((PropertyConstraint) logLevelConstraint));
-        deploymentPropertyMap.put(DeploymentPropertiesNames.LOG_LEVEL, deletableBlockStorage);
+        deploymentPropertyMap.put(DeploymentPropertiesNames.LOG_LEVEL, logLevel);
     }
 }
