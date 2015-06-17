@@ -9,40 +9,37 @@ import com.gigaspaces.metadata.SpaceTypeDescriptorBuilder;
 import com.gigaspaces.query.QueryResultType;
 import com.j_spaces.core.IJSpace;
 import com.j_spaces.core.client.SQLQuery;
+import org.apache.log4j.Logger;
 
 public class GigaSpacesEventsManager {
+
+	static Logger log = CloudifyUtils.getLogger(GigaSpacesEventsManager.class)
 
     def DEFAULT_LOCATOR = "localhost:4176"
     GigaSpace gigaSpace
     UrlSpaceConfigurer spaceConfigurer
 
     def GigaSpacesEventsManager(String url = "jini://*/*/cloudifyManagementSpace", String locator = null) {
-        println "[GigaSpacesEventsManager] Alien4Cloud event manager creating."
+        log.info "Alien4Cloud event manager creating."
         if (locator == null) {
             locator = System.getenv('LUS_IP_ADDRESS') == null ? DEFAULT_LOCATOR : System.getenv('LUS_IP_ADDRESS')
         }
-        printDebug("Connect to spaceUrl=${url}?locator=${locator}")
+        log.debug ("Connect to spaceUrl=${url}?locator=${locator}")
 
         this.spaceConfigurer = new UrlSpaceConfigurer(url).lookupLocators(locator);
         IJSpace space = spaceConfigurer.space();
         this.gigaSpace = new GigaSpaceConfigurer(space).gigaSpace();
-        println "[GigaSpacesEventsManager] Alien4Cloud event manager created."
-    }
-
-    def printDebug(message) {
-        //if(System.getenv('DEBUG') != null) {
-        println "[GigaSpacesEventsManager] ${message}"
-        //}
+        log.info " Alien4Cloud event manager created."
     }
 
     def destroy() {
-        println "[GigaSpacesEventsManager] Alien4Cloud event dispatching completed. Releasing resource...."
+        log.info "Alien4Cloud event dispatching completed. Releasing resource...."
         this.spaceConfigurer.destroy()
-        println "[GigaSpacesEventsManager] Alien4Cloud event manager resource released."
+        log.info "Alien4Cloud event manager resource released."
     }
 
     def putEvent(def application, def service, def instanceId, def eventResume) {
-        println ">>> putEvent application=${application} service=${service} instanceId=${instanceId} event=${eventResume}"
+        log.info ">>> putEvent application=${application} service=${service} instanceId=${instanceId} event=${eventResume}"
         SpaceDocument document = new SpaceDocument("alien4cloud.paas.cloudify2.events.AlienEvent");
         fillEventDocument(application, service, instanceId, eventResume.event, document)
         gigaSpace.write(document, eventResume.lease);
@@ -50,7 +47,7 @@ public class GigaSpacesEventsManager {
     }
 
     def putBlockStorageEvent(def application, def service, def instanceId, def eventResume, def volumeId) {
-        println ">>> putBlockStorageEvent application=${application} service=${service} instanceId=${instanceId} event=${eventResume} volumeId=${volumeId}"
+        log.info ">>> putBlockStorageEvent application=${application} service=${service} instanceId=${instanceId} event=${eventResume} volumeId=${volumeId}"
         SpaceDocument document = new SpaceDocument("alien4cloud.paas.cloudify2.events.BlockStorageEvent");
         fillEventDocument(application, service, instanceId, eventResume.event, document);
         if(volumeId && volumeId != null) {
@@ -94,7 +91,7 @@ public class GigaSpacesEventsManager {
     }
 
     def waitFor(def applicationName, def serviceName, def instanceId, List states) {
-        printDebug("Waiting for state=${states[0]} from ${applicationName}.${serviceName}(${instanceId}) ...")
+        log.info ("Waiting for state=${states[0]} from ${applicationName}.${serviceName}(${instanceId}) ...")
         boolean wait = true
 
         while (wait) {
@@ -114,12 +111,12 @@ public class GigaSpacesEventsManager {
                 }
 
                 if (wait) {
-                    printDebug("... still waiting 5 secondes for state=${states[0]} from ${applicationName}.${serviceName}(${instanceId})")
+                    log.debug ("... still waiting 5 secondes for state=${states[0]} from ${applicationName}.${serviceName}(${instanceId})")
                     sleep 5000
                 }
             }
         }
-        printDebug("... ${applicationName}.${serviceName}(${instanceId}) reaches state=${states[0]}")
+        log.info ("... ${applicationName}.${serviceName}(${instanceId}) reaches state=${states[0]}")
     }
 
     def getState(def applicationName, def serviceName, def instanceId) {
@@ -137,7 +134,7 @@ public class GigaSpacesEventsManager {
     }
     
     def putRelationshipOperationEvent(def application, def nodeResume, def eventResume, def source, def target) {
-        println ">>> putRelationshipOperationEvent application=${application} service=${nodeResume.id} instanceId=${nodeResume.instanceId} event=${eventResume}\n"+
+        log.info ">>> putRelationshipOperationEvent application=${application} service=${nodeResume.id} instanceId=${nodeResume.instanceId} event=${eventResume}\n"+
                 "source=${source} target=${target}"
         SpaceDocument document = new SpaceDocument("alien4cloud.paas.cloudify2.events.RelationshipOperationEvent");
         fillEventDocument(application, nodeResume.id, nodeResume.instanceId, eventResume.event, document);

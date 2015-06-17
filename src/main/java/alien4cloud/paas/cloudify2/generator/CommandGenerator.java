@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.ApplicationContext;
@@ -28,6 +29,9 @@ import org.springframework.stereotype.Component;
 
 import alien4cloud.model.components.ImplementationArtifact;
 import alien4cloud.paas.cloudify2.AlienExtentedConstants;
+import alien4cloud.paas.cloudify2.DeploymentPropertiesNames;
+import alien4cloud.paas.cloudify2.ProviderLogLevel;
+import alien4cloud.paas.cloudify2.ServiceSetup;
 import alien4cloud.paas.cloudify2.utils.VelocityUtil;
 import alien4cloud.paas.exception.PaaSDeploymentException;
 
@@ -44,7 +48,10 @@ public class CommandGenerator {
     private final static String[] SERVICE_RECIPE_RESOURCES = new String[] { "chmod-init.groovy", "CloudifyUtils.groovy", "CloudifyExecutorUtils.groovy",
             "CloudifyAttributesUtils.groovy", "EnvironmentBuilder.groovy", "scriptWrapper/scriptWrapper.sh", "scriptWrapper/scriptWrapper.bat",
             "ProcessOutputListener.groovy" };
-    private final static String[] SERVICE_RECIPE_RESOURCES_VELOCITY_TEMP = new String[] { "GigaSpacesEventsManager" };
+    private final static String[] SERVICE_RECIPE_RESOURCES_VELOCITY_TEMP = new String[] { "GigaSpacesEventsManager", "DeploymentConstants" };
+
+    private final static String USM_LIB_DIR = "src/main/resources/usmlib";
+    private final static String RECIPE_USM_LIB_DIR = "usmlib";
 
     private final static String OPERATION_FQN = "OPERATION_FQN";
 
@@ -54,8 +61,8 @@ public class CommandGenerator {
     private static final String IS_NODE_STARTED_FORMAT = "CloudifyExecutorUtils.isNodeStarted(context, \"%s\")";
     private static final String EXECUTE_PARALLEL_FORMAT = "CloudifyExecutorUtils.executeParallel(%s, %s)";
     private static final String EXECUTE_ASYNC_FORMAT = "CloudifyExecutorUtils.executeAsync(%s, %s)";
-    private static final String EXECUTE_GROOVY_FORMAT = "CloudifyExecutorUtils.executeGroovy(context, \"%s\", %s, %s)";
-    private static final String EXECUTE_SCRIPT_FORMAT = "CloudifyExecutorUtils.executeScript(context, \"%s\", %s, %s)";
+    private static final String EXECUTE_GROOVY_FORMAT = "CloudifyExecutorUtils.executeGroovy(context, \"%s\", %s, %s, \"%s\")";
+    private static final String EXECUTE_SCRIPT_FORMAT = "CloudifyExecutorUtils.executeScript(context, \"%s\", %s, %s, \"%s\")";
     public static final String SHUTDOWN_COMMAND = "CloudifyExecutorUtils.shutdown()";
     public static final String DESTROY_COMMAND = "CloudifyUtils.destroy()";
     private static final String RETURN_COMMAND_FORMAT = "return %s";
@@ -78,9 +85,10 @@ public class CommandGenerator {
      *
      * @param servicePath Path to the service recipe directory.
      * @param deploymentId The id of the current deployment
+     * @param setup TODO
      * @throws IOException In case of a copy failure.
      */
-    public void copyInternalResources(Path servicePath, String deploymentId) throws IOException {
+    public void copyInternalResources(Path servicePath, String deploymentId, ServiceSetup setup) throws IOException {
         for (String resource : SERVICE_RECIPE_RESOURCES) {
             // Files.copy(loadResourceFromClasspath("classpath:" + resource), servicePath.resolve(resource));
             // copy to the service directory base
@@ -90,12 +98,21 @@ public class CommandGenerator {
 
         // build veocity templates
         Map<String, String> properties = Maps.newHashMap();
-        properties.put("deploymentId", deploymentId);
+        properties.put("deploymentId", setup.getDeploymentId());
+        String logLevel = setup.getProviderDeploymentProperties().get(DeploymentPropertiesNames.LOG_LEVEL);
+        properties.put("LOG_LEVEL", StringUtils.isNotBlank(logLevel) ? logLevel : "INFO");
 
         for (String resource : SERVICE_RECIPE_RESOURCES_VELOCITY_TEMP) {
             VelocityUtil.writeToOutputFile(loadResourceFromClasspath("classpath:velocity/" + resource + ".vm"),
                     servicePath.resolve(resource.concat(".groovy")), properties);
         }
+
+        copyAdditionnalLibs(servicePath);
+    }
+
+    private void copyAdditionnalLibs(Path servicePath) throws IOException {
+        Path libs = Paths.get(USM_LIB_DIR);
+        FileUtils.copyDirectory(libs.toFile(), servicePath.resolve(RECIPE_USM_LIB_DIR).toFile());
     }
 
     protected void copyResourceFromClasspath(String resource, Path target) throws IOException {
@@ -129,23 +146,24 @@ public class CommandGenerator {
      * @param stringParamsMap The string params to pass in the command.
      * @param expectedOutputs TODO
      * @param scriptPath Path to the script relative to the service root directory.
+     * @param logLevel TODO
      * @param supportedArtifactTypes The supported artifacts types for the related operation
      * @return
      * @throws IOException
      */
 
     public String getCommandBasedOnArtifactType(final String operationFQN, final ImplementationArtifact artifact, Map<String, String> varParamsMap,
-            Map<String, String> stringParamsMap, Map<String, Set<String>> expectedOutputs, String scriptPath, String... supportedArtifactTypes)
-            throws IOException {
+            Map<String, String> stringParamsMap, Map<String, Set<String>> expectedOutputs, String scriptPath, ProviderLogLevel logLevel,
+            String... supportedArtifactTypes) throws IOException {
 
         if (ArrayUtils.isEmpty(supportedArtifactTypes) || ArrayUtils.contains(supportedArtifactTypes, artifact.getArtifactType())) {
             stringParamsMap.put(OPERATION_FQN, operationFQN);
             switch (artifact.getArtifactType()) {
             case AlienExtentedConstants.GROOVY_ARTIFACT_TYPE:
-                return getGroovyCommand(scriptPath, varParamsMap, stringParamsMap, expectedOutputs);
+                return getGroovyCommand(scriptPath, varParamsMap, stringParamsMap, expectedOutputs, logLevel);
             case AlienExtentedConstants.SHELL_ARTIFACT_TYPE:
             case AlienExtentedConstants.BATCH_ARTIFACT_TYPE:
-                return getScriptCommand(scriptPath, varParamsMap, stringParamsMap, expectedOutputs);
+                return getScriptCommand(scriptPath, varParamsMap, stringParamsMap, expectedOutputs, logLevel);
             default:
                 throw new PaaSDeploymentException("Operation implementation <" + operationFQN + "> is defined using an unsupported artifact type <"
                         + artifact.getArtifactType() + ">.");
@@ -163,14 +181,16 @@ public class CommandGenerator {
      *            command
      * @param stringParamsMap The string params to pass in the command.
      * @param expectedOutputs List of expected outputs' names
+     * @param logLevel TODO
      * @return The execution command.
      * @throws IOException
      */
     public String getGroovyCommand(String groovyScriptRelativePath, Map<String, String> varParamsMap, Map<String, String> stringParamsMap,
-            Map<String, Set<String>> expectedOutputs) throws IOException {
+            Map<String, Set<String>> expectedOutputs, ProviderLogLevel logLevel) throws IOException {
         String formatedParams = formatParams(stringParamsMap, varParamsMap);
         String formatedOutputs = serializeForGroovyMap(expectedOutputs);
-        return String.format(EXECUTE_GROOVY_FORMAT, groovyScriptRelativePath, formatedParams, formatedOutputs);
+        ProviderLogLevel finalLogLevel = logLevel != null ? logLevel : ProviderLogLevel.INFO;
+        return String.format(EXECUTE_GROOVY_FORMAT, groovyScriptRelativePath, formatedParams, formatedOutputs, finalLogLevel);
     }
 
     /**
@@ -210,14 +230,16 @@ public class CommandGenerator {
      *            command
      * @param stringParamsMap The string params to pass in the command.
      * @param expectedOutputs List of expected outputs' names
+     * @param logLevel TODO
      * @return The execution command.
      * @throws IOException
      */
     public String getScriptCommand(String scriptRelativePath, Map<String, String> varParamsMap, Map<String, String> stringParamsMap,
-            Map<String, Set<String>> expectedOutputs) throws IOException {
+            Map<String, Set<String>> expectedOutputs, ProviderLogLevel logLevel) throws IOException {
         String formatedParams = formatParams(stringParamsMap, varParamsMap);
         String formatedOutputs = serializeForGroovyMap(expectedOutputs);
-        return String.format(EXECUTE_SCRIPT_FORMAT, scriptRelativePath, formatedParams, formatedOutputs);
+        ProviderLogLevel finalLogLevel = logLevel != null ? logLevel : ProviderLogLevel.INFO;
+        return String.format(EXECUTE_SCRIPT_FORMAT, scriptRelativePath, formatedParams, formatedOutputs, finalLogLevel);
     }
 
     /**

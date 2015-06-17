@@ -47,6 +47,7 @@ import alien4cloud.model.topology.ScalingPolicy;
 import alien4cloud.paas.IPaaSTemplate;
 import alien4cloud.paas.cloudify2.AlienExtentedConstants;
 import alien4cloud.paas.cloudify2.DeploymentPropertiesNames;
+import alien4cloud.paas.cloudify2.ProviderLogLevel;
 import alien4cloud.paas.cloudify2.ServiceSetup;
 import alien4cloud.paas.cloudify2.matcher.PaaSResourceMatcher;
 import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
@@ -281,7 +282,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         context.setStartDetectionTimeoutInSec(setup.getProviderDeploymentProperties().get(DeploymentPropertiesNames.STARTDETECTION_TIMEOUT_INSECOND));
 
         // copy internal static resources for the service
-        commandGenerator.copyInternalResources(servicePath, setup.getDeploymentId());
+        commandGenerator.copyInternalResources(servicePath, setup.getDeploymentId(), setup);
 
         // copy artifacts for the nodes
         this.artifactCopier.copyAllArtifacts(context, computeNode);
@@ -406,12 +407,14 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
                 Lists.newArrayList(commandGenerator.getReturnGroovyCommand(command)),
                 MapUtil.newHashMap(new String[] { IS_RETURN_TYPE }, new Boolean[] { true }));
         // register the execution command to check the nodes states
-        context.getStartDetectionCommands().put("checkState", commandGenerator.getGroovyCommand(fileName + ".groovy", null, null, null));
+        context.getStartDetectionCommands()
+                .put("checkState", commandGenerator.getGroovyCommand(fileName + ".groovy", null, null, null, ProviderLogLevel.DEBUG));
     }
 
     private void generateExtendedOperationsCommand(final RecipeGeneratorServiceContext context, PaaSNodeTemplate rootNode, String operationName,
             Map<String, String> commandsMap, boolean includeNullValues) throws IOException {
-        String command = getOperationCommandFromInterface(context, rootNode, CLOUDIFY_EXTENSIONS_INTERFACE_NAME, operationName, new ExecEnvMaps());
+        String command = getOperationCommandFromInterface(context, rootNode, CLOUDIFY_EXTENSIONS_INTERFACE_NAME, operationName, new ExecEnvMaps(),
+                ProviderLogLevel.DEBUG);
         if (command != null || includeNullValues) {
             // here we register the command itself.
             commandsMap.put(rootNode.getId(), command);
@@ -438,7 +441,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
                     MapUtil.newHashMap(new String[] { SERVICE_DETECTION_COMMAND, "is" + stepName }, new Object[] { detectioncommand, true }));
 
             String detectionFilePath = stepName + ".groovy";
-            String groovyCommand = commandGenerator.getGroovyCommand(detectionFilePath, null, null, null);
+            String groovyCommand = commandGenerator.getGroovyCommand(detectionFilePath, null, null, null, ProviderLogLevel.DEBUG);
             String globalDectctionCommand = commandGenerator.getReturnGroovyCommand(groovyCommand);
             context.getAdditionalProperties().put(stepCommandName, globalDectctionCommand);
         }
@@ -478,7 +481,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         envMaps.runtimes.put(NAME_VALUE_TO_PARSE_KEWORD, "args");
 
         // prepare and get the command
-        String command = prepareAndGetCommand(context, nodeTemplate, interfaceName, entry.getKey(), envMaps, entry.getValue());
+        String command = prepareAndGetCommand(context, nodeTemplate, interfaceName, entry.getKey(), envMaps, entry.getValue(), ProviderLogLevel.INFO);
 
         log.debug("Configuring customCommand " + uniqueName + " with value " + command);
         context.getCustomCommands().put(uniqueName, command);
@@ -581,7 +584,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
                 }
             }
             OperationResume opResume = getOperationResume(operationTriggerEvent);
-            String command = getCommandFromOperation(context, paaSRelationshipTemplate, opResume, "instanceId", envMaps);
+            String command = getCommandFromOperation(context, paaSRelationshipTemplate, opResume, "instanceId", envMaps, ProviderLogLevel.INFO);
             this.artifactCopier.copyImplementationArtifact(context, operationTriggerEvent.getCsarPath(),
                     operationTriggerEvent.getSideOperationImplementationArtifact(), paaSRelationshipTemplate.getIndexedToscaElement());
             context.getRelationshipCustomCommands().put(uniqueName, command);
@@ -640,7 +643,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
 
         // now call the operation script
         OperationResume opResume = getOperationResume(operationCall);
-        String command = getCommandFromOperation(context, basePaaSTemplate, opResume, null, envMaps);
+        String command = getCommandFromOperation(context, basePaaSTemplate, opResume, null, envMaps, ProviderLogLevel.INFO);
 
         if (isAsynchronous) {
             final String serviceId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(operationCall.getNodeTemplateId());

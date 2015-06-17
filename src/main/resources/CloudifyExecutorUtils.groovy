@@ -1,18 +1,18 @@
 import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.regex.*
+
 import groovy.lang.Binding
 import groovy.transform.Synchronized
-import java.util.logging.Logger
-
 import org.cloudifysource.utilitydomain.context.ServiceContextFactory
+import org.apache.log4j.Logger;
 
 public class CloudifyExecutorUtils {
+    static Logger log = CloudifyUtils.getLogger(CloudifyExecutorUtils.class)
 
     static def counter = new AtomicInteger()
     static def threadPool = Executors.newFixedThreadPool(50, { r -> return new Thread(r as Runnable, "alien-executor-" + counter.incrementAndGet()) } as ThreadFactory )
     static def call = { c -> threadPool.submit(c as Callable) }
-    static Logger log = Logger.getLogger(CloudifyExecutorUtils.class.getName())
 
     static List startStates = [
         "initial",
@@ -42,7 +42,7 @@ public class CloudifyExecutorUtils {
      * @param expectedOutputs
      * @return
      */
-    static def executeScript(context, script, Map argsMap, Map expectedOutputsToAttributes) {
+    static def executeScript(context, script, Map argsMap, Map expectedOutputsToAttributes, def logLevel) {
         def operationFQN = argsMap?argsMap.remove(OPERATION_FQN):null;
         def serviceDirectory = context.getServiceDirectory()
 
@@ -52,7 +52,7 @@ public class CloudifyExecutorUtils {
             scripWrapper = "${SCRIPT_WRAPPER_DOS}"
         }
 
-        println "service dir is: ${serviceDirectory}; script is: ${script}"
+        logOnLevel ("service dir is: ${serviceDirectory}; script is: ${script}", logLevel)
         def fullPathScript = "${serviceDirectory}/${script}";
         new AntBuilder().sequential {
             echo(message: "${fullPathScript} will be mark as executable...")
@@ -73,7 +73,7 @@ public class CloudifyExecutorUtils {
 
         String[] environment = new EnvironmentBuilder().buildShOrBatchEnvironment(argsMap);
 
-        println "Executing command ${serviceDirectory}/${scripWrapper} ${serviceDirectory}/${script}.\n environment is: ${environment}"
+        logOnLevel("Executing command ${serviceDirectory}/${scripWrapper} ${serviceDirectory}/${script}.\n environment is: ${argsMap}", logLevel)
         def scriptProcess = "${serviceDirectory}/${scripWrapper} ${serviceDirectory}/${script}".execute(environment, null)
         def myOutputListener = new ProcessOutputListener()
 
@@ -88,16 +88,11 @@ public class CloudifyExecutorUtils {
         if (processResult && processResult.outputs && !processResult.outputs.isEmpty()) {
             registerOutputsAndReferencingAttributes(context, operationFQN, processResult.outputs, expectedOutputsToAttributes);
         }
-
-        print """
-      ----------${script} : bash : Return Code ----------
-      Return Code : $scriptExitValue
-      ---------------------------------\n
-      """
+        
         if(scriptExitValue) {
             throw new RuntimeException("Error executing the script ${script} (return code: $scriptExitValue)")
         } else {
-            println "sh result is: "+ ( processResult != null ? processResult.result:null )
+            logOnLevel( "sh result is: "+ ( processResult != null ? processResult.result : null ), logLevel)
             return processResult != null ? processResult.result : null
         }
     }
@@ -108,7 +103,7 @@ public class CloudifyExecutorUtils {
      * for a closure, we should not use the ServiceContextFactory as the context instance is already injected in the service file
      * Therefore, the caller script should have a defined "context" variable
      * */
-    static def executeGroovy(context, groovyScript, Map argsMap, Map expectedOutputsToAttributes) {
+    static def executeGroovy(context, groovyScript, Map argsMap, Map expectedOutputsToAttributes, def logLevel) {
         def operationFQN = argsMap?argsMap.remove(OPERATION_FQN):null;
         def serviceDirectory = context.getServiceDirectory()
 
@@ -117,7 +112,7 @@ public class CloudifyExecutorUtils {
         //hack for a MissingPropertyException thrown for CloudifyExecutorUtils
         binding.setVariable("CloudifyExecutorUtils", this)
         def shell = new GroovyShell(CloudifyExecutorUtils.class.classLoader,binding)
-        println "Evaluating file ${serviceDirectory}/${groovyScript}.\n environment is: ${argsMap}"
+        logOnLevel("Evaluating file ${serviceDirectory}/${groovyScript}.\n environment is: ${argsMap}", logLevel)
         def result = shell.evaluate(new File("${serviceDirectory}/${groovyScript}"))
 
         // now collect the value of outputs
@@ -131,7 +126,7 @@ public class CloudifyExecutorUtils {
             }
             registerOutputsAndReferencingAttributes(context, operationFQN, outputsWithValues, expectedOutputsToAttributes);
         }
-        println "result is: "+result
+        logOnLevel( "result is: "+result, logLevel)
         return result
     }
 
@@ -156,17 +151,17 @@ public class CloudifyExecutorUtils {
         def executionList = []
         if(groovyScripts) {
             for(script in groovyScripts) {
-                println "parallel groovy launch is $script"
+                log.info "parallel groovy launch is $script"
                 def theScript = script
-                executionList.add(call{ executeGroovy(ServiceContextFactory.getServiceContext(), theScript, null, null) })
+                executionList.add(call{ executeGroovy(ServiceContextFactory.getServiceContext(), theScript, null, null, "info") })
             }
         }
         
         if(otherScripts) {
             for(script in otherScripts) {
-                println "parallel bash launch is $script"
+                log.info "parallel bash launch is $script"
                 def theScript = script
-                executionList.add(call{ executeScript(theScript, null, null) })
+                executionList.add(call{ executeScript(ServiceContextFactory.getServiceContext(), theScript, null, null, "info") })
             }
         }
         
@@ -179,9 +174,9 @@ public class CloudifyExecutorUtils {
         List asynchExecs = [];
         if(groovyScripts) {
             for(script in groovyScripts) {
-                println "asynchronous groovy launch is ${script}"
+                log.info "asynchronous groovy launch is ${script}"
                 def theScript = script;
-                def futureExec = call{ executeGroovy(ServiceContextFactory.getServiceContext(), theScript, null, null) };
+                def futureExec = call{ executeGroovy(ServiceContextFactory.getServiceContext(), theScript, null, null, "info") };
                 addExecution(futureExec);
                 asynchExecs.add(futureExec);
             }
@@ -189,9 +184,9 @@ public class CloudifyExecutorUtils {
         
         if(otherScripts) {
             for(script in otherScripts) {
-                println "asynchronous bash launch is ${script}"
+                log.info "asynchronous bash launch is ${script}"
                 def theScript = script;
-                def futureExec = call{ executeScript(theScript, null, null) };
+                def futureExec = call{ executeScript(ServiceContextFactory.getServiceContext(), theScript, null, null, "info") };
                 addExecution(futureExec);
                 asynchExecs.add(futureExec);
             }
@@ -211,7 +206,7 @@ public class CloudifyExecutorUtils {
             event: event,
             lease: getEventLeaseInMillis(lease)
         ]
-        println "THE INSTANCE ID is <${instanceId}>"
+        log.debug "THE INSTANCE ID is <${instanceId}>"
         CloudifyUtils.putEvent(application, nodeId, instanceId, eventResume)
     }
 
@@ -225,7 +220,7 @@ public class CloudifyExecutorUtils {
             event: event,
             lease: getEventLeaseInMillis(lease)
         ]
-        println "THE INSTANCE ID is <${instanceId}>"
+        log.debug "THE INSTANCE ID is <${instanceId}>"
         CloudifyUtils.putBlockStorageEvent(application, nodeId, instanceId, eventResume, volumeId)
     }
 
@@ -278,7 +273,7 @@ public class CloudifyExecutorUtils {
         // Fire event
         def application = context.getApplicationName()
         def ip_address = context.getPrivateAddress()
-        println "THE INSTANCE ID is <${nodeResume.instanceId}>"
+        log.debug "THE INSTANCE ID is <${nodeResume.instanceId}>"
         CloudifyUtils.putRelationshipOperationEvent(application, nodeResume, eventResume, source, target)
     }
 
@@ -293,17 +288,17 @@ public class CloudifyExecutorUtils {
     static def isNodeStarted(context, nodeToCheck) {
         List validStates =  getValidStates("started")
         def state = CloudifyUtils.getState(context.getApplicationName(), nodeToCheck, context.getInstanceId())
-        println "Got Last state for ${nodeToCheck}: ${state}";
+        log.debug "Got Last state for ${nodeToCheck}: ${state}";
         return validStates.contains(state);
     }
 
     static def shutdown() {
-        println "Shutting down threadpool"
+        log.info "Shutting down threadpool"
         for(execution in asyncExecutionList) {
             execution.get();
         }
         threadPool.shutdownNow();
-        println "threadpool shut down!"
+        log.info "threadpool shut down!"
     }
 
     /**
@@ -387,6 +382,21 @@ public class CloudifyExecutorUtils {
 
     private static def getEventLeaseInMillis(lease) {
         return lease ? Math.round(lease * 60 * 60 * 1000) : DEFAULT_LEASE;
+    }
+    
+    static logOnLevel(def message, String logLevel) {
+        def level = logLevel ?: "INFO";
+        switch (level.toUpperCase()) {
+            case "DEBUG":
+                log.debug(message);
+                break;
+            case "ERROR":
+                log.error(message);
+                break;
+            default:
+                log.info(message);
+                break;
+        }
     }
 
 }

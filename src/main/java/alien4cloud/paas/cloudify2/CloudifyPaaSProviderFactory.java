@@ -1,22 +1,26 @@
 package alien4cloud.paas.cloudify2;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Resource;
 
+import org.apache.log4j.Level;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.stereotype.Component;
 
 import alien4cloud.model.components.PropertyConstraint;
 import alien4cloud.model.components.PropertyDefinition;
 import alien4cloud.model.components.constraints.GreaterThanConstraint;
+import alien4cloud.model.components.constraints.ValidValuesConstraint;
 import alien4cloud.paas.IConfigurablePaaSProvider;
 import alien4cloud.paas.IConfigurablePaaSProviderFactory;
 import alien4cloud.paas.IDeploymentParameterizablePaaSProviderFactory;
 import alien4cloud.paas.exception.PaaSTechnicalException;
 import alien4cloud.tosca.normative.ToscaType;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 @Component("cloudify-paas-provider")
@@ -99,5 +103,23 @@ public class CloudifyPaaSProviderFactory implements IConfigurablePaaSProviderFac
         deletableBlockStorage.setDescription("Indicates that all deployment related blockstorage are deletable.");
         deletableBlockStorage.setDefault("false");
         deploymentPropertyMap.put(DeploymentPropertiesNames.DELETABLE_BLOCKSTORAGE, deletableBlockStorage);
+
+        // Field 5 : log level for this deployment
+        PropertyDefinition logLevel = new PropertyDefinition();
+        logLevel.setType(ToscaType.STRING.toString());
+        logLevel.setRequired(false);
+        logLevel.setDescription("Log level for the deployment.");
+        logLevel.setDefault(Level.INFO.toString());
+        ValidValuesConstraint logLevelConstraint = new ValidValuesConstraint();
+
+        List<String> validLevels = Lists.newArrayList();
+        validLevels.add(Level.OFF.toString());
+        validLevels.add(Level.INFO.toString());
+        validLevels.add(Level.DEBUG.toString());
+        validLevels.add(Level.ERROR.toString());
+        logLevelConstraint.setValidValues(validLevels);
+
+        logLevel.setConstraints(Arrays.asList((PropertyConstraint) logLevelConstraint));
+        deploymentPropertyMap.put(DeploymentPropertiesNames.LOG_LEVEL, deletableBlockStorage);
     }
 }

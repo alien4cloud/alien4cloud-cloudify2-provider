@@ -370,6 +370,7 @@ public class GenericTestCase {
         }
         // by default for all deployment
         providerProperties.put(DeploymentPropertiesNames.DISABLE_SELF_HEALING, "true");
+        providerProperties.put(DeploymentPropertiesNames.LOG_LEVEL, "DEBUG");
         return providerProperties;
     }
 

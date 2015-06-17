@@ -3,9 +3,12 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import groovy.lang.Binding
 
+import org.apache.log4j.Logger;
 import org.cloudifysource.dsl.context.ServiceInstance
 
 public class CloudifyAttributesUtils {
+    
+    static Logger log = CloudifyUtils.getLogger(CloudifyAttributesUtils.class)
 
     public static IP_ADDR = "ip_address";
     private static COLON_SEPARATOR = ":";
@@ -21,7 +24,7 @@ public class CloudifyAttributesUtils {
      * @return
      */
     static def getAttribute(context, cloudifyService, instanceId, attributeName, List eligibleNodesNames) {
-        println "CloudifyAttributesUtils.getAttribute: getting attribute <attr: ${attributeName}> < service: ${cloudifyService}> <instanceId: ${instanceId}> from nodes <${eligibleNodesNames}>"
+        log.info " getting attribute <attr: ${attributeName}> < service: ${cloudifyService}> <instanceId: ${instanceId}> from nodes <${eligibleNodesNames}>"
         def attr = null;
         def countLeft = DEFAULT_TRIAL_COUNT;
         def check = true;
@@ -42,7 +45,7 @@ public class CloudifyAttributesUtils {
                 check = wait(attr, countLeft);
             }
         }
-        println "CloudifyAttributesUtils.getAttribute: Got [${attr}]";
+        log.info "Got [${attr}]";
         return attr;
     }
     
@@ -59,7 +62,7 @@ public class CloudifyAttributesUtils {
      * @return
      */
     static def getOperationOutput(context, cloudifyService, instanceId, formatedOutputName, List eligibleNodesNames) {
-        println "CloudifyAttributesUtils.getOperationOutput: getting operation output <formatedOutputName: ${formatedOutputName}> < service: ${cloudifyService}> <instanceId: ${instanceId}> from nodes <${eligibleNodesNames}>";
+        log.info "Getting operation output <formatedOutputName: ${formatedOutputName}> < service: ${cloudifyService}> <instanceId: ${instanceId}> from nodes <${eligibleNodesNames}>";
         def outputValue = null;
         def countLeft = DEFAULT_TRIAL_COUNT;
         def check = true;
@@ -85,7 +88,7 @@ public class CloudifyAttributesUtils {
                 check = wait(outputValue, countLeft);
             }
         }
-        println "CloudifyAttributesUtils.getOperationOutput: Got [${outputValue}]";
+        log.info " Got output: [${outputValue}]";
         return outputValue;
     }
     
@@ -102,12 +105,13 @@ public class CloudifyAttributesUtils {
      */
     static def getIp(context, String cloudifyService, instanceId) {
         def parsedInstanceId = instanceId? instanceId as int : null
-        println "CloudifyAttributesUtils.getIp: retrieving the Ip address < service: ${cloudifyService}> <instanceId: ${parsedInstanceId}>"
+        log.info "Retrieving the Ip address < service: ${cloudifyService}> <instanceId: ${parsedInstanceId}>"
         if(!cloudifyService // no service name provided, or
             ||(cloudifyService == context.serviceName //current service name provided, and
                 && (instanceId == null || instanceId == context.instanceId) //current or null instance id provided
                )) {
-            println "CloudifyAttributesUtils.getIp: Returning the current instance private Ip: ${context.getPrivateAddress()}"
+            log.debug "CloudifyAttributesUtils.getIp: Returning the current instance private Ip: ${context.getPrivateAddress()}"
+            log.info "Got Ip for current instance: ${context.getPrivateAddress()}"
             return context.getPrivateAddress();
         }
 
@@ -118,11 +122,11 @@ public class CloudifyAttributesUtils {
         requestedInstance = instances.find{ it.instanceId == parsedInstanceId } as ServiceInstance
         
         if(!requestedInstance) {
-            println "CloudifyAttributesUtils.getIp: Cannot find an instance of < service: ${cloudifyService}> with the id <${parsedInstanceId}>. will take the first instance of service <${cloudifyService}>> found "
+            log.debug "Cannot find an instance of < service: ${cloudifyService}> with the id <${parsedInstanceId}>. will take the first instance of service <${cloudifyService}>> found "
             requestedInstance = service.waitForInstances(1, 10, TimeUnit.MINUTES)[0] as ServiceInstance
         }
         ip = requestedInstance ? requestedInstance.getHostAddress() : null
-        println "CloudifyAttributesUtils.getIp: Got for ${cloudifyService}[${parsedInstanceId}]: ${ip}"
+        log.info "Got Ip for ${cloudifyService}[${parsedInstanceId}]: ${ip}"
         return ip
     }
 

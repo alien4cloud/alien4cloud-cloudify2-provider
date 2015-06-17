@@ -1,12 +1,6 @@
 import java.util.concurrent.*
-import java.util.concurrent.atomic.AtomicInteger
-import groovy.lang.Binding
-import groovy.transform.Synchronized
-import org.cloudifysource.dsl.context.ServiceInstance
 
-import org.cloudifysource.utilitydomain.context.ServiceContextFactory
-
-import java.util.logging.Logger
+import org.apache.log4j.Logger;
 
 public class EnvironmentBuilder {
 
@@ -27,7 +21,10 @@ public class EnvironmentBuilder {
         Binding binding = new Binding()
         //set the context variable
         binding.setVariable("context", context)
-        binding.setVariable("logger", Logger.getLogger("${context.serviceName}-stdout"))
+        Logger logger = CloudifyUtils.getLogger("${context.serviceName}-customScript");
+        // for retro-compatibility. Will be removed soon
+        binding.setVariable("logger", logger)
+        binding.setVariable("log", logger)
         
         if(argsMap != null && !argsMap.isEmpty()) {
             buildEnvForGroovy(argsMap, binding)
