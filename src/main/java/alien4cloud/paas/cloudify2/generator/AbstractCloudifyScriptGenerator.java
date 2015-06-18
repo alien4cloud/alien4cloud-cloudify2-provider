@@ -37,6 +37,7 @@ import alien4cloud.model.components.Operation;
 import alien4cloud.model.components.OperationOutput;
 import alien4cloud.paas.IPaaSTemplate;
 import alien4cloud.paas.cloudify2.AlienExtentedConstants;
+import alien4cloud.paas.cloudify2.ProviderLogLevel;
 import alien4cloud.paas.cloudify2.funtion.FunctionProcessor;
 import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.cloudify2.utils.VelocityUtil;
@@ -63,13 +64,13 @@ abstract class AbstractCloudifyScriptGenerator {
     private static final String MAP_TO_ADD_KEYWORD = "MAP_TO_ADD_";
 
     protected String getOperationCommandFromInterface(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate nodeTemplate,
-            final String interfaceName, final String operationName, ExecEnvMaps envMaps) throws IOException {
+            final String interfaceName, final String operationName, ExecEnvMaps envMaps, ProviderLogLevel logLevel) throws IOException {
         String command = null;
         Interface interfaz = nodeTemplate.getIndexedToscaElement().getInterfaces().get(interfaceName);
         if (interfaz != null) {
             Operation operation = interfaz.getOperations().get(operationName);
             if (operation != null) {
-                command = prepareAndGetCommand(context, nodeTemplate, interfaceName, operationName, envMaps, operation);
+                command = prepareAndGetCommand(context, nodeTemplate, interfaceName, operationName, envMaps, operation, logLevel);
             }
         }
 
@@ -77,10 +78,10 @@ abstract class AbstractCloudifyScriptGenerator {
     }
 
     protected String prepareAndGetCommand(final RecipeGeneratorServiceContext context, final IPaaSTemplate<? extends IndexedArtifactToscaElement> paaSTemplate,
-            final String interfaceName, final String operationName, ExecEnvMaps envMaps, Operation operation) throws IOException {
+            final String interfaceName, final String operationName, ExecEnvMaps envMaps, Operation operation, ProviderLogLevel logLevel) throws IOException {
         String command;
         OperationResume operationResume = getOperationResume(interfaceName, operationName, operation);
-        command = getCommandFromOperation(context, paaSTemplate, operationResume, null, envMaps);
+        command = getCommandFromOperation(context, paaSTemplate, operationResume, null, envMaps, logLevel);
         if (StringUtils.isNotBlank(command)) {
             this.artifactCopier.copyImplementationArtifact(context, paaSTemplate.getCsarPath(), operation.getImplementationArtifact(),
                     paaSTemplate.getIndexedToscaElement());
@@ -89,7 +90,7 @@ abstract class AbstractCloudifyScriptGenerator {
     }
 
     protected String getCommandFromOperation(final RecipeGeneratorServiceContext context, final IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
-            final OperationResume operationResume, String instanceId, ExecEnvMaps envMaps) throws IOException {
+            final OperationResume operationResume, String instanceId, ExecEnvMaps envMaps, ProviderLogLevel logLevel) throws IOException {
         if (operationResume.artifact == null || StringUtils.isBlank(operationResume.artifact.getArtifactRef())) {
             return null;
         }
@@ -108,7 +109,7 @@ abstract class AbstractCloudifyScriptGenerator {
         String operationFQN = AlienUtils.prefixWith(AlienConstants.OPERATION_NAME_SEPARATOR, operationResume.operationName,
                 new String[] { basePaaSTemplate.getId(), operationResume.interfaceName });
         return commandGenerator.getCommandBasedOnArtifactType(operationFQN, operationResume.artifact, envMaps.runtimes, envMaps.strings,
-                operationResume.outputs, scriptPath);
+                operationResume.outputs, scriptPath, logLevel);
     }
 
     private void addRelationshipEnvVars(String operationName, Map<String, IValue> inputParameters, PaaSRelationshipTemplate relShipPaaSTemplate,

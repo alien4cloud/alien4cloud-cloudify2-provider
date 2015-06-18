@@ -44,7 +44,7 @@ import com.google.common.collect.Lists;
 @ContextConfiguration("classpath:application-context-testit.xml")
 public class FunctionProcessorTest {
 
-    private static final String GET_INSTANCE_ATTRIBUTE_FORMAT = "CloudifyAttributesUtils.getAttribute(context, %s, %s, %s)";
+    private static final String GET_INSTANCE_ATTRIBUTE_FORMAT = "CloudifyAttributesUtils.getAttribute(context, \"%s\", %s, \"%s\", %s)";
     private static final String GET_IP_FORMAT = "CloudifyAttributesUtils.getIp(context, %s, %s)";
 
     @Resource
@@ -197,7 +197,7 @@ public class FunctionProcessorTest {
                 .get(ToscaRelationshipLifecycleConstants.POST_CONFIGURE_SOURCE);
 
         // test SOURCE keyword
-        String expected = String.format(GET_INSTANCE_ATTRIBUTE_FORMAT, "\"" + computeName + "\"", null, "\"warNodeContext\"");
+        String expected = String.format(GET_INSTANCE_ATTRIBUTE_FORMAT, computeName, null, "warNodeContext", "[\"" + warName + "\"]");
         IValue param = configOp.getInputParameters().get("warNodeContext");
         Assert.assertEquals(expected, evaluateParam((AbstractPropertyValue) param, hostedOnRelTemp, builtPaaSNodeTemplates));
 

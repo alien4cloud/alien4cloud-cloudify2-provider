@@ -379,12 +379,20 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             }
             String instanceId = instanceState.getInstanceId();
 
-            InstanceStatus instanceStatus = InstanceStatus.PROCESSING;
-            if (ToscaNodeLifecycleConstants.STARTED.equals(instanceState.getInstanceState())
-                    || ToscaNodeLifecycleConstants.AVAILABLE.equals(instanceState.getInstanceState())) {
+            InstanceStatus instanceStatus = null;
+            switch (instanceState.getInstanceState()) {
+            case ToscaNodeLifecycleConstants.STARTED:
+            case ToscaNodeLifecycleConstants.AVAILABLE:
                 instanceStatus = InstanceStatus.SUCCESS;
-            } else if (InstanceStatus.MAINTENANCE.toString().toLowerCase().equals(instanceState.getInstanceState())) {
+                break;
+            case ToscaNodeLifecycleConstants.ERROR:
+                instanceStatus = InstanceStatus.FAILURE;
+                break;
+            case ToscaNodeLifecycleConstants.MAINTENANCE:
                 instanceStatus = InstanceStatus.MAINTENANCE;
+            default:
+                instanceStatus = InstanceStatus.PROCESSING;
+                break;
             }
 
             if (!(ToscaNodeLifecycleConstants.DELETED.equals(instanceState.getInstanceState()))) {
@@ -475,9 +483,15 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         Map<String, Map<String, Map<String, String>>> outputMaps = Maps.newHashMap();
 
         // we want to get operation outputs for all cloudify services
+        String appName = applicationDescription.getApplicationName();
         for (ServiceDescription serviceDescription : applicationDescription.getServicesDescription()) {
-            outputMaps.put(serviceDescription.getServiceName(),
-                    restClient.getAllInstancesOperationsOutputs(serviceDescription.getApplicationName(), serviceDescription.getServiceName()));
+            String serviceName = serviceDescription.getServiceName();
+            List<InstanceDescription> instanceDesc = serviceDescription.getInstancesDescription();
+            outputMaps.put(serviceName, Maps.<String, Map<String, String>> newHashMap());
+            for (InstanceDescription instanceDescription : instanceDesc) {
+                String instanceId = String.valueOf(instanceDescription.getInstanceId());
+                outputMaps.get(serviceDescription.getServiceName()).put(instanceId, restClient.getOperationOutputs(appName, serviceName, instanceId));
+            }
         }
 
         // register every outputs where it belongs

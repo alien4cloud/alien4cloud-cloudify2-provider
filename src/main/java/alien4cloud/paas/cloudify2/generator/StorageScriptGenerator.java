@@ -98,7 +98,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
                 commandGenerator.getFireEventCommand(blockStorageNode.getId(), ToscaNodeLifecycleConstants.STOPPED, context.getEventsLeaseInHour()));
         velocityProps.put(SHUTDOWN_COMMAND, unmountDeleteCommand);
         generateScriptWorkflow(context.getServicePath(), shutdownBlockStorageScriptDescriptorPath, STORAGE_SHUTDOWN_FILE_NAME, null, velocityProps);
-        executions.add(commandGenerator.getGroovyCommand(STORAGE_SHUTDOWN_FILE_NAME.concat(".groovy"), null, null, null));
+        executions.add(commandGenerator.getGroovyCommand(STORAGE_SHUTDOWN_FILE_NAME.concat(".groovy"), null, null, null, null));
     }
 
     private void generateInitVolumeIdsScript(RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode, String storageName,
@@ -130,7 +130,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         velocityProps.put("instancesVolumeIds", volumeIdsAsArrayString);
 
         generateScriptWorkflow(context.getServicePath(), initStorageScriptDescriptorPath, INIT_STORAGE_SCRIPT_FILE_NAME, null, velocityProps);
-        executions.add(commandGenerator.getGroovyCommand(INIT_STORAGE_SCRIPT_FILE_NAME.concat(".groovy"), null, null, null));
+        executions.add(commandGenerator.getGroovyCommand(INIT_STORAGE_SCRIPT_FILE_NAME.concat(".groovy"), null, null, null, null));
     }
 
     private String[] parseVolumesIds(String volumeIds) {
@@ -170,7 +170,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
 
         // generate startup BS
         generateScriptWorkflow(context.getServicePath(), startupBlockStorageScriptDescriptorPath, STORAGE_STARTUP_FILE_NAME, null, velocityProps);
-        executions.add(commandGenerator.getGroovyCommand(STORAGE_STARTUP_FILE_NAME.concat(".groovy"), null, null, null));
+        executions.add(commandGenerator.getGroovyCommand(STORAGE_STARTUP_FILE_NAME.concat(".groovy"), null, null, null, null));
     }
 
     private String getStorageFormatMountCommand(RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode) throws IOException {
@@ -178,7 +178,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         envMaps.runtimes.put(DEVICE_KEY, DEVICE_KEY);
         // try getting a custom script routine
         String formatMountCommand = getOperationCommandFromInterface(context, blockStorageNode, ToscaNodeLifecycleConstants.STANDARD,
-                ToscaNodeLifecycleConstants.CONFIGURE, envMaps);
+                ToscaNodeLifecycleConstants.CONFIGURE, envMaps, null);
 
         // if no custom management then generate the default routine
         if (StringUtils.isBlank(formatMountCommand)) {
@@ -197,7 +197,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
             envMaps.strings.put(LOCATION_KEY, storageLocation);
 
             generateScriptWorkflow(context.getServicePath(), formatMountBlockStorageScriptDescriptorPath, DEFAULT_STORAGE_MOUNT_FILE_NAME, null, null);
-            formatMountCommand = commandGenerator.getGroovyCommand(DEFAULT_STORAGE_MOUNT_FILE_NAME.concat(".groovy"), envMaps.runtimes, envMaps.strings, null);
+            formatMountCommand = commandGenerator.getGroovyCommand(DEFAULT_STORAGE_MOUNT_FILE_NAME.concat(".groovy"), envMaps.runtimes, envMaps.strings, null, null);
         }
         return formatMountCommand;
     }
@@ -208,7 +208,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         envMaps.runtimes.put(STORAGE_TEMPLATE_KEY, CONTEXT_THIS_SERVICE_ATTRIBUTES + "." + STORAGE_TEMPLATE_KEY);
 
         String createAttachCommand = getOperationCommandFromInterface(context, blockStorageNode, ToscaNodeLifecycleConstants.STANDARD,
-                ToscaNodeLifecycleConstants.CREATE, envMaps);
+                ToscaNodeLifecycleConstants.CREATE, envMaps, null);
 
         // if no custom management then generate the default routine
         if (StringUtils.isBlank(createAttachCommand)) {
@@ -219,7 +219,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
             }
             generateScriptWorkflow(context.getServicePath(), createAttachBlockStorageScriptDescriptorPath, DEFAULT_STORAGE_CREATE_FILE_NAME, null, null);
             createAttachCommand = commandGenerator.getGroovyCommand(DEFAULT_STORAGE_CREATE_FILE_NAME.concat(".groovy"), envMaps.runtimes,
-                    MapUtil.newHashMap(new String[] { DEVICE_KEY }, new String[] { device }), null);
+                    MapUtil.newHashMap(new String[] { DEVICE_KEY }, new String[] { device }), null, null);
         }
         return createAttachCommand;
     }
@@ -232,7 +232,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
 
         // try getting a custom script routine
         String unmountDeleteCommand = getOperationCommandFromInterface(context, blockStorageNode, ToscaNodeLifecycleConstants.STANDARD,
-                ToscaNodeLifecycleConstants.DELETE, envMaps);
+                ToscaNodeLifecycleConstants.DELETE, envMaps, null);
 
         // if no custom management then generate the default routine
         if (StringUtils.isBlank(unmountDeleteCommand)) {
@@ -244,7 +244,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
             generateScriptWorkflow(context.getServicePath(), unmountDeleteBlockStorageSCriptDescriptorPath, DEFAULT_STORAGE_UNMOUNT_FILE_NAME, null,
                     additionalProps);
 
-            unmountDeleteCommand = commandGenerator.getGroovyCommand(DEFAULT_STORAGE_UNMOUNT_FILE_NAME.concat(".groovy"), envMaps.runtimes, null, null);
+            unmountDeleteCommand = commandGenerator.getGroovyCommand(DEFAULT_STORAGE_UNMOUNT_FILE_NAME.concat(".groovy"), envMaps.runtimes, null, null, null);
         }
         return unmountDeleteCommand;
     }

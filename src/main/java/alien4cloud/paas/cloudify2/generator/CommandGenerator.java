@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.ApplicationContext;
@@ -28,6 +29,9 @@ import org.springframework.stereotype.Component;
 
 import alien4cloud.model.components.ImplementationArtifact;
 import alien4cloud.paas.cloudify2.AlienExtentedConstants;
+import alien4cloud.paas.cloudify2.DeploymentPropertiesNames;
+import alien4cloud.paas.cloudify2.ProviderLogLevel;
+import alien4cloud.paas.cloudify2.ServiceSetup;
 import alien4cloud.paas.cloudify2.utils.VelocityUtil;
 import alien4cloud.paas.exception.PaaSDeploymentException;
 
@@ -42,8 +46,12 @@ import com.google.common.collect.Maps;
 @Slf4j
 public class CommandGenerator {
     private final static String[] SERVICE_RECIPE_RESOURCES = new String[] { "chmod-init.groovy", "CloudifyUtils.groovy", "CloudifyExecutorUtils.groovy",
-            "CloudifyAttributesUtils.groovy", "EnvironmentBuilder.groovy", "scriptWrapper/scriptWrapper.sh", "scriptWrapper/scriptWrapper.bat" };
-    private final static String[] SERVICE_RECIPE_RESOURCES_VELOCITY_TEMP = new String[] { "GigaSpacesEventsManager" };
+            "CloudifyAttributesUtils.groovy", "EnvironmentBuilder.groovy", "scriptWrapper/scriptWrapper.sh", "scriptWrapper/scriptWrapper.bat",
+            "ProcessOutputListener.groovy" };
+    private final static String[] SERVICE_RECIPE_RESOURCES_VELOCITY_TEMP = new String[] { "GigaSpacesEventsManager", "DeploymentConstants" };
+
+    private final static String USM_LIB_DIR = "src/main/resources/usmlib";
+    private final static String RECIPE_USM_LIB_DIR = "usmlib";
 
     private final static String OPERATION_FQN = "OPERATION_FQN";
 
@@ -53,13 +61,10 @@ public class CommandGenerator {
     private static final String IS_NODE_STARTED_FORMAT = "CloudifyExecutorUtils.isNodeStarted(context, \"%s\")";
     private static final String EXECUTE_PARALLEL_FORMAT = "CloudifyExecutorUtils.executeParallel(%s, %s)";
     private static final String EXECUTE_ASYNC_FORMAT = "CloudifyExecutorUtils.executeAsync(%s, %s)";
-    private static final String EXECUTE_GROOVY_FORMAT = "CloudifyExecutorUtils.executeGroovy(context, \"%s\", %s, %s)";
-    private static final String EXECUTE_SCRIPT_FORMAT = "CloudifyExecutorUtils.executeScript(context, \"%s\", %s, %s)";
+    private static final String EXECUTE_GROOVY_FORMAT = "CloudifyExecutorUtils.executeGroovy(context, \"%s\", %s, %s, \"%s\")";
+    private static final String EXECUTE_SCRIPT_FORMAT = "CloudifyExecutorUtils.executeScript(context, \"%s\", %s, %s, \"%s\")";
     public static final String SHUTDOWN_COMMAND = "CloudifyExecutorUtils.shutdown()";
     public static final String DESTROY_COMMAND = "CloudifyUtils.destroy()";
-    private static final String EXECUTE_LOOPED_GROOVY_FORMAT = "while(%s){\n\t %s \n}";
-    private static final String CONDITIONAL_IF_ELSE_GROOVY_FORMAT = "if(%s){\n\t%s\n}else{\n\t%s\n}";
-    private static final String CONDITIONAL_IF_GROOVY_FORMAT = "if(%s){\n\t%s\n}";
     private static final String RETURN_COMMAND_FORMAT = "return %s";
 
     private static final String GET_INSTANCE_ATTRIBUTE_FORMAT = "CloudifyAttributesUtils.getAttribute(context, %s, %s, %s, %s)";
@@ -80,9 +85,10 @@ public class CommandGenerator {
      *
      * @param servicePath Path to the service recipe directory.
      * @param deploymentId The id of the current deployment
+     * @param setup TODO
      * @throws IOException In case of a copy failure.
      */
-    public void copyInternalResources(Path servicePath, String deploymentId) throws IOException {
+    public void copyInternalResources(Path servicePath, String deploymentId, ServiceSetup setup) throws IOException {
         for (String resource : SERVICE_RECIPE_RESOURCES) {
             // Files.copy(loadResourceFromClasspath("classpath:" + resource), servicePath.resolve(resource));
             // copy to the service directory base
@@ -92,11 +98,36 @@ public class CommandGenerator {
 
         // build veocity templates
         Map<String, String> properties = Maps.newHashMap();
-        properties.put("deploymentId", deploymentId);
+        properties.put("deploymentId", setup.getDeploymentId());
+        String logLevel = setup.getProviderDeploymentProperties().get(DeploymentPropertiesNames.LOG_LEVEL);
+        properties.put("LOG_LEVEL", StringUtils.isNotBlank(logLevel) ? logLevel : "INFO");
 
         for (String resource : SERVICE_RECIPE_RESOURCES_VELOCITY_TEMP) {
             VelocityUtil.writeToOutputFile(loadResourceFromClasspath("classpath:velocity/" + resource + ".vm"),
                     servicePath.resolve(resource.concat(".groovy")), properties);
+        }
+
+        copyAdditionnalLibs(servicePath);
+    }
+
+    private void copyAdditionnalLibs(Path servicePath) throws IOException {
+        FileSystem fs = null;
+        try {
+            URI uri = applicationContext.getResource(RECIPE_USM_LIB_DIR).getURI();
+            String uriStr = uri.toString();
+            Path path = null;
+            if (uriStr.contains("!")) {
+                String[] array = uriStr.split("!");
+                fs = FileSystems.newFileSystem(URI.create(array[0]), new HashMap<String, Object>());
+                path = fs.getPath(array[1]);
+            } else {
+                path = Paths.get(uri);
+            }
+            FileUtils.copyDirectory(path.toFile(), servicePath.resolve(RECIPE_USM_LIB_DIR).toFile());
+        } finally {
+            if (fs != null) {
+                fs.close();
+            }
         }
     }
 
@@ -131,23 +162,24 @@ public class CommandGenerator {
      * @param stringParamsMap The string params to pass in the command.
      * @param expectedOutputs TODO
      * @param scriptPath Path to the script relative to the service root directory.
+     * @param logLevel TODO
      * @param supportedArtifactTypes The supported artifacts types for the related operation
      * @return
      * @throws IOException
      */
 
     public String getCommandBasedOnArtifactType(final String operationFQN, final ImplementationArtifact artifact, Map<String, String> varParamsMap,
-            Map<String, String> stringParamsMap, Map<String, Set<String>> expectedOutputs, String scriptPath, String... supportedArtifactTypes)
-            throws IOException {
+            Map<String, String> stringParamsMap, Map<String, Set<String>> expectedOutputs, String scriptPath, ProviderLogLevel logLevel,
+            String... supportedArtifactTypes) throws IOException {
 
         if (ArrayUtils.isEmpty(supportedArtifactTypes) || ArrayUtils.contains(supportedArtifactTypes, artifact.getArtifactType())) {
             stringParamsMap.put(OPERATION_FQN, operationFQN);
             switch (artifact.getArtifactType()) {
             case AlienExtentedConstants.GROOVY_ARTIFACT_TYPE:
-                return getGroovyCommand(scriptPath, varParamsMap, stringParamsMap, expectedOutputs);
+                return getGroovyCommand(scriptPath, varParamsMap, stringParamsMap, expectedOutputs, logLevel);
             case AlienExtentedConstants.SHELL_ARTIFACT_TYPE:
             case AlienExtentedConstants.BATCH_ARTIFACT_TYPE:
-                return getScriptCommand(scriptPath, varParamsMap, stringParamsMap, expectedOutputs);
+                return getScriptCommand(scriptPath, varParamsMap, stringParamsMap, expectedOutputs, logLevel);
             default:
                 throw new PaaSDeploymentException("Operation implementation <" + operationFQN + "> is defined using an unsupported artifact type <"
                         + artifact.getArtifactType() + ">.");
@@ -165,14 +197,16 @@ public class CommandGenerator {
      *            command
      * @param stringParamsMap The string params to pass in the command.
      * @param expectedOutputs List of expected outputs' names
+     * @param logLevel TODO
      * @return The execution command.
      * @throws IOException
      */
     public String getGroovyCommand(String groovyScriptRelativePath, Map<String, String> varParamsMap, Map<String, String> stringParamsMap,
-            Map<String, Set<String>> expectedOutputs) throws IOException {
+            Map<String, Set<String>> expectedOutputs, ProviderLogLevel logLevel) throws IOException {
         String formatedParams = formatParams(stringParamsMap, varParamsMap);
         String formatedOutputs = serializeForGroovyMap(expectedOutputs);
-        return String.format(EXECUTE_GROOVY_FORMAT, groovyScriptRelativePath, formatedParams, formatedOutputs);
+        ProviderLogLevel finalLogLevel = logLevel != null ? logLevel : ProviderLogLevel.INFO;
+        return String.format(EXECUTE_GROOVY_FORMAT, groovyScriptRelativePath, formatedParams, formatedOutputs, finalLogLevel);
     }
 
     /**
@@ -195,42 +229,6 @@ public class CommandGenerator {
     }
 
     /**
-     * <p>
-     * Return the "while" wrapped execution command for a groovy script as a string.
-     * </p>
-     *
-     * <pre>
-     * getLoopedGroovyCommand("command", loopCondition) ==> while(loopCondition){ command }
-     * </pre>
-     *
-     * @param groovyCommand the groovy command to wrap by the "while" loop.
-     * @param loopCondition the condition to satisfy to continue the loop.
-     * @return The looped execution command.
-     */
-    public String getLoopedGroovyCommand(String groovyCommand, String loopCondition) {
-        if (StringUtils.isNotBlank(loopCondition)) {
-            return String.format(EXECUTE_LOOPED_GROOVY_FORMAT, loopCondition, StringUtils.isBlank(groovyCommand) ? "" : groovyCommand);
-        }
-        return null;
-    }
-
-    /**
-     * Return a conditional snippet
-     *
-     * @param condition The condition to satisfy
-     * @param ifCommand The command to execute if satisfy
-     * @param elseCommand Optional command to execute if not satisfy
-     * @return a string representing the conditional snippet
-     */
-    public String getConditionalSnippet(String condition, String ifCommand, String elseCommand) {
-        if (StringUtils.isBlank(condition) || ifCommand == null) {
-            return null;
-        }
-        return StringUtils.isNotBlank(elseCommand) ? String.format(CONDITIONAL_IF_ELSE_GROOVY_FORMAT, condition, ifCommand, elseCommand) : String.format(
-                CONDITIONAL_IF_GROOVY_FORMAT, condition, ifCommand);
-    }
-
-    /**
      * add "return" keyword on a groovy command
      *
      * @param groovyCommand the groovy command to process.
@@ -248,14 +246,16 @@ public class CommandGenerator {
      *            command
      * @param stringParamsMap The string params to pass in the command.
      * @param expectedOutputs List of expected outputs' names
+     * @param logLevel TODO
      * @return The execution command.
      * @throws IOException
      */
     public String getScriptCommand(String scriptRelativePath, Map<String, String> varParamsMap, Map<String, String> stringParamsMap,
-            Map<String, Set<String>> expectedOutputs) throws IOException {
+            Map<String, Set<String>> expectedOutputs, ProviderLogLevel logLevel) throws IOException {
         String formatedParams = formatParams(stringParamsMap, varParamsMap);
         String formatedOutputs = serializeForGroovyMap(expectedOutputs);
-        return String.format(EXECUTE_SCRIPT_FORMAT, scriptRelativePath, formatedParams, formatedOutputs);
+        ProviderLogLevel finalLogLevel = logLevel != null ? logLevel : ProviderLogLevel.INFO;
+        return String.format(EXECUTE_SCRIPT_FORMAT, scriptRelativePath, formatedParams, formatedOutputs, finalLogLevel);
     }
 
     /**
@@ -266,7 +266,7 @@ public class CommandGenerator {
      * @return The execution command to execute the scripts in parallel and then join for all the script to complete.
      */
     public String getParallelCommand(List<String> groovyScripts, List<String> otherScripts) {
-        return String.format(EXECUTE_PARALLEL_FORMAT, generateParallelScriptsParameters(groovyScripts), generateParallelScriptsParameters(otherScripts));
+        return String.format(EXECUTE_PARALLEL_FORMAT, serializeForGroovyCollection(groovyScripts), serializeForGroovyCollection(otherScripts));
     }
 
     /**
@@ -277,21 +277,7 @@ public class CommandGenerator {
      * @return The execution command to execute the scripts in parallel.
      */
     public String getAsyncCommand(List<String> groovyScripts, List<String> otherScripts) {
-        return String.format(EXECUTE_ASYNC_FORMAT, generateParallelScriptsParameters(groovyScripts), generateParallelScriptsParameters(otherScripts));
-    }
-
-    private String generateParallelScriptsParameters(List<String> scripts) {
-        StringBuilder scriptBuilder = new StringBuilder("[");
-        if (scripts != null) {
-            for (String script : scripts) {
-                if (scriptBuilder.length() > 1) {
-                    scriptBuilder.append(", ");
-                }
-                scriptBuilder.append("\"" + script + "\"");
-            }
-        }
-        scriptBuilder.append("]");
-        return scriptBuilder.toString();
+        return String.format(EXECUTE_ASYNC_FORMAT, serializeForGroovyCollection(groovyScripts), serializeForGroovyCollection(otherScripts));
     }
 
     /**

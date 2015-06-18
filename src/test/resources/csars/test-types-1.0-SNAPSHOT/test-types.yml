@@ -145,8 +145,8 @@ relationship_types:
 
   alien.test.relationships.TestTrigger:
     derived_from: tosca.relationships.DependsOn
-    valid_sources: [ alien.test.TestCompute ]
-    valid_targets: [ alien.test.TestCompute ]
+    # valid_sources: [ alien.test.TestCompute ]
+    # valid_targets: [ alien.test.TestCompute ]
     interfaces:
       configure:
         post_configure_source:
