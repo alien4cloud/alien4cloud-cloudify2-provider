@@ -36,7 +36,7 @@ import alien4cloud.paas.model.PaaSRelationshipTemplate;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.paas.plan.ToscaRelationshipLifecycleConstants;
-import alien4cloud.plugin.PluginConfiguration;
+import alien4cloud.plugin.model.PluginConfiguration;
 
 import com.google.common.collect.Lists;
 

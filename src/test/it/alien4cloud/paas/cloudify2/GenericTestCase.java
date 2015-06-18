@@ -69,7 +69,7 @@ import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.model.PaaSTopology;
 import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
-import alien4cloud.plugin.PluginConfiguration;
+import alien4cloud.plugin.model.PluginConfiguration;
 import alien4cloud.topology.TopologyUtils;
 import alien4cloud.tosca.ArchiveUploadService;
 import alien4cloud.tosca.normative.NormativeComputeConstants;
