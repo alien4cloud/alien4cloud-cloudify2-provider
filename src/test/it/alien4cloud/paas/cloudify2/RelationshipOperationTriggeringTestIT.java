@@ -1,7 +1,5 @@
 package alien4cloud.paas.cloudify2;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
@@ -13,10 +11,7 @@ import alien4cloud.paas.plan.ToscaRelationshipLifecycleConstants;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("classpath:application-context-testit.xml")
-@Slf4j
 public class RelationshipOperationTriggeringTestIT extends GenericRelationshipTriggeringTestCase {
-    public RelationshipOperationTriggeringTestIT() {
-    }
 
     @Test
     public void testRelationshipOperationTrigger() throws Throwable {

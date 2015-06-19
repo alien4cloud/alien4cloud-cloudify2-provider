@@ -4,4 +4,4 @@ println "helloCmd.groovy: Starting..."
 
 assert yourName && yourName!= "failThis", 'the name is not correct'
 
-return "hello <${yourName}>, customHostName is <${customHostName}>, from <${context.serviceName}.${context.instanceId}>"
+return "hello <${yourName}>, customHostName is <${customHostName}>, from instance <${context.instanceId}>"

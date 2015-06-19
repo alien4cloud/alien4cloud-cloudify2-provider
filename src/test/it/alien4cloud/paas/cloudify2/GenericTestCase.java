@@ -59,6 +59,7 @@ import alien4cloud.paas.cloudify2.rest.CloudifyEventsListener;
 import alien4cloud.paas.cloudify2.rest.CloudifyRestClient;
 import alien4cloud.paas.cloudify2.rest.CloudifyRestClientManager;
 import alien4cloud.paas.cloudify2.testutils.TestsUtils;
+import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.exception.OperationExecutionException;
 import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.model.AbstractMonitorEvent;
@@ -274,7 +275,7 @@ public class GenericTestCase {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-            ServiceDescription serviceDescription = restClient.getServiceDescription(applicationId, serviceName);
+            ServiceDescription serviceDescription = restClient.getServiceDescription(applicationId, CloudifyPaaSUtils.serviceIdFromNodeTemplateId(serviceName));
             serviceState = serviceDescription.getServiceState();
             timeout = System.currentTimeMillis() - startTime > timeoutInMillis;
         }
@@ -288,7 +289,8 @@ public class GenericTestCase {
             throws Exception {
         log.info("About to check path <:" + port.concat("/").concat(path) + ">");
         CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
-        ServiceInstanceDetails instanceDetails = restClient.getServiceInstanceDetails(applicationId, serviceName, 1);
+        ServiceInstanceDetails instanceDetails = restClient.getServiceInstanceDetails(applicationId,
+                CloudifyPaaSUtils.serviceIdFromNodeTemplateId(serviceName), 1);
         String instancePublicIp = instanceDetails.getPublicIp();
         String urlString = "http://" + instancePublicIp + ":" + port + "/" + path;
         log.info("Full URL is: " + urlString);
@@ -460,8 +462,8 @@ public class GenericTestCase {
 
                 if (expectedResultSnippet != null) {
                     for (String opReslt : result.values()) {
-                        Assert.assertTrue("Command result is <" + opReslt.toLowerCase() + ">. It should have contain <" + expectedResultSnippet + ">", opReslt
-                                .toLowerCase().contains(expectedResultSnippet.toLowerCase()));
+                        Assert.assertTrue("Command result is <" + opReslt + ">. It should have contain <" + expectedResultSnippet + ">", opReslt.toLowerCase()
+                                .contains(expectedResultSnippet.toLowerCase()));
                     }
                 }
             }
