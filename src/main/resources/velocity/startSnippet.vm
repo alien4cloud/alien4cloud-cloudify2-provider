@@ -1,7 +1,7 @@
 ## no start detection or stop detection: jsut wait for the asynch to finish
 #if(!$startDetectionCommand && !$stopDetectionCommand)
 	if(context.attributes.thisInstance.restart == true){
-		logger.info("Neither startDetection nor stopDetetion found for <$nodeId>! will restart the node even if already started.");
+		println "Neither startDetection nor stopDetetion found for <$nodeId>! will restart the node even if already started.";
 	}
 	def asyncFutures = $startAsynchCommand;
 	CloudifyExecutorUtils.waitForFutures(asyncFutures, "$nodeId", $execTimeout);
@@ -11,8 +11,8 @@
 		#if($startDetectionCommand)
 		def loop = true;
 		def maxTime = CloudifyUtils.getTimeoutTime($execTimeout);
-		logger.info( "Waiting for "+ asyncFutures.size() +" process to finish within a timeout of $execTimeout seconds on node <$nodeId>...")
-		logger.info( "Executing start detection to check node <$nodeId> is started..." ) 
+		println "Waiting for "+ asyncFutures.size() +" process to finish within a timeout of $execTimeout seconds on node <$nodeId>..."
+		println "Executing start detection to check node <$nodeId> is started...";
 		while(loop && java.lang.System.currentTimeMillis() < maxTime){
 			//check for exceptions
 			CloudifyExecutorUtils.allFuturesDone(asyncFutures, "$nodeId");
@@ -30,6 +30,6 @@
 		CloudifyExecutorUtils.waitForFutures(asyncFutures, "$nodeId", $execTimeout);
 		#end
 	}else {
-		logger.info("Node <$nodeId> already started! Skipping restart...")
+		println "Node <$nodeId> already started! Skipping restart..."
 	}
 #end
