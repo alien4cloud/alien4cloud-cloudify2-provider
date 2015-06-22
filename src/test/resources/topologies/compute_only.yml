@@ -8,7 +8,17 @@ node_templates:
         value: ubuntu
       os_version:
         value: ubuntu
-      
+    capabilities:
+      scalable:
+        type: tosca.capabilities.Scalable
+        properties:
+          min_instances:
+            value: "1"
+          max_instances:
+            value: "1"
+          default_instances:
+            value: "1"
+
   compute_2:
     type: alien.test.TestCompute
     properties:
@@ -20,6 +30,16 @@ node_templates:
         value: ubuntu
       customHostName:
         value: testCompute2
+    capabilities:
+      scalable:
+        type: tosca.capabilities.Scalable
+        properties:
+          min_instances:
+            value: "1"
+          max_instances:
+            value: "1"
+          default_instances:
+            value: "1"
 
 dependencies:
   - name: tosca-normative-types

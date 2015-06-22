@@ -1,10 +1,6 @@
 import java.util.concurrent.*
-import java.util.concurrent.atomic.AtomicInteger
-import groovy.lang.Binding
-import groovy.transform.Synchronized
-import org.cloudifysource.dsl.context.ServiceInstance
 
-import org.cloudifysource.utilitydomain.context.ServiceContextFactory
+import org.apache.log4j.Logger;
 
 public class EnvironmentBuilder {
 
@@ -25,6 +21,10 @@ public class EnvironmentBuilder {
         Binding binding = new Binding()
         //set the context variable
         binding.setVariable("context", context)
+        Logger logger = CloudifyUtils.getLogger("${context.serviceName}-customScript");
+        // for retro-compatibility. Will be removed soon
+        binding.setVariable("logger", logger)
+        binding.setVariable("log", logger)
         
         if(argsMap != null && !argsMap.isEmpty()) {
             buildEnvForGroovy(argsMap, binding)
@@ -38,14 +38,25 @@ public class EnvironmentBuilder {
      * 
      * @param context
      * @param name
+     *  SOURCE or TARGET
      * @param baseValue
      * @param serviceName
-     * @param attributes
+     * @param inputsAttributes
      * @return
      */
-    public static Map getTOSCARelationshipEnvs(context, String name, String baseValue, String serviceName, String instanceId, Map attributes) {
+    public static Map getTOSCARelationshipEnvs(context, String name, String baseValue, String serviceName, String instanceId, Map inputsAttributes, List eligibleNodesNames) {
         def envMap = [:]
-        buildTOSCARelationshipEnvVar(context, name, baseValue, serviceName, attributes?:[:], envMap, instanceId)
+        def pairContext = [
+            envVar:name,
+            baseValue:baseValue,
+            serviceName:serviceName
+        ]
+        
+        def inputsAttrContext = [
+            inputsAttributes:inputsAttributes?:[:],
+            eligibleNodesNames:eligibleNodesNames
+        ]
+        buildTOSCARelationshipEnvVar(context, pairContext, inputsAttrContext, instanceId, envMap)
         return envMap
     }
     
@@ -128,35 +139,37 @@ public class EnvironmentBuilder {
      * 
      * @param context
      * @param envVar
+     *  either SOURCE or TARGET
      * @param baseValue
      * @param serviceName
      * @param attrToProcess
      * @param argsMap
      * @return
      */
-    private static def buildTOSCARelationshipEnvVar(context, String envVar, String baseValue, String serviceName, Map attrToProcess, Map argsMap, String instanceId) {
+    private static def buildTOSCARelationshipEnvVar(context, Map pairContext, Map inputsAttrContext, String instanceId, Map envMap) {
         instanceId = instanceId?:context.instanceId;
-        def nbInstances = context.waitForService(serviceName, 60, TimeUnit.SECONDS).getNumberOfPlannedInstances();
+        def nbInstances = context.waitForService(pairContext.serviceName, 60, TimeUnit.SECONDS).getNumberOfPlannedInstances();
         StringBuilder values = new StringBuilder();
         
         //put the env: SOURCE or TARGET
-        argsMap.put(envVar, baseValue+"_"+instanceId)
+        envMap.put(pairContext.envVar, pairContext.baseValue+"_"+instanceId)
         
         //SOURCES or TARGETS
-        def pluralEnvVar = envVar+"S"
+        def pluralEnvVar = pairContext.envVar+"S"
         for (int i = 1; i <= nbInstances; i++) {
-            String valueToAdd = baseValue+"_"+i;
+            String valueToAdd = pairContext.baseValue+"_"+i;
             if(values.length() > 1) {
                 values.append(",");
             }
             values.append(valueToAdd);
             
             //process the attr for this nodeId
-            attrToProcess.each {k, v ->
-                argsMap.put(valueToAdd+"_"+k, CloudifyAttributesUtils.getTheProperAttribute(context, serviceName, i, v))
+            //k -> paramName, v -> attributeName
+            inputsAttrContext.inputsAttributes.each {k, v ->
+                envMap.put(valueToAdd+"_"+k, CloudifyAttributesUtils.getTheProperAttribute(context, pairContext.serviceName, i, v, inputsAttrContext.eligibleNodesNames))
             }
         }
-        argsMap.put(pluralEnvVar, values.toString())
+        envMap.put(pluralEnvVar, values.toString())
     }
     
 }

@@ -9,6 +9,16 @@ node_templates:
         value: ubuntu
       os_version:
         value: ubuntu
+    capabilities:
+      scalable:
+        type: tosca.capabilities.Scalable
+        properties:
+          min_instances:
+            value: "1"
+          max_instances:
+            value: "3"
+          default_instances:
+            value: "2"
   comp_maint_mode_2:
     type: tosca.nodes.Compute
     properties:
@@ -18,6 +28,16 @@ node_templates:
         value: ubuntu
       os_version:
         value: ubuntu
+    capabilities:
+      scalable:
+        type: tosca.capabilities.Scalable
+        properties:
+          min_instances:
+            value: "1"
+          max_instances:
+            value: "1"
+          default_instances:
+            value: "1"
   java:
     type: alien.nodes.Java
     properties:
@@ -53,13 +73,7 @@ node_templates:
         type: tosca.relationships.HostedOn
         requirement_name: host
         requirement_type: tosca.capabilities.Container
-        targeted_capability_name: host  
-
-scaling_policies:
-  comp_maint_mode:
-    min_instances: 1
-    max_instances: 3
-    initial_instances: 2
+        targeted_capability_name: host
 
 dependencies:
   - name: tosca-normative-types

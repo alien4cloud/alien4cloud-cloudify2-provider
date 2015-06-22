@@ -12,6 +12,7 @@ import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 
 import alien4cloud.model.components.IndexedToscaElement;
+import alien4cloud.paas.cloudify2.DefaultValues;
 import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 
@@ -49,8 +50,11 @@ public class RecipeGeneratorServiceContext {
     /** Maps <elementId -> Path > of paths of directories of different tosca element */
     private final Map<String, Path> elementsRecipeDirectoryPaths = Maps.newHashMap();
 
+    /** start detection timeout in second */
+    private int startDetectionTimeoutInSec = DefaultValues.DEFAULT_START_DETECTION_TIMEOUT;
+
     /** Events lease time for this service */
-    private Double eventsLeaseInHour = 2.0;
+    private Double eventsLeaseInHour = DefaultValues.DEFAULT_EVENTS_LEASE_IN_HOUR;
 
     /** Indicates if to delete the storages */
     private boolean deleteStorages = false;
@@ -102,5 +106,15 @@ public class RecipeGeneratorServiceContext {
         if (StringUtils.isNotBlank(deletableBlockStorage) && Boolean.parseBoolean(deletableBlockStorage)) {
             this.deleteStorages = Boolean.parseBoolean(deletableBlockStorage);
         }
+    }
+
+    public void setStartDetectionTimeoutInSec(String startDetectionTimeoutInSec) {
+        if (StringUtils.isNotBlank(startDetectionTimeoutInSec) && Integer.parseInt(startDetectionTimeoutInSec) > 0) {
+            this.startDetectionTimeoutInSec = Integer.parseInt(startDetectionTimeoutInSec);
+        }
+    }
+
+    public int getStartExecutionTimeout() {
+        return startDetectionTimeoutInSec * 9 / 10;
     }
 }

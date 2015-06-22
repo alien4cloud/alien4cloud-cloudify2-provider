@@ -36,7 +36,7 @@ import alien4cloud.paas.model.PaaSRelationshipTemplate;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.paas.plan.ToscaRelationshipLifecycleConstants;
-import alien4cloud.plugin.PluginConfiguration;
+import alien4cloud.plugin.model.PluginConfiguration;
 
 import com.google.common.collect.Lists;
 
@@ -44,7 +44,7 @@ import com.google.common.collect.Lists;
 @ContextConfiguration("classpath:application-context-testit.xml")
 public class FunctionProcessorTest {
 
-    private static final String GET_INSTANCE_ATTRIBUTE_FORMAT = "CloudifyAttributesUtils.getAttribute(context, %s, %s, %s)";
+    private static final String GET_INSTANCE_ATTRIBUTE_FORMAT = "CloudifyAttributesUtils.getAttribute(context, \"%s\", %s, \"%s\", %s)";
     private static final String GET_IP_FORMAT = "CloudifyAttributesUtils.getIp(context, %s, %s)";
 
     @Resource
@@ -85,7 +85,7 @@ public class FunctionProcessorTest {
 
     @Test
     public void scalarParamSucessTest() throws Throwable {
-        String computeName = "comp_tomcat_war";
+        String computeName = "comp-tomcat-war";
         Topology topology = testsUtils.parseYamlTopology("functionsKeywordsTest");
         Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSTopology(topology).getAllNodes();
         PaaSNodeTemplate computePaaS = builtPaaSNodeTemplates.get(computeName);
@@ -99,7 +99,7 @@ public class FunctionProcessorTest {
     @Test
     public void getPropertyKeywordsOnNodeTemplateSucessTest() throws Throwable {
 
-        String computeName = "comp_tomcat_war";
+        String computeName = "comp-tomcat-war";
         Topology topology = testsUtils.parseYamlTopology("functionsKeywordsTest");
         Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSTopology(topology).getAllNodes();
         PaaSNodeTemplate computePaaS = builtPaaSNodeTemplates.get(computeName);
@@ -160,7 +160,7 @@ public class FunctionProcessorTest {
     @Test(expected = BadUsageKeywordException.class)
     public void getPropertyWrongDefOrUSageTest() throws Throwable {
 
-        String computeName = "comp_tomcat_war";
+        String computeName = "comp-tomcat-war";
         Topology topology = testsUtils.parseYamlTopology("functionsKeywordsTest");
         Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSTopology(topology).getAllNodes();
         PaaSNodeTemplate computePaaS = builtPaaSNodeTemplates.get(computeName);
@@ -187,7 +187,7 @@ public class FunctionProcessorTest {
     public void getAttributeKeywordsSucessTest() throws Throwable {
 
         String warName = "war_1";
-        String computeName = "comp_tomcat_war";
+        String computeName = "comp-tomcat-war";
         Topology topology = testsUtils.parseYamlTopology("functionsKeywordsTest");
         Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSTopology(topology).getAllNodes();
         PaaSNodeTemplate warPaaS = builtPaaSNodeTemplates.get(warName);
@@ -197,7 +197,7 @@ public class FunctionProcessorTest {
                 .get(ToscaRelationshipLifecycleConstants.POST_CONFIGURE_SOURCE);
 
         // test SOURCE keyword
-        String expected = String.format(GET_INSTANCE_ATTRIBUTE_FORMAT, "\"" + computeName + "\"", null, "\"warNodeContext\"");
+        String expected = String.format(GET_INSTANCE_ATTRIBUTE_FORMAT, computeName, null, "warNodeContext", "[\"" + warName + "\"]");
         IValue param = configOp.getInputParameters().get("warNodeContext");
         Assert.assertEquals(expected, evaluateParam((AbstractPropertyValue) param, hostedOnRelTemp, builtPaaSNodeTemplates));
 

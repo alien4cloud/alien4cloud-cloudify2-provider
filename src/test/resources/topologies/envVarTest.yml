@@ -1,6 +1,6 @@
 
 node_templates:
-  comp_envartest:
+  comp-envartest:
     type: alien.test.TestCompute
     properties:
       os_type:
@@ -11,6 +11,16 @@ node_templates:
         value: ubuntu
       customHostName:
         value: testHostname
+    capabilities:
+      scalable:
+        type: tosca.capabilities.Scalable
+        properties:
+          min_instances:
+            value: "1"
+          max_instances:
+            value: "4"
+          default_instances:
+            value: "1"
   test_component:
     type: alien.test.nodes.envVarTestComponent
     properties:
@@ -18,17 +28,11 @@ node_templates:
         value: testComponent
     relationships:
       hostedOnServeurWeb:
-        target: comp_envartest
+        target: comp-envartest
         type: alien.test.relationships.HostedOn
         requirement_name: host
         requirement_type: tosca.capabilities.Container
         targeted_capability_name: host
-        
-scaling_policies:
-  comp_envartest:
-    min_instances: 1
-    max_instances: 4
-    initial_instances: 1
 
 dependencies:
   - name: tosca-normative-types

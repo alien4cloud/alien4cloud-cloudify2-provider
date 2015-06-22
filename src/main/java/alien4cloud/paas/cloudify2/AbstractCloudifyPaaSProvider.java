@@ -48,8 +48,8 @@ import alien4cloud.model.application.DeploymentSetup;
 import alien4cloud.model.components.IValue;
 import alien4cloud.model.components.IndexedNodeType;
 import alien4cloud.model.deployment.Deployment;
+import alien4cloud.model.topology.Capability;
 import alien4cloud.model.topology.NodeTemplate;
-import alien4cloud.model.topology.ScalingPolicy;
 import alien4cloud.model.topology.Topology;
 import alien4cloud.paas.IConfigurablePaaSProvider;
 import alien4cloud.paas.IPaaSCallback;
@@ -85,7 +85,9 @@ import alien4cloud.paas.model.PaaSTopology;
 import alien4cloud.paas.model.PaaSTopologyDeploymentContext;
 import alien4cloud.paas.plan.TopologyTreeBuilderService;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
+import alien4cloud.topology.TopologyUtils;
 import alien4cloud.tosca.ToscaUtils;
+import alien4cloud.tosca.normative.NormativeComputeConstants;
 import alien4cloud.utils.AlienUtils;
 
 import com.google.common.collect.Lists;
@@ -305,7 +307,9 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
             ServiceDescription serviceDescription = restClient.getServiceDescription(deploymentPaaSId, serviceId);
             int plannedInstances = serviceDescription.getPlannedInstances() + instances;
-            statusByDeployments.get(deploymentPaaSId).topology.getScalingPolicies().get(nodeTemplateId).setInitialInstances(plannedInstances);
+            Topology topology = statusByDeployments.get(deploymentPaaSId).topology;
+            Capability capability = TopologyUtils.getScalableCapability(topology, nodeTemplateId, true);
+            TopologyUtils.setScalingProperty(NormativeComputeConstants.SCALABLE_DEFAULT_INSTANCES, plannedInstances, capability);
             log.info("Change number of instance of {}.{} from {} to {} ", deploymentPaaSId, serviceId, serviceDescription.getPlannedInstances(),
                     plannedInstances);
             SetServiceInstancesRequest request = new SetServiceInstancesRequest();
@@ -375,12 +379,20 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             }
             String instanceId = instanceState.getInstanceId();
 
-            InstanceStatus instanceStatus = InstanceStatus.PROCESSING;
-            if (ToscaNodeLifecycleConstants.STARTED.equals(instanceState.getInstanceState())
-                    || ToscaNodeLifecycleConstants.AVAILABLE.equals(instanceState.getInstanceState())) {
+            InstanceStatus instanceStatus = null;
+            switch (instanceState.getInstanceState()) {
+            case ToscaNodeLifecycleConstants.STARTED:
+            case ToscaNodeLifecycleConstants.AVAILABLE:
                 instanceStatus = InstanceStatus.SUCCESS;
-            } else if (InstanceStatus.MAINTENANCE.toString().toLowerCase().equals(instanceState.getInstanceState())) {
+                break;
+            case ToscaNodeLifecycleConstants.ERROR:
+                instanceStatus = InstanceStatus.FAILURE;
+                break;
+            case ToscaNodeLifecycleConstants.MAINTENANCE:
                 instanceStatus = InstanceStatus.MAINTENANCE;
+            default:
+                instanceStatus = InstanceStatus.PROCESSING;
+                break;
             }
 
             if (!(ToscaNodeLifecycleConstants.DELETED.equals(instanceState.getInstanceState()))) {
@@ -471,9 +483,15 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         Map<String, Map<String, Map<String, String>>> outputMaps = Maps.newHashMap();
 
         // we want to get operation outputs for all cloudify services
+        String appName = applicationDescription.getApplicationName();
         for (ServiceDescription serviceDescription : applicationDescription.getServicesDescription()) {
-            outputMaps.put(serviceDescription.getServiceName(),
-                    restClient.getAllInstancesOperationsOutputs(serviceDescription.getApplicationName(), serviceDescription.getServiceName()));
+            String serviceName = serviceDescription.getServiceName();
+            List<InstanceDescription> instanceDesc = serviceDescription.getInstancesDescription();
+            outputMaps.put(serviceName, Maps.<String, Map<String, String>> newHashMap());
+            for (InstanceDescription instanceDescription : instanceDesc) {
+                String instanceId = String.valueOf(instanceDescription.getInstanceId());
+                outputMaps.get(serviceDescription.getServiceName()).put(instanceId, restClient.getOperationOutputs(appName, serviceName, instanceId));
+            }
         }
 
         // register every outputs where it belongs
@@ -483,7 +501,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                 Map<String, String> nodesOutputs = entry.getValue();
                 for (String formatedOutputName : nodesOutputs.keySet()) {
                     // 0 = nodeId, 1 = interfaceName, 2 = operationName, 3 = outputName
-                    String[] parts = formatedOutputName.split(AlienConstants.COLON_SEPARATOR);
+                    String[] parts = formatedOutputName.split(AlienConstants.OPERATION_NAME_SEPARATOR);
                     Map<String, InstanceInformation> nodeTemplateInstanceInformations = instanceInformations.get(parts[0]);
                     InstanceInformation instanceInformation = nodeTemplateInstanceInformations == null ? null : nodeTemplateInstanceInformations
                             .get(instanceId);
@@ -496,40 +514,10 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         }
     }
 
-    private void parseAttributes(Map<String, Map<String, InstanceInformation>> instanceInformations, DeploymentInfo deploymentInfo) {
-        Topology topology = deploymentInfo.topology;
-        // parse attributes
-        for (Entry<String, Map<String, InstanceInformation>> nodeInstanceId : instanceInformations.entrySet()) {
-
-            for (Entry<String, InstanceInformation> nodeInstanceNumber : nodeInstanceId.getValue().entrySet()) {
-
-                if (nodeInstanceNumber.getValue().getAttributes() != null) {
-                    for (Entry<String, String> attributeEntry : nodeInstanceNumber.getValue().getAttributes().entrySet()) {
-                        PaaSNodeTemplate nodeTemplate = deploymentInfo.paaSTopology.getAllNodes().get(nodeInstanceId.getKey());
-                        Map<String, IValue> nodeTemplateAttributes = nodeTemplate.getIndexedToscaElement().getAttributes();
-                        IValue attributeValue = nodeTemplateAttributes.get(attributeEntry.getKey());
-                        if (attributeValue != null) {
-                            String parsedAttribute = FunctionEvaluator.parseAttribute(attributeEntry.getKey(), attributeValue, topology, instanceInformations,
-                                    nodeInstanceNumber.getKey(), nodeTemplate, deploymentInfo.paaSTopology.getAllNodes());
-                            attributeEntry.setValue(parsedAttribute);
-                        }
-                    }
-                }
-
-            }
-
-        }
-    }
-
     private int getPlannedInstancesCount(PaaSNodeTemplate paaSNodeTemplate, Topology topology) {
-        if (topology.getScalingPolicies() != null) {
-            String computeNodeId = ToscaUtils.getMandatoryHostTemplate(paaSNodeTemplate).getId();
-            ScalingPolicy scalingPolicy = topology.getScalingPolicies().get(computeNodeId);
-            if (scalingPolicy != null) {
-                return scalingPolicy.getInitialInstances();
-            }
-        }
-        return 1;
+        String computeNodeId = ToscaUtils.getMandatoryHostTemplate(paaSNodeTemplate).getId();
+        Capability scalableCapability = TopologyUtils.getScalableCapability(topology, computeNodeId, true);
+        return TopologyUtils.getScalingProperty(NormativeComputeConstants.SCALABLE_DEFAULT_INSTANCES, scalableCapability);
     }
 
     public Map<String, Map<String, InstanceInformation>> getInstancesInformation(String deploymentPaaSId) {
@@ -550,7 +538,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             fillInstanceStates(deploymentInfo.deploymentId, instanceInformations, restEventEndpoint);
             fillRuntimeInformations(instanceInformations, applicationDescription, restClient);
             fillOperationsOutputs(instanceInformations, applicationDescription, restClient);
-            parseAttributes(instanceInformations, deploymentInfo);
+            FunctionEvaluator.postProcessInstanceInformation(instanceInformations, deploymentInfo.topology, deploymentInfo.paaSTopology);
             instanceStatusByDeployments.put(deploymentPaaSId, new NodesDeploymentInfo(instanceInformations));
             return instanceInformations;
         } catch (RestClientException e) {
@@ -567,8 +555,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     }
 
     @Override
-    public void getInstancesInformation(PaaSDeploymentContext deploymentContext, Topology topology,
-            IPaaSCallback<Map<String, Map<String, InstanceInformation>>> callback) {
+    public void getInstancesInformation(PaaSTopologyDeploymentContext deploymentContext, IPaaSCallback<Map<String, Map<String, InstanceInformation>>> callback) {
         callback.onSuccess(getInstancesInformation(deploymentContext.getDeploymentPaaSId()));
     }
 
@@ -801,7 +788,8 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         Map<String, String> operationResponse = Maps.newHashMap();
         String serviceName = retrieveServiceName(deploymentPaaSId, request.getNodeTemplateName());
         InvokeCustomCommandRequest invokeRequest = new InvokeCustomCommandRequest();
-        invokeRequest.setCommandName(AlienUtils.prefixWith(request.getOperationName(), request.getNodeTemplateName(), request.getInterfaceName()));
+        invokeRequest.setCommandName(AlienUtils.prefixWithDefaultSeparator(request.getOperationName(), request.getNodeTemplateName(),
+                request.getInterfaceName()));
         buildParameters(deploymentPaaSId, request, invokeRequest);
         String operationFQN = operationFQN(serviceName, request, invokeRequest);
         try {

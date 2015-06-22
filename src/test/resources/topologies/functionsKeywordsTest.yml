@@ -1,6 +1,6 @@
 
 node_templates:
-  comp_tomcat_war:
+  comp-tomcat-war:
     type: alien.test.BadTestCompute
     properties:
       os_type:
@@ -11,6 +11,16 @@ node_templates:
         value: ubuntu
       customHostName:
         value: testHostname
+    capabilities:
+      scalable:
+        type: tosca.capabilities.Scalable
+        properties:
+          min_instances:
+            value: "1"
+          max_instances:
+            value: "1"
+          default_instances:
+            value: "1"
   java:
     type: alien.nodes.Java
     properties:
@@ -20,7 +30,7 @@ node_templates:
         value: /opt/java
     relationships:
       hostedOnServeurWeb:
-        target: comp_tomcat_war
+        target: comp-tomcat-war
         type: tosca.relationships.HostedOn
         requirement_name: host
         requirement_type: tosca.capabilities.Container
@@ -45,7 +55,7 @@ node_templates:
         requirement_type: alien.capabilities.Java
         targeted_capability_name: java
       hostedOnServeurWeb:
-        target: comp_tomcat_war
+        target: comp-tomcat-war
         type: tosca.relationships.HostedOn
         requirement_name: host
         requirement_type: tosca.capabilities.Container

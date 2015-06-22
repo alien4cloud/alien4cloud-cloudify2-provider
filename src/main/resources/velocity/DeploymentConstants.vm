@@ -1,0 +1,9 @@
+
+public class DeploymentConstants {
+        
+	#if($LOG_LEVEL)
+	static String LOG_LEVEL = "$LOG_LEVEL"
+	#else
+	static String LOG_LEVEL = "INFO"
+	#end
+}

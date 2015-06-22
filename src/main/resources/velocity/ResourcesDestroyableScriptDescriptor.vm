@@ -1,0 +1,15 @@
+import org.cloudifysource.utilitydomain.context.ServiceContextFactory
+println "service_script : starting $scriptLifecycle script"
+
+//maybe we will have to evaluate a "closure groovy script". Therefore, we need to pass the context as params.
+def context = ServiceContextFactory.getServiceContext()
+try {
+	#foreach( $script in $scripts )
+	$script
+	#end
+	
+	println "service_script : $scriptLifecycle script ended"
+} finally {
+	CloudifyExecutorUtils.shutdown();
+	CloudifyUtils.destroy();
+}
