@@ -1,1 +1,1 @@
-println "tomcat_bolo.groovy: ============================================== B O L O"
+log.info "tomcat_bolo.groovy: ============================================== B O L O"

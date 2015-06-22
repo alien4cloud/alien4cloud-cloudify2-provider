@@ -1,6 +1,8 @@
 import org.cloudifysource.dsl.utils.ServiceUtils
 
-println "helloCmd.groovy: Starting..."
+log.info "helloCmd.groovy: Starting..."
+log.info "receive Var yourName = ${yourName} "
+log.debug " THIS IS FOR DEBUG PURPOSE"
 
 assert yourName && yourName!= "failThis", 'the name is not correct'
 

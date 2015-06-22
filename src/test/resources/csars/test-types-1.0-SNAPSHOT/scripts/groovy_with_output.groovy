@@ -1,8 +1,8 @@
 def localhostname = "dontKnow";
-println "Setting old_hostnane output...<${localhostname}>"
+log.info "Setting old_hostnane output...<${localhostname}>"
 setProperty("old_hostnane", localhostname)
 def randomOutPut = 1234567890
-println "Setting output_from_create output...<${randomOutPut}>"
+log.info "Setting output_from_create output...<${randomOutPut}>"
 output_from_create = randomOutPut
 
 def testForConcat = "thisIsATestForConcat"
