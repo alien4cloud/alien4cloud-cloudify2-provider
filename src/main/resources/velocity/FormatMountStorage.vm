@@ -5,17 +5,18 @@ def context = ServiceContextFactory.getServiceContext()
 // Note: Newer Linux kernels may rename your devices to /dev/xvdf through /dev/xvdp internally, even when the device name entered here (and shown in the details) is /dev/sdf through /dev/sdp.
 def alternate = device.replaceAll("/s", "/xv")
 
-if(context.attributes.thisInstance.volumeCreated) {
-	println "formating the attached storage <${device}>... "
+if(context.attributes.thisInstance.formatVolume) {
+	log.info "formating the attached storage <${device}>... "
 	try {
 		context.storage.format(device, file_system)
 	} catch(any) {
 		device = alternate
 		context.storage.format(device, file_system)
 	}
+	context.attributes.thisInstance.formatVolume = false;	
 }
 
-println "mounting the attached storage <${device}> to <${location}>... "
+log.info "mounting the attached storage <${device}> to <${location}>... "
 context.storage.mount(device, location)
 
 return location
