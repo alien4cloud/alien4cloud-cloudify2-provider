@@ -14,7 +14,9 @@ if(context.attributes.thisInstance.volumeCreated) {
 		context.storage.format(device, file_system)
 	}
 }
-
+log.info "deleting <${location}> in case it exists on the node... "
+def ant = new AntBuilder()
+ant.delete(dir:location,failonerror:false)
 println "mounting the attached storage <${device}> to <${location}>... "
 context.storage.mount(device, location)
 
