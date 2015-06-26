@@ -127,6 +127,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     // private static final String INVOCATION_INSTANCE_NAME_KEY = "Invocation_Instance_Name";
     // private static final String INVOCATION_COMMAND_NAME_KEY = "Invocation_Command_Name";
 
+    /* deploymentPaaSId -> DeploymentInfo */
     protected Map<String, DeploymentInfo> statusByDeployments = Maps.newHashMap();
 
     protected Map<String, NodesDeploymentInfo> instanceStatusByDeployments = Maps.newHashMap();
@@ -147,7 +148,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
      *
      */
     protected void configureDefault() {
-        log.info("Configuring the paaS provider");
+        log.debug("Configuring the paaS provider");
     }
 
     @Override
@@ -608,11 +609,11 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             List<String> appUnknownStatuses = Lists.newArrayList(statusByDeployments.keySet());
             processUnknownStatuses(events, applicationDescriptions, appUnknownStatuses);
 
-            // get instance status events
+            // get alien events
             List<AlienEvent> instanceEvents = listener.getEventsSince(date, maxEvents);
 
             Set<String> processedDeployments = Sets.newHashSet();
-            processEvents(events, instanceEvents, processedDeployments);
+            processEvents(events, instanceEvents, processedDeployments, listener);
 
             // cleanup statuses
             if (appUnknownStatuses.size() > 0) {
@@ -649,10 +650,12 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         }
     }
 
-    private void processEvents(List<AbstractMonitorEvent> events, List<AlienEvent> instanceEvents, Set<String> processedDeployments) {
-
+    private void processEvents(List<AbstractMonitorEvent> events, List<AlienEvent> instanceEvents, Set<String> processedDeployments,
+            CloudifyEventsListener listener) throws URISyntaxException, IOException {
+        Map<String, Deployment> cache = Maps.newHashMap();
         for (AlienEvent alienEvent : instanceEvents) {
             if (!statusByDeployments.containsKey(alienEvent.getApplicationName())) {
+                checkAndCleanupDeletedDeployments(listener, alienEvent, cache);
                 continue;
             }
 
@@ -683,6 +686,28 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             events.add(monitorEvent);
         }
 
+    }
+
+    /**
+     * Check when receive an unknown deployment event. if it is a previously managed deployment that has been undeployed
+     * then delete node instance states on cloudify space
+     **/
+    private void checkAndCleanupDeletedDeployments(CloudifyEventsListener listener, AlienEvent alienEvent, Map<String, Deployment> cache)
+            throws URISyntaxException, IOException {
+        if (ToscaNodeLifecycleConstants.DELETED.equalsIgnoreCase(alienEvent.getEvent())) {
+            // if it is a previously managed deployment that has been undeployed
+            // then delete node instance states on cloudify space
+            String deploymentId = alienEvent.getDeploymentId();
+            Deployment deployment = cache.containsKey(deploymentId) ? cache.get(deploymentId) : deploymentService.getDeployment(alienEvent.getDeploymentId());
+            if (deployment != null) {
+                cache.put(deploymentId, deployment);
+                if (deployment.getEndDate() != null) {
+                    listener.deleteNodeInstanceStates(deploymentId);
+                    // hack for the lastPoolingDate to be updated
+                    registerDeploymentStatus(deploymentId, DeploymentStatus.UNDEPLOYED);
+                }
+            }
+        }
     }
 
     private boolean isUndeploymentTriggered(DeploymentStatus status) {
