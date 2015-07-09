@@ -59,6 +59,7 @@ import alien4cloud.paas.cloudify2.rest.CloudifyEventsListener;
 import alien4cloud.paas.cloudify2.rest.CloudifyRestClient;
 import alien4cloud.paas.cloudify2.rest.CloudifyRestClientManager;
 import alien4cloud.paas.cloudify2.testutils.TestsUtils;
+import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.exception.OperationExecutionException;
 import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.model.AbstractMonitorEvent;
@@ -164,7 +165,7 @@ public class GenericTestCase {
         System.out.println(resource);
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        cloudifyURL = cloudifyURL == null ? "https://129.185.67.91:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "https://129.185.67.27:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.setCloudifyURLs(Lists.newArrayList(cloudifyURL));
         pluginConfigurationBean.setVersion("2.7.1");
@@ -274,7 +275,7 @@ public class GenericTestCase {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-            ServiceDescription serviceDescription = restClient.getServiceDescription(applicationId, serviceName);
+            ServiceDescription serviceDescription = restClient.getServiceDescription(applicationId, CloudifyPaaSUtils.serviceIdFromNodeTemplateId(serviceName));
             serviceState = serviceDescription.getServiceState();
             timeout = System.currentTimeMillis() - startTime > timeoutInMillis;
         }
