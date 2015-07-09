@@ -25,6 +25,12 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
 
     private static Map<String, String> providerDeploymentProperties;
 
+    @Override
+    public void after() {
+        // TODO Auto-generated method stub
+        // super.after();
+    }
+
     static {
         // define provider deployment properties
         providerDeploymentProperties = Maps.newHashMap();
@@ -73,6 +79,8 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
     public void blockStorageVolumeIdProvidedSucessTest() throws Throwable {
         log.info("\n\n >> Executing Test blockStorageVolumeIdProvidedSucessTest \n");
         setDeletableBlockStorage("false");
+        this.uploadGitArchive(EXTENDED_TYPES_REPO, EXTENDED_STORAGE_TYPES);
+        this.uploadTestArchives("custom-storage-types-1.0-SNAPSHOT");
         String cloudifyAppId = null;
         try {
             String[] computesId = new String[] { "comp_storage_volumeid" };

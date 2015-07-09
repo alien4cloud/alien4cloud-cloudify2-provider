@@ -78,8 +78,8 @@ public class RecipeGeneratorArtifactCopier {
         }
 
         // process attached nodes
-        if (rootNode.getAttachedNode() != null) {
-            copyAllArtifacts(context, rootNode.getAttachedNode());
+        for (PaaSNodeTemplate storageNode : rootNode.getStorageNodes()) {
+            copyAllArtifacts(context, storageNode);
         }
     }
 

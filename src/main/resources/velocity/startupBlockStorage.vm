@@ -1,6 +1,6 @@
 import org.cloudifysource.utilitydomain.context.ServiceContextFactory
 
-println "startupBlockStorage.groovy : starting startupBlockStorage script"
+log.info "startupBlockStorage.groovy : starting startupBlockStorage <$storageId> script"
 
 def context = ServiceContextFactory.getServiceContext()
 
@@ -18,11 +18,11 @@ if(configureResult == null ){
 }
 $configuredEvent
 
-println "Storage volume: volumeId <${volumeId}>, device <${device}>, path <${configureResult}>"
-context.attributes.thisInstance.volumeId = volumeId 
-context.attributes.thisInstance.storageDevice = device
-context.attributes.thisInstance.storageLocation = configureResult
+log.info "Storage volume <$storageId>: volumeId <${volumeId}>, device <${device}>, path <${configureResult}>"
+context.attributes.thisInstance["$storageId:volumeId"] = volumeId 
+context.attributes.thisInstance["$storageId:storageDevice"] = device
+context.attributes.thisInstance["$storageId:storageLocation"] = configureResult
 $startedEvent
 $availableEvent
 
-println "startupBlockStorage.groovy : startupBlockStorage script  End"
+log.info "startupBlockStorage.groovy : startupBlockStorage <$storageId> script  End"

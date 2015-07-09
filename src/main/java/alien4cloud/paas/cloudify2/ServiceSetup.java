@@ -17,7 +17,7 @@ public class ServiceSetup {
     private String id;
     private ComputeTemplate computeTemplate;
     private NetworkTemplate network;
-    private StorageTemplate storage;
+    private Map<String, StorageTemplate> storage = Maps.newHashMap();
     private Map<String, String> providerDeploymentProperties = Maps.newHashMap();
     private String deploymentId;
     private AvailabilityZone availabilityZone;
