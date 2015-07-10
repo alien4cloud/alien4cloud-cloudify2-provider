@@ -360,10 +360,12 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             String serviceName = CloudifyPaaSUtils.cfyServiceNameFromNodeTemplate(paaSNodeTempalteEntry.getValue());
 
             List<String> cdfyInstancesIds = availablesInstancesId.get(serviceName);
-            for (String instanceId : cdfyInstancesIds) {
-                addDefaultInstanceInfo(paaSNodeTempalteEntry.getValue(), nodeInstanceInfos, instanceId);
+            if (cdfyInstancesIds != null) {
+                for (String instanceId : cdfyInstancesIds) {
+                    addDefaultInstanceInfo(paaSNodeTempalteEntry.getValue(), nodeInstanceInfos, instanceId);
+                }
+                instanceInformations.put(paaSNodeTempalteEntry.getKey(), nodeInstanceInfos);
             }
-            instanceInformations.put(paaSNodeTempalteEntry.getKey(), nodeInstanceInfos);
         }
         return instanceInformations;
     }
@@ -380,6 +382,10 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             int currentPlannedInstances = getPlannedInstancesCount(deploymentInfo.paaSTopology.getAllNodes().get(paaSNodeTempalteEntry.getKey()),
                     deploymentInfo.topology);
             Map<String, InstanceInformation> nodeInstanceInfos = instanceInformations.get(paaSNodeTempalteEntry.getKey());
+            if (nodeInstanceInfos == null) {
+                nodeInstanceInfos = Maps.newHashMap();
+                instanceInformations.put(paaSNodeTempalteEntry.getKey(), nodeInstanceInfos);
+            }
             int missingCount = currentPlannedInstances - nodeInstanceInfos.size();
             // if the current number of instance is less than the planned, add missing infos with temp ids
             if (missingCount > 0) {
