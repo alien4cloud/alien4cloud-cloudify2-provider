@@ -22,7 +22,7 @@ import alien4cloud.model.components.AbstractPropertyValue;
 import alien4cloud.model.components.Csar;
 import alien4cloud.model.components.FunctionPropertyValue;
 import alien4cloud.model.components.IValue;
-import alien4cloud.model.components.IndexedToscaElement;
+import alien4cloud.model.components.IndexedInheritableToscaElement;
 import alien4cloud.model.components.Operation;
 import alien4cloud.model.deployment.Deployment;
 import alien4cloud.model.topology.Topology;
@@ -208,7 +208,7 @@ public class FunctionProcessorTest {
 
     }
 
-    private String evaluateParam(final AbstractPropertyValue param, final IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
+    private String evaluateParam(final AbstractPropertyValue param, final IPaaSTemplate<? extends IndexedInheritableToscaElement> basePaaSTemplate,
             final Map<String, PaaSNodeTemplate> builtPaaSTemplates) throws IOException {
         IParamEvalResult result = processor.evaluate(param, basePaaSTemplate, builtPaaSTemplates, null);
         return result.get();
