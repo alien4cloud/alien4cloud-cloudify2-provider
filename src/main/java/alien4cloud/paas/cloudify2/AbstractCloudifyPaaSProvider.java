@@ -315,6 +315,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             request.setCount(plannedInstances);
             restClient.setServiceInstances(deploymentPaaSId, serviceId, request);
             statusByDeployments.get(deploymentPaaSId).topology = topology;
+            callback.onSuccess(null);
         } catch (Exception e) {
             String msge = e.getMessage();
             if (e instanceof RestClientException) {
