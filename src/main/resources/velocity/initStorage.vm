@@ -1,22 +1,22 @@
 import org.cloudifysource.utilitydomain.context.ServiceContextFactory
 
-println "initStorage.groovy : starting initStorage script"
+log.info "initStorage.groovy : starting initStorage script"
 
 def context = ServiceContextFactory.getServiceContext()
 //only run it once
 if(!context.attributes.thisService.initialized) {
-    println "Setting service storage template id : $storageTemplate"
+    log.info "Setting service storage template id : $storageTemplate"
     context.attributes.thisService.storageTemplate = "$storageTemplate"
     def storageVolumeIds = $instancesVolumeIds
     if(storageVolumeIds != null ){
-        println "Provided volumes Ids are: ${storageVolumeIds}"
+        log.info "Provided volumes Ids are: ${storageVolumeIds}"
     	for(int i = 0; i < storageVolumeIds.size(); i++) {
             context.attributes.thisService.instances[i+1].volumeId = storageVolumeIds[i]
         }
     }
     context.attributes.thisService.initialized = true
 }else {
-    println "Service ${context.serviceName} already initialized. Nothing to do..."
+    log.info "Service ${context.serviceName} already initialized. Nothing to do..."
 }
 
-println "initStorage.groovy : initStorage script end."
+log.info "initStorage.groovy : initStorage script end."

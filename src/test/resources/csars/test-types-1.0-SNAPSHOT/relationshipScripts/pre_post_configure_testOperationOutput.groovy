@@ -30,5 +30,5 @@ private def errorEnVar(def envVar){
 }
 
 private def printEnv(def name, def value) {
-  println "${name} : ${value}"
+  log.info "${name} : ${value}"
 }

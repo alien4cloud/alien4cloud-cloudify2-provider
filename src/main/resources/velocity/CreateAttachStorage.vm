@@ -5,16 +5,16 @@ if(volumeId == null || volumeId.trim().isEmpty()){
 	if(!storageTemplate || storageTemplate.trim().isEmpty()){
 		throw new IllegalArgumentException("A storage template Id is expected!")
 	}
-	println "Creating a volume using the storage template <${storageTemplate}>..."
+	log.info "Creating a volume using the storage template <${storageTemplate}>..."
 	volumeId = context.storage.createVolume(storageTemplate)
-	context.attributes.thisInstance.volumeCreated = true
-	println "volume created!"
+	context.attributes.thisInstance.formatVolume = true;
+	log.info "volume created!"
 }
 
-println "Storage volume: volumeId <${volumeId}>, device <${device}>"
+log.info "Storage volume: volumeId <${volumeId}>, device <${device}>"
 
-println "attaching storage volume <${volumeId}> to <${device}>... "
+log.info "attaching storage volume <${volumeId}> to <${device}>... "
 context.storage.attachVolume(volumeId, device)
-println "volume attached!"
+log.info "volume attached!"
 
 return [volumeId: volumeId, device: device]
