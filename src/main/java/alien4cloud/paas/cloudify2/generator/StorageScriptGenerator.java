@@ -8,10 +8,14 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.SortedMap;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.collections4.CollectionUtils;
@@ -24,6 +28,7 @@ import org.springframework.stereotype.Component;
 import alien4cloud.common.AlienConstants;
 import alien4cloud.model.components.AbstractPropertyValue;
 import alien4cloud.model.components.ScalarPropertyValue;
+import alien4cloud.paas.cloudify2.ProviderLogLevel;
 import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.function.FunctionEvaluator;
@@ -50,6 +55,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
     private static final String STORAGE_TEMPLATE_KEY = "storageTemplate";
     private static final String DEFAULT_BLOCKSTORAGE_FS = "ext4";
     private static final String DEFAULT_BLOCKSTORAGE_LOCATION = "/mountedStorage";
+    private static final String LOCATION_SUFFIX = "data";
     private static final String DEFAULT_BLOCKSTORAGE_DEVICE = "/dev/vdb";
     private static final String STORAGE_SCRIPTS_DIR = "storagesScripts";
 
@@ -88,18 +94,49 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
             return;
         }
         List<String> initScripts = Lists.newArrayList();
-        List<String> startUpScripts = Lists.newArrayList();
+        SortedMap<String, String> startUpScripts = Maps.newTreeMap();
         boolean multiStorages = storageNodes.size() > 1;
-        DeviceGenerator deviceGen = new DeviceGenerator();
-        for (PaaSNodeTemplate storageNode : storageNodes) {
-            generateInitVolumeIdsScript(context, storageNode, storageNames.get(storageNode.getId()), multiStorages, initScripts);
+        DeviceManager deviceManager = new DeviceManager();
 
-            String defaultLocation = !multiStorages ? DEFAULT_BLOCKSTORAGE_LOCATION : DEFAULT_BLOCKSTORAGE_LOCATION + "_"
-                    + CloudifyPaaSUtils.serviceIdFromNodeTemplateId(storageNode.getId());
-            generateStartUpStorageScript(context, storageNode, availabilityZone, startUpScripts, defaultLocation, deviceGen);
+        // to avoid conflict with generated devices
+        registerProvidedDevices(storageNodes, deviceManager);
+
+        for (PaaSNodeTemplate storageNode : storageNodes) {
+            generateInitVolumeIdsScript(context, storageNode, storageNames.get(storageNode.getId()), initScripts);
+
+            String defaultLocation = !multiStorages ? DEFAULT_BLOCKSTORAGE_LOCATION : "/" + CloudifyPaaSUtils.serviceIdFromNodeTemplateId(storageNode.getId())
+                    + "_" + LOCATION_SUFFIX;
+            generateStartUpStorageScript(context, storageNode, availabilityZone, startUpScripts, defaultLocation, deviceManager);
         }
+
+        // execute init in parallel
         executions.add(commandGenerator.getParallelCommand(initScripts, null));
-        executions.add(commandGenerator.getParallelCommand(startUpScripts, null));
+
+        // execute startup sequentially, sorted by device asc
+        for (Entry<String, String> script : startUpScripts.entrySet()) {
+            executions.add(commandGenerator.getGroovyCommand(script.getValue(), ProviderLogLevel.INFO));
+        }
+    }
+
+    /**
+     * register provided devices to avoid conflict with auto generated ones
+     *
+     * @param storageNodes
+     * @param deviceManager
+     * @throws PaaSDeploymentException
+     */
+    private void registerProvidedDevices(List<PaaSNodeTemplate> storageNodes, DeviceManager deviceManager) throws PaaSDeploymentException {
+        for (PaaSNodeTemplate storageNode : storageNodes) {
+            String providedDevice = getProperty(storageNode, NormativeBlockStorageConstants.DEVICE);
+            if (StringUtils.isNotBlank(providedDevice)) {
+                if (deviceManager.isAlreadyAssigned(providedDevice)) {
+                    throw new PaaSDeploymentException("Failed to generate scripts for BlockStorage <" + storageNode.getId() + ">. Provided device <"
+                            + providedDevice + "> is used by more than one node.");
+                }
+                deviceManager.register(storageNode.getId(), providedDevice);
+            }
+        }
+
     }
 
     public void generateShutdownStorageScript(final RecipeGeneratorServiceContext context, List<PaaSNodeTemplate> storageNodes, List<String> executions)
@@ -128,7 +165,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
     }
 
     private void generateInitVolumeIdsScript(RecipeGeneratorServiceContext context, PaaSNodeTemplate blockStorageNode, String storageName,
-            boolean multiStorages, List<String> executions) throws IOException {
+            List<String> executions) throws IOException {
         Map<String, String> velocityProps = Maps.newHashMap();
         // setting the storage template ID to be used when creating new volume for this application
         velocityProps.put(STORAGE_TEMPLATE_KEY, storageName);
@@ -178,7 +215,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
     }
 
     private void generateStartUpStorageScript(final RecipeGeneratorServiceContext context, PaaSNodeTemplate storageNode, String availabilityZone,
-            List<String> executions, String defaultLocation, DeviceGenerator deviceGenerator) throws IOException {
+            Map<String, String> executions, String defaultLocation, DeviceManager deviceManager) throws IOException {
         // startup (create, attach, format, mount)
         Map<String, String> velocityProps = Maps.newHashMap();
         velocityProps.put(STORAGE_ID_KEY, storageNode.getId());
@@ -193,7 +230,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         velocityProps.put("availableEvent", commandGenerator.getFireEventCommand(storageNode.getId(), ToscaNodeLifecycleConstants.AVAILABLE, lease));
 
         // create and attach script
-        String createAttachCommand = getStorageCreateAttachCommand(context, storageNode, deviceGenerator);
+        String createAttachCommand = getStorageCreateAttachCommand(context, storageNode, deviceManager);
         velocityProps.put(RecipeGeneratorConstants.CREATE_COMMAND, createAttachCommand);
 
         // format and mount script
@@ -203,7 +240,11 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         // generate startup BS
         String fileName = STORAGE_SCRIPTS_DIR + "/" + STORAGE_STARTUP_FILE_NAME + "-" + CloudifyPaaSUtils.serviceIdFromNodeTemplateId(storageNode.getId());
         generateScriptWorkflow(context.getServicePath(), startupBlockStorageScriptDescriptorPath, fileName, null, velocityProps);
-        executions.add(fileName.concat(".groovy"));
+
+        // we add in the execution map: device ==> ScriptFileName
+        // we will need it to sort by device for sequential exec
+        // Note that device is supposed to be unique per storage (a validation is done before passing here)
+        executions.put(deviceManager.getRegisteredFor(storageNode.getId()), fileName.concat(".groovy"));
     }
 
     private String getStorageFormatMountCommand(RecipeGeneratorServiceContext context, PaaSNodeTemplate storageNode, String defaultLocation) throws IOException {
@@ -237,7 +278,7 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         return formatMountCommand;
     }
 
-    private String getStorageCreateAttachCommand(final RecipeGeneratorServiceContext context, PaaSNodeTemplate storageNode, DeviceGenerator deviceGenerator)
+    private String getStorageCreateAttachCommand(final RecipeGeneratorServiceContext context, PaaSNodeTemplate storageNode, DeviceManager deviceManager)
             throws IOException {
         ExecEnvMaps envMaps = new ExecEnvMaps();
         String nodeVolumeIdKey = AlienUtils.prefixWith(AlienConstants.ATTRIBUTES_NAME_SEPARATOR, VOLUME_ID_KEY, storageNode.getId());
@@ -248,12 +289,11 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         String createAttachCommand = getOperationCommandFromInterface(context, storageNode, ToscaNodeLifecycleConstants.STANDARD,
                 ToscaNodeLifecycleConstants.CREATE, envMaps, null);
 
+        String device = deviceManager.getRegisteredFor(storageNode.getId());
+
         // if no custom management then generate the default routine
         if (StringUtils.isBlank(createAttachCommand)) {
-
-            Map<String, AbstractPropertyValue> properties = storageNode.getNodeTemplate().getProperties();
-            String device = FunctionEvaluator.getScalarValue(MapUtils.getObject(properties, NormativeBlockStorageConstants.DEVICE));
-            device = StringUtils.isNotBlank(device) ? device : deviceGenerator.getNextAvailable();
+            device = StringUtils.isNotBlank(device) ? device : deviceManager.getNextAvailable();
             String fileName = STORAGE_SCRIPTS_DIR + "/" + DEFAULT_STORAGE_CREATE_FILE_NAME + "-"
                     + CloudifyPaaSUtils.serviceIdFromNodeTemplateId(storageNode.getId());
 
@@ -264,7 +304,15 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
             createAttachCommand = commandGenerator.getGroovyCommand(fileName.concat(".groovy"), envMaps.runtimes,
                     MapUtil.newHashMap(new String[] { DEVICE_KEY }, new String[] { device }), null, null);
         }
+        // register the device for later sorting purpose and/or avoiding conflicts
+        deviceManager.register(storageNode.getId(), device);
         return createAttachCommand;
+    }
+
+    private String getProperty(PaaSNodeTemplate storageNode, String propertyName) {
+        Map<String, AbstractPropertyValue> properties = storageNode.getNodeTemplate().getProperties();
+        String value = FunctionEvaluator.getScalarValue(MapUtils.getObject(properties, propertyName));
+        return value;
     }
 
     private String getStorageUnmountDeleteCommand(RecipeGeneratorServiceContext context, PaaSNodeTemplate storageNode) throws IOException {
@@ -302,12 +350,34 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         }
     }
 
-    private class DeviceGenerator {
+    @Getter
+    @Setter
+    private class DeviceManager {
+        private int increment = 0;
         private String lastGenerated;
 
+        private Map<String, String> assignedDevices = Maps.newHashMap();
+
         public String getNextAvailable() {
-            lastGenerated = getNext(lastGenerated);
+            do {
+                lastGenerated = getNext(lastGenerated);
+            } while (isAlreadyAssigned(lastGenerated));
             return lastGenerated;
+        }
+
+        public void register(String nodeId, String device) {
+            if (StringUtils.isBlank(device)) {
+                device = "__" + increment++;
+            }
+            assignedDevices.put(nodeId, device);
+        }
+
+        public String getRegisteredFor(String nodeId) {
+            return assignedDevices.get(nodeId);
+        }
+
+        public boolean isAlreadyAssigned(String device) {
+            return assignedDevices.containsValue(device);
         }
 
         private String getNext(String currentDevice) {
@@ -325,4 +395,5 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
         }
 
     }
+
 }

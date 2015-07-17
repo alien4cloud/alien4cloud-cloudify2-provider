@@ -1,0 +1,55 @@
+
+node_templates:
+  comp_multiStorage:
+    type: tosca.nodes.Compute
+    properties:
+      os_type:
+        value: linux
+      os_distribution:
+        value: ubuntu
+      os_version:
+        value: ubuntu
+    capabilities:
+      scalable:
+        type: tosca.capabilities.Scalable
+        properties:
+          min_instances:
+            value: "1"
+          max_instances:
+            value: "1"
+          default_instances:
+            value: "1"
+  blockstorage:
+    type: tosca.nodes.BlockStorage
+    relationships:
+      attachToServeurWeb:
+        target: comp_multiStorage
+        type: tosca.relationships.AttachTo
+        requirement_name: attachment
+        requirement_type: tosca.capabilities.Attachment
+        targeted_capability_name: attach
+  blockstorage2:
+    type: tosca.nodes.BlockStorage
+    properties:
+      device:
+        value: /dev/vdd
+    relationships:
+      attachBisToServeurWeb:
+        target: comp_multiStorage
+        type: tosca.relationships.AttachTo
+        requirement_name: attachment
+        requirement_type: tosca.capabilities.Attachment
+        targeted_capability_name: attach
+  blockstorage3:
+    type: tosca.nodes.BlockStorage
+    relationships:
+      attachBisToServeurWeb:
+        target: comp_multiStorage
+        type: tosca.relationships.AttachTo
+        requirement_name: attachment
+        requirement_type: tosca.capabilities.Attachment
+        targeted_capability_name: attach
+
+dependencies:
+  - name: tosca-normative-types
+    version: 1.0.0.wd03-SNAPSHOT
