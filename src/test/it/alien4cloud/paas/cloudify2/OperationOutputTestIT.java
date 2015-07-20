@@ -31,24 +31,26 @@ public class OperationOutputTestIT extends GenericRelationshipTriggeringTestCase
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         String cloudifyAppId = null;
 
-        String[] computes = new String[] { "comp_getOpOutputTarget", "comp_getOpOutputSource" };
+        String compTargetName = "comp_getOpOutputTarget";
+        String compSourceName = "comp_getOpOutputSource";
+        String[] computes = new String[] { compTargetName, compSourceName };
         cloudifyAppId = deployTopology("getOperationOutput", computes, null, null);
         Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
         Map<String, Map<String, InstanceInformation>> instancesInformations = cloudifyPaaSPovider.getInstancesInformation(cloudifyAppId);
         printStatuses(instancesInformations);
 
-        testEvents(cloudifyAppId, new String[] { "comp_getOpOutputTarget", "comp_getOpOutputSource" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
+        testEvents(cloudifyAppId, new String[] { compTargetName, compSourceName }, 30000L, ToscaNodeLifecycleConstants.CREATED,
                 ToscaNodeLifecycleConstants.CONFIGURED, ToscaNodeLifecycleConstants.STARTED, ToscaNodeLifecycleConstants.AVAILABLE);
 
         testRelationsEventsSucceeded(cloudifyAppId, null, lastRelIndex, 20000L, ToscaRelationshipLifecycleConstants.ADD_TARGET);
 
-        assertStartedInstance("comp_getOpOutputTarget", 1, instancesInformations);
-        assertStartedInstance("comp_getOpOutputSource", 1, instancesInformations);
-        assertAllInstanceStatus("comp_getOpOutputSource", InstanceStatus.SUCCESS, instancesInformations);
-        assertAllInstanceStatus("comp_getOpOutputTarget", InstanceStatus.SUCCESS, instancesInformations);
+        assertStartedInstance(compTargetName, 1, instancesInformations);
+        assertStartedInstance(compSourceName, 1, instancesInformations);
+        assertAllInstanceStatus(compSourceName, InstanceStatus.SUCCESS, instancesInformations);
+        assertAllInstanceStatus(compTargetName, InstanceStatus.SUCCESS, instancesInformations);
 
-        Map<String, String> sourceAttributes = instancesInformations.get("comp_getOpOutputSource").get("1").getAttributes();
-        Map<String, String> targetAttributes = instancesInformations.get("comp_getOpOutputTarget").get("1").getAttributes();
+        Map<String, String> sourceAttributes = instancesInformations.get(compSourceName).get("1").getAttributes();
+        Map<String, String> targetAttributes = instancesInformations.get(compTargetName).get("1").getAttributes();
 
         Assert.assertNotNull(sourceAttributes);
         Assert.assertNotNull(targetAttributes);
@@ -56,32 +58,8 @@ public class OperationOutputTestIT extends GenericRelationshipTriggeringTestCase
         Assert.assertEquals("concat/thisIsATestForConcat", sourceAttributes.get("concat_attribute"));
         Assert.assertEquals("concat/thisIsATestForConcat", targetAttributes.get("concat_attribute"));
 
-        Map<String, String> outputs = this.cloudifyRestClientManager.getRestClient().getOperationOutputs(cloudifyAppId, "comp_getopoutputsource", "1");
-        System.out.println("OUTPUTS ==> \n" + outputs);
-
         // TODO: test scaling
     }
-
-    // @Test
-    // @Ignore
-    // public void test2() throws Throwable {
-    // log.info("\n\n >> Executing Test testGetOperationOutputOnAttributes \n");
-    // String cloudifyAppId = "e83d61af-e3bf-4162-958c-76674cc25fd3";
-    // String[] computes = new String[] { "comp_getOpOutput" };
-    // CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
-    // Map<String, String> outputs = null;
-    // try {
-    // System.out.println(restClient.getAllInstancesOperationsOutputs(cloudifyAppId, "comp_getopoutput"));
-    // outputs = restClient.getOperationOutputs(cloudifyAppId, "comp_getopoutput", "1");
-    // } catch (RestClientException e) {
-    // log.error(e.getMessageFormattedText());
-    // log.error(e.getVerbose(), e);
-    // // e.printStackTrace();
-    // }
-    // System.out.println("OUTPUTS ==> \n" + outputs);
-    //
-    // // TODO: test scaling
-    // }
 
     private void printStatuses(Map<String, Map<String, InstanceInformation>> instancesInformations) {
         StringBuilder sb = new StringBuilder("\n");
@@ -100,8 +78,8 @@ public class OperationOutputTestIT extends GenericRelationshipTriggeringTestCase
         log.info(sb.toString());
     }
 
-    private void assertStartedInstance(String nodeID, int expectedInstances, Map<String, Map<String, InstanceInformation>> instancesInformations) {
-        Map<String, InstanceInformation> nodeInstancesInfos = instancesInformations.get(nodeID);
+    private void assertStartedInstance(String nodeId, int expectedInstances, Map<String, Map<String, InstanceInformation>> instancesInformations) {
+        Map<String, InstanceInformation> nodeInstancesInfos = instancesInformations.get(nodeId);
         int started = 0;
         for (InstanceInformation instanceInfo : nodeInstancesInfos.values()) {
             if (instanceInfo.getInstanceStatus().equals(InstanceStatus.SUCCESS)) {

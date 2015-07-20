@@ -100,7 +100,7 @@ public class CloudifyPaaSProviderFactory implements IConfigurablePaaSProviderFac
         PropertyDefinition deletableBlockStorage = new PropertyDefinition();
         deletableBlockStorage.setType(ToscaType.BOOLEAN.toString());
         deletableBlockStorage.setRequired(false);
-        deletableBlockStorage.setDescription("Indicates that all deployment related blockstorage are deletable.");
+        deletableBlockStorage.setDescription("Indicates that all created blockstorages for this deployment are deletable.");
         deletableBlockStorage.setDefault("false");
         deploymentPropertyMap.put(DeploymentPropertiesNames.DELETABLE_BLOCKSTORAGE, deletableBlockStorage);
 

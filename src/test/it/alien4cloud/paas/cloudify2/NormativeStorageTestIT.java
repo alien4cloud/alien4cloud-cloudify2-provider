@@ -18,7 +18,7 @@ import com.google.common.collect.Maps;
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("classpath:application-context-testit.xml")
 @Slf4j
-public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
+public class NormativeStorageTestIT extends GenericStorageTestCase {
 
     @Resource(name = "cloudify-paas-provider-bean")
     protected CloudifyPaaSProvider anotherCloudifyPaaSPovider;
@@ -37,42 +37,11 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
         providerDeploymentProperties.put(DeploymentPropertiesNames.DELETABLE_BLOCKSTORAGE, "true");
     }
 
-    public NormativeStorageAndCommandTestIT() {
+    public NormativeStorageTestIT() {
     }
 
     private void setDeletableBlockStorage(String isDeletable) {
         providerDeploymentProperties.put(DeploymentPropertiesNames.DELETABLE_BLOCKSTORAGE, Boolean.valueOf(isDeletable).toString());
-    }
-
-    @Test
-    public void customCommandTest() throws Throwable {
-        log.info("\n\n >> Executing Test customCommandTest \n");
-        String cloudifyAppId = null;
-        this.uploadGitArchive("samples", "tomcat-war");
-        this.uploadTestArchives("test-types-1.0-SNAPSHOT");
-        try {
-            String[] computesId = new String[] { "comp_custom_cmd" };
-            cloudifyAppId = deployTopology("customCmd", computesId, null, null);
-
-            this.assertApplicationIsInstalled(cloudifyAppId);
-            waitForServiceToStarts(cloudifyAppId, "comp_custom_cmd", 1000L * 120);
-
-            String resultSnipet = "hello <alien>, customHostName is <testCompute>, from <comp_custom_cmd";
-            String resultSnipetInst = "hello <alien>, customHostName is <testCompute>, from <comp_custom_cmd.1>";
-            Map<String, String> params = Maps.newHashMap();
-            params.put("yourName", "alien");
-            testCustomCommandSuccess(cloudifyAppId, "comp_custom_cmd", null, "custom", "helloCmd", params, resultSnipet);
-            params.put("yourName", null);
-            testCustomCommandFail(cloudifyAppId, "comp_custom_cmd", null, "custom", "helloCmd", null);
-            params.put("yourName", "alien");
-            testCustomCommandSuccess(cloudifyAppId, "comp_custom_cmd", 1, "custom", "helloCmd", params, resultSnipetInst);
-            params.put("yourName", "failThis");
-            testCustomCommandFail(cloudifyAppId, "comp_custom_cmd", 1, "custom", "helloCmd", params);
-
-        } catch (Exception e) {
-            log.error("Test Failed", e);
-            throw e;
-        }
     }
 
     @Test

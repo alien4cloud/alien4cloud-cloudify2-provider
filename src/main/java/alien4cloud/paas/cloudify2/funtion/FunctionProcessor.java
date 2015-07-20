@@ -19,6 +19,7 @@ import alien4cloud.model.components.AbstractPropertyValue;
 import alien4cloud.model.components.ConcatPropertyValue;
 import alien4cloud.model.components.FunctionPropertyValue;
 import alien4cloud.model.components.IValue;
+import alien4cloud.model.components.IndexedInheritableToscaElement;
 import alien4cloud.model.components.IndexedToscaElement;
 import alien4cloud.model.components.ScalarPropertyValue;
 import alien4cloud.paas.IPaaSTemplate;
@@ -61,7 +62,7 @@ public class FunctionProcessor {
      *         RuntimeEvalResult if the result of the evaluation is an expression to evaluate at runtime.
      * @throws IOException
      */
-    public IParamEvalResult evaluate(final AbstractPropertyValue param, final IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate,
+    public IParamEvalResult evaluate(final AbstractPropertyValue param, final IPaaSTemplate<? extends IndexedInheritableToscaElement> basePaaSTemplate,
             final Map<String, PaaSNodeTemplate> builtPaaSTemplates, final String instanceId) throws IOException {
 
         // if it is a scalar param, just return its value
@@ -116,7 +117,8 @@ public class FunctionProcessor {
      * @throws IOException
      */
     public void processParameters(Map<String, IValue> inputParameters, Map<String, String> stringEvalResults, Map<String, String> runtimeEvalResults,
-            final IPaaSTemplate<? extends IndexedToscaElement> basePaaSTemplate, final Map<String, PaaSNodeTemplate> builtPaaSTemplates, String instanceId)
+            final IPaaSTemplate<? extends IndexedInheritableToscaElement> basePaaSTemplate, final Map<String, PaaSNodeTemplate> builtPaaSTemplates,
+            String instanceId)
             throws IOException {
         if (inputParameters == null) {
             return;

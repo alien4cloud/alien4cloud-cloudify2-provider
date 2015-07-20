@@ -34,6 +34,7 @@ import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.function.FunctionEvaluator;
 import alien4cloud.paas.model.PaaSNodeTemplate;
 import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
+import alien4cloud.rest.model.RestErrorCode;
 import alien4cloud.tosca.normative.NormativeBlockStorageConstants;
 import alien4cloud.utils.AlienUtils;
 import alien4cloud.utils.MapUtil;
@@ -346,7 +347,8 @@ public class StorageScriptGenerator extends AbstractCloudifyScriptGenerator {
     private void verifyVolumeIdsForStorage(String blockStorageNodeId, String volumeIds, boolean isDeletableBlockStorage) {
         if (isDeletableBlockStorage && StringUtils.isNotBlank(volumeIds)) {
             throw new PaaSDeploymentException("Failed to generate scripts for BlockStorage <" + blockStorageNodeId
-                    + " >. Since deletion of storage is activated,  it should not be provided with volumeIds.");
+                    + " >. Since deletion of storage is activated, it should not be provided with volumeIds.",
+                    RestErrorCode.CONFLICT_BETWEEN_DELETABLE_OPTION_AND_VOLUME_ID);
         }
     }
 
