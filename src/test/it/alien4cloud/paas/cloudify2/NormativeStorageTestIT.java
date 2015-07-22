@@ -25,12 +25,6 @@ public class NormativeStorageTestIT extends GenericStorageTestCase {
 
     private static Map<String, String> providerDeploymentProperties;
 
-    @Override
-    public void after() {
-        // TODO Auto-generated method stub
-        // super.after();
-    }
-
     static {
         // define provider deployment properties
         providerDeploymentProperties = Maps.newHashMap();
