@@ -574,7 +574,8 @@ public class GenericTestCase {
                     log.info(String.format("Deployment of application '%s' is finished with success", applicationName));
                     return;
                 case FAILED:
-                    throw new PaaSDeploymentException(String.format("Failed deploying application '%s'", applicationName));
+                    throw new PaaSDeploymentException(String.format("Failed deploying application '%s'", applicationName)
+                            + " Status is FAILED from cloudify. Check the dump logs.");
                 default:
                     try {
                         Thread.sleep(DEFAULT_SLEEP_TIME);

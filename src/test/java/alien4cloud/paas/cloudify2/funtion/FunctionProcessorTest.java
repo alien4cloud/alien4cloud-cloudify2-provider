@@ -38,6 +38,7 @@ import alien4cloud.paas.plan.ToscaNodeLifecycleConstants;
 import alien4cloud.paas.plan.ToscaRelationshipLifecycleConstants;
 import alien4cloud.plugin.model.PluginConfiguration;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 
 @RunWith(SpringJUnit4ClassRunner.class)
@@ -188,6 +189,8 @@ public class FunctionProcessorTest {
 
         String warName = "war_1";
         String computeName = "comp-tomcat-war";
+        String tomcatName = "tomcat";
+        List<String> nodes = Lists.newArrayList(warName, tomcatName, computeName);
         Topology topology = testsUtils.parseYamlTopology("functionsKeywordsTest");
         Map<String, PaaSNodeTemplate> builtPaaSNodeTemplates = treeBuilder.buildPaaSTopology(topology).getAllNodes();
         PaaSNodeTemplate warPaaS = builtPaaSNodeTemplates.get(warName);
@@ -197,7 +200,9 @@ public class FunctionProcessorTest {
                 .get(ToscaRelationshipLifecycleConstants.POST_CONFIGURE_SOURCE);
 
         // test SOURCE keyword
-        String expected = String.format(GET_INSTANCE_ATTRIBUTE_FORMAT, computeName, null, "warNodeContext", "[\"" + warName + "\"]");
+        // String expected = String.format(GET_INSTANCE_ATTRIBUTE_FORMAT, computeName, null, "warNodeContext", "[\"" + warName + "," + tomcatName + ","
+        // + computeName + "\"]");
+        String expected = String.format(GET_INSTANCE_ATTRIBUTE_FORMAT, computeName, null, "warNodeContext", new ObjectMapper().writeValueAsString(nodes));
         IValue param = configOp.getInputParameters().get("warNodeContext");
         Assert.assertEquals(expected, evaluateParam((AbstractPropertyValue) param, hostedOnRelTemp, builtPaaSNodeTemplates));
 
