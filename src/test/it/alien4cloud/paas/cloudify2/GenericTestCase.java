@@ -413,7 +413,7 @@ public class GenericTestCase {
         String serviceName = nodeName;
         long timeout = System.currentTimeMillis() + timeoutInMillis;
         boolean passed = false;
-        CloudifyEventsListener listener = new CloudifyEventsListener(cloudifyRestClientManager.getRestEventEndpoint(), applicationName, serviceName);
+        CloudifyEventsListener listener = new CloudifyEventsListener(cloudifyRestClientManager.getRestEventEndpoint(), applicationName, serviceName, cloudifyRestClientManager.getRestExecutor());
         do {
             currentEvents.clear();
             List<AlienEvent> allServiceEvents = listener.getEvents();

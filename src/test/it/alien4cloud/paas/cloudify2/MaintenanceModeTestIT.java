@@ -87,7 +87,8 @@ public class MaintenanceModeTestIT extends GenericTestCase {
         List<NodeInstanceState> toCheck = Lists.newArrayList();
         List<String> nodesNames = Lists.newArrayList();
         try {
-            CloudifyEventsListener listener = new CloudifyEventsListener(cloudifyRestClientManager.getRestEventEndpoint(), "", "");
+            CloudifyEventsListener listener = new CloudifyEventsListener(cloudifyRestClientManager.getRestEventEndpoint(), "", "",
+                    cloudifyRestClientManager.getRestExecutor());
             instanceStates = listener.getNodeInstanceStates(applicationId);
         } catch (Exception e) {
             Assert.fail("error when trying to get instance states to check: " + e.getMessage());

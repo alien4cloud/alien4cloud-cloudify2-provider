@@ -3,6 +3,8 @@ package alien4cloud.paas.cloudify2.rest;
 import java.io.IOException;
 import java.net.URISyntaxException;
 
+import javax.annotation.PreDestroy;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -18,7 +20,10 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.conn.PoolingClientConnectionManager;
 import org.apache.http.util.EntityUtils;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.context.annotation.Scope;
 import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
 
 import alien4cloud.paas.cloudify2.exception.PaaSEventException;
 import alien4cloud.rest.utils.JsonUtil;
@@ -26,7 +31,10 @@ import alien4cloud.rest.utils.JsonUtil;
 @AllArgsConstructor
 @Setter
 @Slf4j
+@Component("cloudify-rest-executor-bean")
+@Scope(BeanDefinition.SCOPE_PROTOTYPE)
 public class RestExecutor {
+
     private DefaultHttpClient httpClient;
 
     public RestExecutor() {
@@ -34,6 +42,11 @@ public class RestExecutor {
         cm.setMaxTotal(200);
         cm.setDefaultMaxPerRoute(20);
         this.httpClient = new DefaultHttpClient(cm);
+    }
+
+    @PreDestroy
+    public void shutDown() {
+        this.httpClient.getConnectionManager().shutdown();
     }
 
     public String doGet(URIBuilder builder, boolean failOnError) throws URISyntaxException, IOException {

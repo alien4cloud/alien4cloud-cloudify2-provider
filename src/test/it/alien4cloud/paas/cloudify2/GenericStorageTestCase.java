@@ -28,7 +28,7 @@ public class GenericStorageTestCase extends GenericTestCase {
             for (ServiceDescription service : applicationDescription.getServicesDescription()) {
                 String applicationName = service.getApplicationName();
                 String serviceName = nodeName;
-                CloudifyEventsListener listener = new CloudifyEventsListener(cloudifyRestClientManager.getRestEventEndpoint(), applicationName, serviceName);
+                CloudifyEventsListener listener = new CloudifyEventsListener(cloudifyRestClientManager.getRestEventEndpoint(), applicationName, serviceName, cloudifyRestClientManager.getRestExecutor());
                 List<AlienEvent> allServiceEvents = listener.getEvents();
 
                 Set<String> currentEvents = new HashSet<>();
