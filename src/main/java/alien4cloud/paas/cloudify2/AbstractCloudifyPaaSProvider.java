@@ -441,6 +441,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                 break;
             case ToscaNodeLifecycleConstants.MAINTENANCE:
                 instanceStatus = InstanceStatus.MAINTENANCE;
+                break;
             default:
                 instanceStatus = InstanceStatus.PROCESSING;
                 break;
