@@ -156,7 +156,6 @@ public class CloudifyPaaSProvider extends AbstractCloudifyPaaSProvider {
      * @param basicPaaSResourceId
      * @param basicTemplate
      * @param cloudifyComputeTemplate
-     * @param haTemplates
      */
 
     private void configureHAComputeTemplates(CloudResourceMatcherConfig config, String basicPaaSResourceId, ComputeTemplate basicTemplate,
@@ -180,4 +179,7 @@ public class CloudifyPaaSProvider extends AbstractCloudifyPaaSProvider {
         }
     }
 
+    public void destroy() {
+        this.cloudifyRestClientManager.destroy();
+    }
 }

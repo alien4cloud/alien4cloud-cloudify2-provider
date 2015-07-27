@@ -6,6 +6,8 @@ import java.util.Map;
 
 import javax.annotation.Resource;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.log4j.Level;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.stereotype.Component;
@@ -24,6 +26,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 @Component("cloudify-paas-provider")
+@Slf4j
 public class CloudifyPaaSProviderFactory implements IConfigurablePaaSProviderFactory<PluginConfigurationBean>,
         IDeploymentParameterizablePaaSProviderFactory<IConfigurablePaaSProvider<PluginConfigurationBean>> {
 
@@ -48,7 +51,9 @@ public class CloudifyPaaSProviderFactory implements IConfigurablePaaSProviderFac
 
     @Override
     public IConfigurablePaaSProvider newInstance() {
-        return beanFactory.getBean(CloudifyPaaSProvider.class);
+        CloudifyPaaSProvider provider = beanFactory.getBean(CloudifyPaaSProvider.class);
+        log.info("Created cloudify 2 provider instance " + provider);
+        return provider;
     }
 
     @Override
@@ -58,7 +63,10 @@ public class CloudifyPaaSProviderFactory implements IConfigurablePaaSProviderFac
 
     @Override
     public void destroy(IConfigurablePaaSProvider instance) {
-        // Do nothing
+        if (instance instanceof CloudifyPaaSProvider) {
+            ((CloudifyPaaSProvider) instance).destroy();
+            log.info("Destroyed cloudify 2 provider instance " + instance);
+        }
     }
 
     private void setDeploymentProperties() throws PaaSTechnicalException {
