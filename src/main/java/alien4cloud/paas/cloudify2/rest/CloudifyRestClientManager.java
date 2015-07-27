@@ -178,4 +178,17 @@ public class CloudifyRestClientManager {
     public RestExecutor getRestExecutor() {
         return restExecutor;
     }
+
+    public void destroy() {
+        try {
+            this.restExecutor.shutDown();
+        } catch (Exception e) {
+            log.error("Could not destroy the Alien rest client", e);
+        }
+        try {
+            this.restClient.shutDown();
+        } catch (Exception e) {
+            log.error("Could not destroy the Cloudify rest client", e);
+        }
+    }
 }
