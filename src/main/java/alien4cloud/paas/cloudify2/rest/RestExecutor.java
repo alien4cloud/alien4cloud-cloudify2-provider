@@ -3,6 +3,7 @@ package alien4cloud.paas.cloudify2.rest;
 import java.io.IOException;
 import java.net.URISyntaxException;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
 import lombok.AllArgsConstructor;
@@ -42,6 +43,11 @@ public class RestExecutor {
         cm.setMaxTotal(200);
         cm.setDefaultMaxPerRoute(20);
         this.httpClient = new DefaultHttpClient(cm);
+    }
+
+    @PostConstruct
+    public void postConstruct() {
+        log.info("Instantiated rest executor " + this);
     }
 
     @PreDestroy
