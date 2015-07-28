@@ -36,7 +36,6 @@ import org.cloudifysource.dsl.rest.response.InvokeServiceCommandResponse;
 import org.cloudifysource.dsl.rest.response.ServiceDescription;
 import org.cloudifysource.dsl.rest.response.ServiceInstanceDetails;
 import org.cloudifysource.dsl.rest.response.UploadResponse;
-import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.cloudifysource.restclient.exceptions.RestClientIOException;
 
@@ -60,6 +59,7 @@ import alien4cloud.paas.cloudify2.generator.RecipeGenerator;
 import alien4cloud.paas.cloudify2.rest.CloudifyEventsListener;
 import alien4cloud.paas.cloudify2.rest.CloudifyRestClient;
 import alien4cloud.paas.cloudify2.rest.CloudifyRestClientManager;
+import alien4cloud.paas.cloudify2.rest.external.RestClient;
 import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.exception.MaintenanceModeException;
 import alien4cloud.paas.exception.OperationExecutionException;
@@ -244,7 +244,8 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         try {
             final URI restEventEndpoint = this.cloudifyRestClientManager.getRestEventEndpoint();
             if (restEventEndpoint != null) {
-                CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, statusByDeployments.get(deploymentPaaSId).deploymentId, "");
+                CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, statusByDeployments.get(deploymentPaaSId).deploymentId, "",
+                        this.cloudifyRestClientManager.getRestExecutor());
                 cleanupUnmanagedApplicationInfos(listener, deploymentPaaSId, false);
             }
 
@@ -420,7 +421,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
      */
     private void fillInstanceStates(final String deploymentId, final Map<String, Map<String, InstanceInformation>> instanceInformations,
             final URI restEventEndpoint) throws URISyntaxException, IOException {
-        CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, deploymentId, "");
+        CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, deploymentId, "", this.cloudifyRestClientManager.getRestExecutor());
         List<NodeInstanceState> instanceStates = listener.getNodeInstanceStates(deploymentId);
 
         for (NodeInstanceState instanceState : instanceStates) {
@@ -441,6 +442,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                 break;
             case ToscaNodeLifecycleConstants.MAINTENANCE:
                 instanceStatus = InstanceStatus.MAINTENANCE;
+                break;
             default:
                 instanceStatus = InstanceStatus.PROCESSING;
                 break;
@@ -639,7 +641,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
         List<AbstractMonitorEvent> events = Lists.newArrayList();
         try {
-            CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, "", "");
+            CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, "", "", this.cloudifyRestClientManager.getRestExecutor());
             // get message events
             AbstractMonitorEvent queuedMonitorEvent;
             int count = 0;
@@ -978,7 +980,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
         // write new states in cloudify space
         final URI restEventEndpoint = this.cloudifyRestClientManager.getRestEventEndpoint();
-        CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, "", "");
+        CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, "", "", this.cloudifyRestClientManager.getRestExecutor());
         listener.putNodeInstanceStates(nodeInstancesStatesToUpdate);
     }
 

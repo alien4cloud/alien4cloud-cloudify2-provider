@@ -27,7 +27,6 @@ import org.cloudifysource.dsl.rest.response.ApplicationDescription;
 import org.cloudifysource.dsl.rest.response.GetMachinesDumpFileResponse;
 import org.cloudifysource.dsl.rest.response.ServiceDescription;
 import org.cloudifysource.dsl.rest.response.ServiceInstanceDetails;
-import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.junit.After;
 import org.junit.Assert;
@@ -58,6 +57,7 @@ import alien4cloud.paas.cloudify2.exception.A4CCloudifyDriverITException;
 import alien4cloud.paas.cloudify2.rest.CloudifyEventsListener;
 import alien4cloud.paas.cloudify2.rest.CloudifyRestClient;
 import alien4cloud.paas.cloudify2.rest.CloudifyRestClientManager;
+import alien4cloud.paas.cloudify2.rest.external.RestClient;
 import alien4cloud.paas.cloudify2.testutils.TestsUtils;
 import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.exception.OperationExecutionException;
@@ -413,7 +413,8 @@ public class GenericTestCase {
         String serviceName = nodeName;
         long timeout = System.currentTimeMillis() + timeoutInMillis;
         boolean passed = false;
-        CloudifyEventsListener listener = new CloudifyEventsListener(cloudifyRestClientManager.getRestEventEndpoint(), applicationName, serviceName);
+        CloudifyEventsListener listener = new CloudifyEventsListener(cloudifyRestClientManager.getRestEventEndpoint(), applicationName, serviceName,
+                cloudifyRestClientManager.getRestExecutor());
         do {
             currentEvents.clear();
             List<AlienEvent> allServiceEvents = listener.getEvents();

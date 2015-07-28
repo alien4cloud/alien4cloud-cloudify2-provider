@@ -6,6 +6,8 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.LinkedList;
 
+import javax.annotation.Resource;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -40,6 +42,9 @@ public class CloudifyRestClientManager {
 
     private LinkedList<String> providedURLs = new LinkedList<>();
 
+    @Resource(name = "cloudify-rest-executor-bean")
+    private RestExecutor restExecutor;
+
     /**
      * Get the cloudify rest client.
      *
@@ -57,7 +62,6 @@ public class CloudifyRestClientManager {
      * Set the configuration of the cloudify connection.
      *
      * @param configuration A list of configuration elements of the cloudify configuration.
-     * @param timeout TODO
      * @throws PluginConfigurationException In case the connection configuration is not correct.
      */
     public void setCloudifyConnectionConfiguration(PluginConfigurationBean configuration) throws PluginConfigurationException {
@@ -79,7 +83,7 @@ public class CloudifyRestClientManager {
             this.restClient.test(StringUtils.isNoneBlank(this.username, this.password));
             // check that the events module can be reached too.
             setEventRestEndPoint();
-            CloudifyEventsListener cloudifyEventsListener = new CloudifyEventsListener(this.restEventEndpoint);
+            CloudifyEventsListener cloudifyEventsListener = new CloudifyEventsListener(this.restEventEndpoint, this.restExecutor);
             // check connection
             log.info("Testing events module endpoint " + this.restEventEndpoint + "... ");
             log.info("Events module endpoint response: " + cloudifyEventsListener.test());
@@ -103,7 +107,6 @@ public class CloudifyRestClientManager {
      * Repeat the try a certain number of time before failing.
      * Put the first valid configuration ontop of the list.
      *
-     * @param configurations
      * @throws PluginConfigurationException
      * @throws InterruptedException
      */
@@ -161,7 +164,7 @@ public class CloudifyRestClientManager {
             if (restEventEndpoint == null) {
                 setEventRestEndPoint();
             }
-            CloudifyEventsListener cloudifyEventsListener = new CloudifyEventsListener(this.restEventEndpoint);
+            CloudifyEventsListener cloudifyEventsListener = new CloudifyEventsListener(this.restEventEndpoint, this.restExecutor);
             cloudifyEventsListener.test();
             return true;
         } catch (Exception e) {
@@ -169,6 +172,23 @@ public class CloudifyRestClientManager {
             log.warn("Fail to connect to cloudify manager rest endpoint: " + cause);
             log.debug("", e);
             return false;
+        }
+    }
+
+    public RestExecutor getRestExecutor() {
+        return restExecutor;
+    }
+
+    public void destroy() {
+        try {
+            this.restExecutor.shutDown();
+        } catch (Exception e) {
+            log.error("Could not destroy the Alien rest client", e);
+        }
+        try {
+            this.restClient.shutDown();
+        } catch (Exception e) {
+            log.error("Could not destroy the Cloudify rest client", e);
         }
     }
 }
