@@ -6,8 +6,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.LinkedList;
 
-import javax.annotation.Resource;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -18,6 +16,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import alien4cloud.paas.cloudify2.PluginConfigurationBean;
+import alien4cloud.paas.cloudify2.rest.external.HttpClientFactory;
 import alien4cloud.paas.exception.PluginConfigurationException;
 
 import com.google.common.collect.Lists;
@@ -38,11 +37,11 @@ public class CloudifyRestClientManager {
     private String version = "2.7.1";
 
     private CloudifyRestClient restClient;
+
     private URI restEventEndpoint;
 
     private LinkedList<String> providedURLs = new LinkedList<>();
 
-    @Resource(name = "cloudify-rest-executor-bean")
     private RestExecutor restExecutor;
 
     /**
@@ -75,14 +74,14 @@ public class CloudifyRestClientManager {
 
     private boolean tryCloudifyURL(String cloudifyURLString) throws PluginConfigurationException {
         log.info("Trying to set Cloudify manager REST API url to <" + cloudifyURLString + ">");
-        this.restClient = null;
-        this.restEventEndpoint = null;
         try {
+            destroy();
             this.cloudifyURL = new URL(cloudifyURLString);
+            setEventRestEndPoint();
             this.restClient = new CloudifyRestClient(cloudifyURL, username, password, version);
+            this.restExecutor = new RestExecutor(HttpClientFactory.createHttpClient(this.restEventEndpoint.toURL()));
             this.restClient.test(StringUtils.isNoneBlank(this.username, this.password));
             // check that the events module can be reached too.
-            setEventRestEndPoint();
             CloudifyEventsListener cloudifyEventsListener = new CloudifyEventsListener(this.restEventEndpoint, this.restExecutor);
             // check connection
             log.info("Testing events module endpoint " + this.restEventEndpoint + "... ");
@@ -181,14 +180,14 @@ public class CloudifyRestClientManager {
 
     public void destroy() {
         try {
-            this.restExecutor.shutDown();
+            if (this.restClient != null) {
+                this.restClient.shutdown();
+            }
+            if (this.restExecutor != null) {
+                this.restExecutor.shutdown();
+            }
         } catch (Exception e) {
-            log.error("Could not destroy the Alien rest client", e);
-        }
-        try {
-            this.restClient.shutDown();
-        } catch (Exception e) {
-            log.error("Could not destroy the Cloudify rest client", e);
+            log.warn("Could not shutdown http client", e);
         }
     }
 }
