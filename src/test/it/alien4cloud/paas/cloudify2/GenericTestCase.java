@@ -164,7 +164,7 @@ public class GenericTestCase {
         System.out.println(resource);
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        cloudifyURL = cloudifyURL == null ? "https://129.185.67.91:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "https://129.185.67.120:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.setCloudifyURLs(Lists.newArrayList(cloudifyURL));
         pluginConfigurationBean.setVersion("2.7.1");
