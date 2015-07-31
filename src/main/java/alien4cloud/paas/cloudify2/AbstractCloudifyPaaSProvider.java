@@ -296,7 +296,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         PaaSDeploymentStatusMonitorEvent dsMonitorEvent = new PaaSDeploymentStatusMonitorEvent();
         dsMonitorEvent.setDeploymentId(deploymentId);
         dsMonitorEvent.setDeploymentStatus(status);
-        dsMonitorEvent.setDate(new Date().getTime());
+        // dsMonitorEvent.setDate(new Date().getTime());
         monitorEvents.add(dsMonitorEvent);
     }
 
@@ -679,7 +679,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
     private void processUnknownStatuses(List<AbstractMonitorEvent> events, List<ApplicationDescription> applicationDescriptions, List<String> appUnknownStatuses) {
         for (ApplicationDescription applicationDescription : applicationDescriptions) {
-            log.debug("GetEvents: PROCESSING UNKWON STATUSES...");
             DeploymentStatus status = getStatusFromApplicationDescription(applicationDescription);
 
             DeploymentInfo info = this.statusByDeployments.get(applicationDescription.getApplicationName());
@@ -1021,7 +1020,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         monitorEvent.setDeploymentId(deploymentInfo.deploymentId);
         monitorEvent.setNodeTemplateId(id);
         monitorEvent.setInstanceId(instanceId);
-        monitorEvent.setDate(new Date().getTime());
+        // monitorEvent.setDate(new Date().getTime());
         monitorEvent.setInstanceState(state);
 
         fillInstanceStateEvent(monitorEvent, nodesDeploymentInfo, id, instanceId);
