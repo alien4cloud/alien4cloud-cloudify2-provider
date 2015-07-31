@@ -33,7 +33,7 @@ public class CustomCommandsTestIT extends GenericTestCase {
         log.info("\n\n >> Executing Test computeWithBatchScriptsTest \n");
 
         String cloudifyAppId = null;
-        this.uploadGitArchive("samples", null, "tomcat-war");
+        this.uploadGitArchive("samples", "1.0.0", "tomcat-war");
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         try {
             String[] computesId = new String[] { "comp_custom_cmd" };

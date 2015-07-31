@@ -27,7 +27,7 @@ public class CustomStorageTestIT extends GenericStorageTestCase {
     public void customBlockStorageSizeProvidedSucessTest() throws Throwable {
         log.info("\n\n >> Executing Test customBlockStorageSizeProvidedSucessTest \n");
         String cloudifyAppId = null;
-        this.uploadGitArchive(EXTENDED_TYPES_REPO, null, EXTENDED_STORAGE_TYPES);
+        this.uploadGitArchive(EXTENDED_TYPES_REPO, "1.0.0", EXTENDED_STORAGE_TYPES);
         this.uploadTestArchives("custom-storage-types-1.0-SNAPSHOT");
         try {
 
@@ -49,7 +49,7 @@ public class CustomStorageTestIT extends GenericStorageTestCase {
     public void configurableBlockStorageWithPropsProvidedSucessTest() throws Throwable {
         log.info("\n\n >> Executing Test configurableBlockStorageWithPropsProvidedSucessTest \n");
         String cloudifyAppId = null;
-        this.uploadGitArchive(EXTENDED_TYPES_REPO, null, EXTENDED_STORAGE_TYPES);
+        this.uploadGitArchive(EXTENDED_TYPES_REPO, "1.0.0", EXTENDED_STORAGE_TYPES);
         this.uploadTestArchives("custom-storage-types-1.0-SNAPSHOT");
         try {
 
