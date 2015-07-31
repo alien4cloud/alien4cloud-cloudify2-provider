@@ -211,7 +211,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     }
 
     private boolean updateStatus(String deploymentId, String deploymentPaaSId, DeploymentStatus status) {
-        DeploymentInfo deploymentInfo = statusByDeployments.get(deploymentId);
+        DeploymentInfo deploymentInfo = statusByDeployments.get(deploymentPaaSId);
         if (deploymentInfo == null) {
             deploymentInfo = new DeploymentInfo();
         }
@@ -268,6 +268,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     @Override
     public synchronized void undeploy(PaaSDeploymentContext deploymentContext, IPaaSCallback<?> callback) {
         String deploymentPaaSId = deploymentContext.getDeploymentPaaSId();
+        DeploymentStatus oldStatus = null;
         try {
             log.info("Undeploying topology " + deploymentPaaSId);
             try {
@@ -275,6 +276,9 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             } catch (IOException e) {
                 log.info("Failed to delete deployment recipe directory <" + deploymentPaaSId + ">.");
             }
+            // for rollback purposes
+            oldStatus = statusByDeployments.get(deploymentPaaSId).deploymentStatus;
+
             // say undeployment triggered
             updateStatusAndRegisterEvent(deploymentContext.getDeploymentId(), deploymentPaaSId, DeploymentStatus.UNDEPLOYMENT_IN_PROGRESS);
 
@@ -283,6 +287,8 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             restClient.uninstallApplication(deploymentPaaSId, (int) TIMEOUT_IN_MILLIS);
 
         } catch (RestClientException | PluginConfigurationException e) {
+            log.warn("Error when trying to undploy the application " + deploymentPaaSId + ". Rollbacking the status...");
+            updateStatusAndRegisterEvent(deploymentContext.getDeploymentId(), deploymentPaaSId, oldStatus);
             throwPaaSDeploymentException("Couldn't uninstall topology '" + deploymentPaaSId + "'.", e);
         }
     }
