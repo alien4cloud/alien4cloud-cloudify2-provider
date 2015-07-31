@@ -33,13 +33,13 @@ public class CustomCommandsTestIT extends GenericTestCase {
         log.info("\n\n >> Executing Test computeWithBatchScriptsTest \n");
 
         String cloudifyAppId = null;
-        this.uploadGitArchive("samples", "tomcat-war");
+        this.uploadGitArchive("samples", null, "tomcat-war");
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         try {
             String[] computesId = new String[] { "comp_custom_cmd" };
             cloudifyAppId = deployTopology("customCmd", computesId, null, null);
             this.assertApplicationIsInstalled(cloudifyAppId);
-            waitForServiceToStarts(cloudifyAppId, "comp_custom_cmd", 1000L * 120);
+            waitForServiceToStarts(cloudifyAppId, "comp_custom_cmd", 1000L * 200);
             testCustomCommandSuccess(cloudifyAppId, "comp_custom_cmd", null, "fr.fastconnect.custom", "bolo", null, null);
             Map<String, String> params = Maps.newHashMap();
             params.put("p1", "kikoo");
@@ -49,7 +49,8 @@ public class CustomCommandsTestIT extends GenericTestCase {
             // should fail since it's not really a custom command
             testCustomCommandFail(cloudifyAppId, "comp_custom_cmd", null, "tosca.interfaces.node.lifecycle.Standard", "stop", null);
             // test that a bash script can return value
-            testCustomCommandSuccess(cloudifyAppId, "comp_custom_cmd", null, "fr.fastconnect.custom", "bashWithOuput", params, "Here is my command output from stdout");
+            testCustomCommandSuccess(cloudifyAppId, "comp_custom_cmd", null, "fr.fastconnect.custom", "bashWithOuput", params,
+                    "Here is my command output from stdout");
 
         } catch (Exception e) {
             log.error("Test Failed: " + (e instanceof RestClientException ? ((RestClientException) e).getMessageFormattedText() : e.getMessage()), e);

@@ -42,7 +42,7 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
     public void customCommandTest() throws Throwable {
         log.info("\n\n >> Executing Test customCommandTest \n");
         String cloudifyAppId = null;
-        this.uploadGitArchive("samples", "tomcat-war");
+        this.uploadGitArchive("samples", null, "tomcat-war");
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         try {
             String[] computesId = new String[] { "comp_custom_cmd" };
@@ -92,7 +92,7 @@ public class NormativeStorageAndCommandTestIT extends GenericStorageTestCase {
     public void blockStorageSizeProvidedSucessTest() throws Throwable {
         log.info("\n\n >> Executing Test blockStorageSizeProvidedSucessTest \n");
         String cloudifyAppId = null;
-        this.uploadGitArchive(EXTENDED_TYPES_REPO, EXTENDED_STORAGE_TYPES);
+        this.uploadGitArchive(EXTENDED_TYPES_REPO, null, EXTENDED_STORAGE_TYPES);
         try {
 
             String[] computesId = new String[] { "comp_storage_size" };

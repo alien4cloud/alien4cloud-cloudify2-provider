@@ -27,7 +27,7 @@ public class InstanceInfoTestIT extends GenericTestCase {
     public void testScaleAndGetInstancesInformations() throws Throwable {
         log.info("\n\n >> Executing Test testScaleAndGetInstancesInformations \n");
         String cloudifyAppId = null;
-        this.uploadGitArchive("samples", "tomcat-war");
+        this.uploadGitArchive("samples", "1.0.0", "tomcat-war");
 
         String[] computes = new String[] { "comp_tomcat_scaling" };
         cloudifyAppId = deployTopology("compTomcatScaling", computes, null, null);
@@ -42,6 +42,13 @@ public class InstanceInfoTestIT extends GenericTestCase {
 
         // TODO: test scaling
     }
+
+    /*
+     * @After
+     * public void after() {
+     * log.info("InstanceInfo - In afterTest");
+     * }
+     */
 
     private void printStatuses(Map<String, Map<String, InstanceInformation>> instancesInformations) {
         StringBuilder sb = new StringBuilder("\n");

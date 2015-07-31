@@ -59,6 +59,7 @@ import alien4cloud.paas.cloudify2.rest.CloudifyRestClient;
 import alien4cloud.paas.cloudify2.rest.CloudifyRestClientManager;
 import alien4cloud.paas.cloudify2.rest.external.RestClient;
 import alien4cloud.paas.cloudify2.testutils.TestsUtils;
+import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.exception.OperationExecutionException;
 import alien4cloud.paas.exception.PaaSDeploymentException;
 import alien4cloud.paas.model.AbstractMonitorEvent;
@@ -194,8 +195,8 @@ public class GenericTestCase {
         cloudifyPaaSPovider.updateMatcherConfig(matcherConf);
 
         // upload archives
-        testsUtils.uploadGitArchive("tosca-normative-types-1.0.0.wd03", "");
-        testsUtils.uploadGitArchive("alien-extended-types", "alien-base-types-1.0-SNAPSHOT");
+        testsUtils.uploadGitArchive("tosca-normative-types-1.0.0.wd03", null, "");
+        testsUtils.uploadGitArchive("alien-extended-types", null, "alien-base-types-1.0-SNAPSHOT");
     }
 
     @After
@@ -259,8 +260,8 @@ public class GenericTestCase {
         log.info("Types have been added to the repository.");
     }
 
-    protected void uploadGitArchive(String repository, String archiveDirectoryName) throws Exception {
-        testsUtils.uploadGitArchive(repository, archiveDirectoryName);
+    protected void uploadGitArchive(String repository, String branchName, String archiveDirectoryName) throws Exception {
+        testsUtils.uploadGitArchive(repository, branchName, archiveDirectoryName);
     }
 
     protected void waitForServiceToStarts(final String applicationId, final String serviceName, final long timeoutInMillis) throws Exception {
@@ -274,7 +275,8 @@ public class GenericTestCase {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-            ServiceDescription serviceDescription = restClient.getServiceDescription(applicationId, serviceName);
+            String serviceIdFromNodeTemplateId = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(serviceName);
+            ServiceDescription serviceDescription = restClient.getServiceDescription(applicationId, serviceIdFromNodeTemplateId);
             serviceState = serviceDescription.getServiceState();
             timeout = System.currentTimeMillis() - startTime > timeoutInMillis;
         }
@@ -288,6 +290,7 @@ public class GenericTestCase {
             throws Exception {
         log.info("About to check path <:" + port.concat("/").concat(path) + ">");
         CloudifyRestClient restClient = this.cloudifyRestClientManager.getRestClient();
+        serviceName = CloudifyPaaSUtils.serviceIdFromNodeTemplateId(serviceName);
         ServiceInstanceDetails instanceDetails = restClient.getServiceInstanceDetails(applicationId, serviceName, 1);
         String instancePublicIp = instanceDetails.getPublicIp();
         String urlString = "http://" + instancePublicIp + ":" + port + "/" + path;
@@ -528,7 +531,7 @@ public class GenericTestCase {
         Assert.assertEquals("Application " + applicationId + " is not in UNDEPLOYED state", DeploymentStatus.UNDEPLOYED, status);
     }
 
-    protected void scale(String nodeID, int nbToAdd, String appId, Topology topo, Integer sleepTimeSec) throws Exception {
+    protected void scale(final String nodeID, final int nbToAdd, String appId, Topology topo, Integer sleepTimeSec) throws Exception {
         Capability scalableCapability = TopologyUtils.getScalableCapability(topo, nodeID, true);
         int plannedInstance = TopologyUtils.getScalingProperty(NormativeComputeConstants.SCALABLE_DEFAULT_INSTANCES, scalableCapability) + nbToAdd;
         log.info("Scaling to " + plannedInstance);
@@ -538,7 +541,19 @@ public class GenericTestCase {
         Deployment deployment = new Deployment();
         deployment.setPaasId(appId);
         deploymentContext.setDeployment(deployment);
-        cloudifyPaaSPovider.scale(deploymentContext, nodeID, nbToAdd, null);
+        cloudifyPaaSPovider.scale(deploymentContext, nodeID, nbToAdd, new IPaaSCallback<Void>() {
+            @Override
+            public void onFailure(Throwable throwable) {
+                log.info("Failed to scale <{}> node to <{}> node(s). rolling back to {}...", nodeID, nbToAdd, nodeID);
+                throw (PaaSDeploymentException) throwable;
+            }
+
+            @Override
+            public void onSuccess(Void data) {
+                log.info("Succeed to scale <{}> node to <{}> node(s)", nodeID, nbToAdd);
+            }
+        });
+
         if (sleepTimeSec != null) {
             Thread.sleep(sleepTimeSec * 1000L);
         }
