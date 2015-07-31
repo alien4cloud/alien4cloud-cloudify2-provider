@@ -31,7 +31,7 @@ public class InstanceInfoTestIT extends GenericTestCase {
 
         String[] computes = new String[] { "comp_tomcat_scaling" };
         cloudifyAppId = deployTopology("compTomcatScaling", computes, null, null);
-        Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
+        Topology topo = alienMonitorDao.findById(Topology.class, cloudifyAppId);
         Map<String, Map<String, InstanceInformation>> instancesInformations = cloudifyPaaSPovider.getInstancesInformation(cloudifyAppId);
         printStatuses(instancesInformations);
         assertStartedInstance("comp_tomcat_scaling", 1, instancesInformations);

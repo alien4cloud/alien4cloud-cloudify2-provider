@@ -38,6 +38,7 @@ import alien4cloud.application.ApplicationService;
 import alien4cloud.component.repository.CsarFileRepository;
 import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
 import alien4cloud.dao.ElasticSearchDAO;
+import alien4cloud.dao.IGenericSearchDAO;
 import alien4cloud.model.application.Application;
 import alien4cloud.model.application.ApplicationEnvironment;
 import alien4cloud.model.application.ApplicationVersion;
@@ -120,6 +121,9 @@ public class GenericTestCase {
     @Resource
     protected ElasticSearchDAO alienDAO;
 
+    @Resource(name = "alien-monitor-es-dao")
+    protected IGenericSearchDAO alienMonitorDao;
+
     protected CsarFileRepository archiveRepositry;
 
     @Resource
@@ -165,7 +169,7 @@ public class GenericTestCase {
         System.out.println(resource);
 
         String cloudifyURL = System.getenv("CLOUDIFY_URL");
-        cloudifyURL = cloudifyURL == null ? "https://129.185.67.120:8100/" : cloudifyURL;
+        cloudifyURL = cloudifyURL == null ? "https://129.185.67.79:8100/" : cloudifyURL;
         PluginConfigurationBean pluginConfigurationBean = cloudifyPaaSPovider.getPluginConfigurationBean();
         pluginConfigurationBean.setCloudifyURLs(Lists.newArrayList(cloudifyURL));
         pluginConfigurationBean.setVersion("2.7.1");
@@ -360,6 +364,8 @@ public class GenericTestCase {
         for (PaaSNodeTemplate volume : paaSTopology.getVolumes()) {
             setup.getStorageMapping().put(volume.getId(), new StorageTemplate(ALIEN_STORAGE, 1L, ALIEN_STORAGE_DEVICE, null));
         }
+
+        alienMonitorDao.save(topology);
         cloudifyPaaSPovider.deploy(deploymentContext, null);
 
         waitForApplicationInstallation(this.cloudifyRestClientManager.getRestClient(), topology.getId());
@@ -536,7 +542,7 @@ public class GenericTestCase {
         int plannedInstance = TopologyUtils.getScalingProperty(NormativeComputeConstants.SCALABLE_DEFAULT_INSTANCES, scalableCapability) + nbToAdd;
         log.info("Scaling to " + plannedInstance);
         TopologyUtils.setScalingProperty(NormativeComputeConstants.SCALABLE_DEFAULT_INSTANCES, plannedInstance, scalableCapability);
-        alienDAO.save(topo);
+        alienMonitorDao.save(topo);
         PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
         Deployment deployment = new Deployment();
         deployment.setPaasId(appId);
