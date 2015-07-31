@@ -56,9 +56,6 @@ public class OperationOutputTestIT extends GenericRelationshipTriggeringTestCase
         Assert.assertEquals("concat/thisIsATestForConcat", sourceAttributes.get("concat_attribute"));
         Assert.assertEquals("concat/thisIsATestForConcat", targetAttributes.get("concat_attribute"));
 
-        Map<String, String> outputs = this.cloudifyRestClientManager.getRestClient().getOperationOutputs(cloudifyAppId, "comp_getopoutputsource", "1");
-        System.out.println("OUTPUTS ==> \n" + outputs);
-
         // TODO: test scaling
     }
 

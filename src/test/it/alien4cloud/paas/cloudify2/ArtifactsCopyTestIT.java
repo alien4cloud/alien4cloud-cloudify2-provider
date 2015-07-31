@@ -40,7 +40,7 @@ public class ArtifactsCopyTestIT extends GenericTestCase {
 
         String cloudifyAppId = null;
 
-        this.uploadGitArchive("samples", null, "tomcat-war");
+        this.uploadGitArchive("samples", "1.0.0", "tomcat-war");
         String topologyFileName = "tomcatWar";
         String artifacName = "helloWorld2.war";
         String artifactId = artifactRepository.storeFile(Files.newInputStream(Paths.get("src/test/resources/data/helloWorld2.war")));

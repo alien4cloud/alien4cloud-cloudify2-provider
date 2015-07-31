@@ -199,8 +199,8 @@ public class GenericTestCase {
         cloudifyPaaSPovider.updateMatcherConfig(matcherConf);
 
         // upload archives
-        testsUtils.uploadGitArchive("tosca-normative-types-1.0.0.wd03", null, "");
-        testsUtils.uploadGitArchive("alien-extended-types", null, "alien-base-types-1.0-SNAPSHOT");
+        testsUtils.uploadGitArchive("tosca-normative-types-1.0.0.wd03", "1.0.0", "");
+        testsUtils.uploadGitArchive("alien-extended-types", "1.0.0", "alien-base-types-1.0-SNAPSHOT");
     }
 
     @After
@@ -539,7 +539,7 @@ public class GenericTestCase {
 
     protected void scale(final String nodeID, final int nbToAdd, String appId, Topology topo, Integer sleepTimeSec) throws Exception {
         Capability scalableCapability = TopologyUtils.getScalableCapability(topo, nodeID, true);
-        int plannedInstance = TopologyUtils.getScalingProperty(NormativeComputeConstants.SCALABLE_DEFAULT_INSTANCES, scalableCapability) + nbToAdd;
+        final int plannedInstance = TopologyUtils.getScalingProperty(NormativeComputeConstants.SCALABLE_DEFAULT_INSTANCES, scalableCapability) + nbToAdd;
         log.info("Scaling to " + plannedInstance);
         TopologyUtils.setScalingProperty(NormativeComputeConstants.SCALABLE_DEFAULT_INSTANCES, plannedInstance, scalableCapability);
         alienMonitorDao.save(topo);
@@ -550,7 +550,7 @@ public class GenericTestCase {
         cloudifyPaaSPovider.scale(deploymentContext, nodeID, nbToAdd, new IPaaSCallback<Void>() {
             @Override
             public void onFailure(Throwable throwable) {
-                log.info("Failed to scale <{}> node to <{}> node(s). rolling back to {}...", nodeID, nbToAdd, nodeID);
+                log.info("Failed to scale <{}> node to <{}> node(s). rolling back to {}...", nodeID, nbToAdd, plannedInstance);
                 throw (PaaSDeploymentException) throwable;
             }
 
