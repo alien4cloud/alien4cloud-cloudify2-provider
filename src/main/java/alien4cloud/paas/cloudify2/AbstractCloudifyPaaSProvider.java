@@ -159,6 +159,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             DeploymentInfo deploymentInfo = new DeploymentInfo();
             deploymentInfo.deploymentId = activeDeployment.getValue().getDeploymentId();
             deploymentInfo.topology = activeDeployment.getValue().getTopology();
+            deploymentInfo.paaSTopology = activeDeployment.getValue().getPaaSTopology();
             statusByDeployments.put(activeDeployment.getKey(), deploymentInfo);
         }
     }
@@ -302,7 +303,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         PaaSDeploymentStatusMonitorEvent dsMonitorEvent = new PaaSDeploymentStatusMonitorEvent();
         dsMonitorEvent.setDeploymentId(deploymentId);
         dsMonitorEvent.setDeploymentStatus(status);
-        // dsMonitorEvent.setDate(new Date().getTime());
         monitorEvents.add(dsMonitorEvent);
     }
 
@@ -696,7 +696,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                     PaaSDeploymentStatusMonitorEvent dsMonitorEvent = new PaaSDeploymentStatusMonitorEvent();
                     dsMonitorEvent.setDeploymentId(deploymentId);
                     dsMonitorEvent.setDeploymentStatus(status);
-                    dsMonitorEvent.setDate(new Date().getTime());
 
                     // update the local status.
                     log.debug("{} has changed status {}", applicationDescription.getApplicationName(), status);
@@ -1026,7 +1025,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         monitorEvent.setDeploymentId(deploymentInfo.deploymentId);
         monitorEvent.setNodeTemplateId(id);
         monitorEvent.setInstanceId(instanceId);
-        // monitorEvent.setDate(new Date().getTime());
         monitorEvent.setInstanceState(state);
 
         fillInstanceStateEvent(monitorEvent, nodesDeploymentInfo, id, instanceId);
