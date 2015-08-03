@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
@@ -41,6 +42,7 @@ import com.google.common.collect.Maps;
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration("classpath:application-context-testit.xml")
 @Slf4j
+@Ignore
 public class IgnoreRecipeGenTesting {
 
     protected static final String DEFAULT_LINUX_COMPUTE_TEMPLATE_ID = "MEDIUM_LINUX";
@@ -77,8 +79,8 @@ public class IgnoreRecipeGenTesting {
         matcherConf.setStorageMapping(storageMapping);
         cloudifyPaaSPovider.updateMatcherConfig(matcherConf);
 
-        testsUtils.uploadGitArchive("tosca-normative-types-1.0.0.wd03", "");
-        testsUtils.uploadGitArchive("alien-extended-types", "alien-base-types-1.0-SNAPSHOT");
+        testsUtils.uploadGitArchive("tosca-normative-types-1.0.0.wd03", "", "");
+        testsUtils.uploadGitArchive("alien-extended-types", "", "alien-base-types-1.0-SNAPSHOT");
     }
 
     @BeforeClass
@@ -91,7 +93,7 @@ public class IgnoreRecipeGenTesting {
         testsUtils.uploadArchive("test-types-1.0-SNAPSHOT");
         // testsUtils.uploadCsarFile("C:\\Users\\igor\\Projets\\ALIEN\\csar\\Archive");
         // testsUtils.uploadCsarFile("C:\\Users\\igor\\Projets\\ALIEN\\csar\\repositories\\samples\\tomcat-war");
-        testsUtils.uploadGitArchive("alien-extended-types", "alien-extended-storage-types-1.0-SNAPSHOT");
+        testsUtils.uploadGitArchive("alien-extended-types", "", "alien-extended-storage-types-1.0-SNAPSHOT");
         testsUtils.uploadArchive("custom-storage-types-1.0-SNAPSHOT");
 
         // String[] computes = new String[] { "comp_tomcatsh" };
