@@ -48,7 +48,7 @@ public class DeploymentTestIT extends GenericTestCase {
     public void applicationAlreadyDeployedTest() throws Throwable {
         log.info("\n\n >> Executing Test applicationAlreadyDeployedTest \n");
 
-        this.uploadGitArchive("samples", "tomcat-war");
+        this.uploadGitArchive("samples", "1.0.0", "tomcat-war");
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         String[] computesId = new String[] { "compute", "compute_2" };
         String cloudifyAppId = deployTopology("compute_only", computesId, null, null);
@@ -85,7 +85,7 @@ public class DeploymentTestIT extends GenericTestCase {
 
     @Test
     public void testRelationshipToscaEnvVars() throws Throwable {
-        this.uploadGitArchive("samples", "tomcat-war");
+        this.uploadGitArchive("samples", "1.0.0", "tomcat-war");
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         String[] computesId = new String[] { "comp-envartest" };
         String cloudifyAppId = deployTopology("envVarTest", computesId, null, null);

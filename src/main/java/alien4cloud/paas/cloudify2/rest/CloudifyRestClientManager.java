@@ -16,6 +16,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import alien4cloud.paas.cloudify2.PluginConfigurationBean;
+import alien4cloud.paas.cloudify2.rest.external.HttpClientFactory;
 import alien4cloud.paas.exception.PluginConfigurationException;
 
 import com.google.common.collect.Lists;
@@ -36,9 +37,12 @@ public class CloudifyRestClientManager {
     private String version = "2.7.1";
 
     private CloudifyRestClient restClient;
+
     private URI restEventEndpoint;
 
     private LinkedList<String> providedURLs = new LinkedList<>();
+
+    private RestExecutor restExecutor;
 
     /**
      * Get the cloudify rest client.
@@ -57,7 +61,6 @@ public class CloudifyRestClientManager {
      * Set the configuration of the cloudify connection.
      *
      * @param configuration A list of configuration elements of the cloudify configuration.
-     * @param timeout TODO
      * @throws PluginConfigurationException In case the connection configuration is not correct.
      */
     public void setCloudifyConnectionConfiguration(PluginConfigurationBean configuration) throws PluginConfigurationException {
@@ -71,15 +74,15 @@ public class CloudifyRestClientManager {
 
     private boolean tryCloudifyURL(String cloudifyURLString) throws PluginConfigurationException {
         log.info("Trying to set Cloudify manager REST API url to <" + cloudifyURLString + ">");
-        this.restClient = null;
-        this.restEventEndpoint = null;
         try {
+            destroy();
             this.cloudifyURL = new URL(cloudifyURLString);
+            setEventRestEndPoint();
             this.restClient = new CloudifyRestClient(cloudifyURL, username, password, version);
+            this.restExecutor = new RestExecutor(HttpClientFactory.createHttpClient(this.restEventEndpoint.toURL()));
             this.restClient.test(StringUtils.isNoneBlank(this.username, this.password));
             // check that the events module can be reached too.
-            setEventRestEndPoint();
-            CloudifyEventsListener cloudifyEventsListener = new CloudifyEventsListener(this.restEventEndpoint);
+            CloudifyEventsListener cloudifyEventsListener = new CloudifyEventsListener(this.restEventEndpoint, this.restExecutor);
             // check connection
             log.info("Testing events module endpoint " + this.restEventEndpoint + "... ");
             log.info("Events module endpoint response: " + cloudifyEventsListener.test());
@@ -103,7 +106,6 @@ public class CloudifyRestClientManager {
      * Repeat the try a certain number of time before failing.
      * Put the first valid configuration ontop of the list.
      *
-     * @param configurations
      * @throws PluginConfigurationException
      * @throws InterruptedException
      */
@@ -161,7 +163,7 @@ public class CloudifyRestClientManager {
             if (restEventEndpoint == null) {
                 setEventRestEndPoint();
             }
-            CloudifyEventsListener cloudifyEventsListener = new CloudifyEventsListener(this.restEventEndpoint);
+            CloudifyEventsListener cloudifyEventsListener = new CloudifyEventsListener(this.restEventEndpoint, this.restExecutor);
             cloudifyEventsListener.test();
             return true;
         } catch (Exception e) {
@@ -169,6 +171,23 @@ public class CloudifyRestClientManager {
             log.warn("Fail to connect to cloudify manager rest endpoint: " + cause);
             log.debug("", e);
             return false;
+        }
+    }
+
+    public RestExecutor getRestExecutor() {
+        return restExecutor;
+    }
+
+    public void destroy() {
+        try {
+            if (this.restClient != null) {
+                this.restClient.shutdown();
+            }
+            if (this.restExecutor != null) {
+                this.restExecutor.shutdown();
+            }
+        } catch (Exception e) {
+            log.warn("Could not shutdown http client", e);
         }
     }
 }

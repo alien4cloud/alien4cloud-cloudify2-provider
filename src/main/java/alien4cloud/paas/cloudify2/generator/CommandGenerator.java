@@ -209,6 +209,10 @@ public class CommandGenerator {
         return String.format(EXECUTE_GROOVY_FORMAT, groovyScriptRelativePath, formatedParams, formatedOutputs, finalLogLevel);
     }
 
+    public String getGroovyCommand(String groovyScriptRelativePath, ProviderLogLevel logLevel) throws IOException {
+        return getGroovyCommand(groovyScriptRelativePath, null, null, null, null);
+    }
+
     /**
      * Return the execution command for multiple groovy scripts as a string. The command are separated with a "&&" or "||" depending on the parameter passed
      *

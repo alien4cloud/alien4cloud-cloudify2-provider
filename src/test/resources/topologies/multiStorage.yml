@@ -1,6 +1,6 @@
 
 node_templates:
-  comp_storage_volumeid:
+  comp_multiStorage:
     type: tosca.nodes.Compute
     properties:
       os_type:
@@ -21,52 +21,30 @@ node_templates:
             value: "1"
   blockstorage:
     type: tosca.nodes.BlockStorage
-#    properties:
-#      volume_id:
-#        value: 6665b015-62ed-4374-9a23-6790ccc8d0af
-#      device:
-#        value: /dev/vdb
-#      location:
-#        value: /testMount1
     relationships:
       attachToServeurWeb:
-        target: comp_storage_volumeid
+        target: comp_multiStorage
         type: tosca.relationships.AttachTo
         requirement_name: attachment
         requirement_type: tosca.capabilities.Attachment
         targeted_capability_name: attach
   blockstorage2:
     type: tosca.nodes.BlockStorage
-#    properties:
-#      volume_id:
-#        value: d5113a51-0105-4541-a84f-936aabc07c34
-#      device:
-#        value: /dev/vdc
-#      location:
-#        value: /testMount2       
+    properties:
+      device:
+        value: /dev/vdd
     relationships:
       attachBisToServeurWeb:
-        target: comp_storage_volumeid
+        target: comp_multiStorage
         type: tosca.relationships.AttachTo
         requirement_name: attachment
         requirement_type: tosca.capabilities.Attachment
         targeted_capability_name: attach
-  blockstorageConfig:
-#    type: tosca.nodes.BlockStorage
-    type: alien.test.nodes.ConfigurableBlockStorage
-    properties:
-      volume_id:
-#        value: 356a254f-eada-4c95-ade4-ff6493acfaa1
-        value: 24d0fb21-cfc9-4f8f-889e-d22057e5de68
-#      device:
-#        value: /dev/vdd
-      location:
-        value: /testMount
-#      file_system:
-#        value: ext4
+  blockstorage3:
+    type: tosca.nodes.BlockStorage
     relationships:
-      attachToServeurWeb:
-        target: comp_storage_volumeid
+      attachBisToServeurWeb:
+        target: comp_multiStorage
         type: tosca.relationships.AttachTo
         requirement_name: attachment
         requirement_type: tosca.capabilities.Attachment
@@ -75,5 +53,3 @@ node_templates:
 dependencies:
   - name: tosca-normative-types
     version: 1.0.0.wd03-SNAPSHOT
-  - name: custom-storage-types
-    version: 1.0-SNAPSHOT

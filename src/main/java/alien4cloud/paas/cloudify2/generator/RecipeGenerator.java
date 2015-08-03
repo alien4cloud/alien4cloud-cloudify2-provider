@@ -151,9 +151,10 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             if (networkNodes != null && !networkNodes.isEmpty()) {
                 serviceSetup.setNetwork(getNetworkTemplateOrFail(deploymenySetup.getNetworkMapping(), networkNodes.iterator().next()));
             }
-            PaaSNodeTemplate storageNode = root.getAttachedNode();
-            if (storageNode != null) {
-                serviceSetup.setStorage(getStorageTemplateOrFail(deploymenySetup.getStorageMapping(), storageNode));
+
+            // PaaSNodeTemplate storageNode = root.getAttachedNode();
+            for (PaaSNodeTemplate storageNode : root.getStorageNodes()) {
+                serviceSetup.getStorage().put(storageNode.getId(), getStorageTemplateOrFail(deploymenySetup.getStorageMapping(), storageNode));
             }
             if (MapUtils.isNotEmpty(deploymenySetup.getProviderDeploymentProperties())) {
                 serviceSetup.setProviderDeploymentProperties(deploymenySetup.getProviderDeploymentProperties());
@@ -258,13 +259,14 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         String computeTemplate = getComputeTemplatePaaSResourceIdOrFail(setup.getComputeTemplate());
 
         String networkName = null;
-        String storageName = null;
+        Map<String, String> storageNames = Maps.newHashMap();
         String availabilityZone = null;
         if (setup.getNetwork() != null) {
             networkName = paaSResourceMatcher.getNetwork(setup.getNetwork());
         }
-        if (setup.getStorage() != null) {
-            storageName = paaSResourceMatcher.getStorage(setup.getStorage());
+
+        for (Entry<String, StorageTemplate> entry : setup.getStorage().entrySet()) {
+            storageNames.put(entry.getKey(), paaSResourceMatcher.getStorage(entry.getValue()));
         }
         if (setup.getAvailabilityZone() != null) {
             availabilityZone = paaSResourceMatcher.getAvailabilityZone(setup.getAvailabilityZone());
@@ -288,7 +290,7 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         this.artifactCopier.copyAllArtifacts(context, computeNode);
 
         // generate cloudify init script
-        generateInitScripts(context, computeNode, storageName, availabilityZone);
+        generateInitScripts(context, computeNode, storageNames, availabilityZone);
 
         // generate cloudify global start detection script
         manageStartDetection(context, computeNode);
@@ -327,17 +329,17 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         return id;
     }
 
-    private void generateInitScripts(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate computeNode, final String storageName,
+    private void generateInitScripts(final RecipeGeneratorServiceContext context, final PaaSNodeTemplate computeNode, final Map<String, String> storageNames,
             String availabilityZone) throws IOException {
         String initCommand = "{}";
         List<String> executions = Lists.newArrayList();
 
-        // process blockstorage init and startup
-        storageScriptGenerator.generateInitStartUpStorageScripts(context, computeNode.getAttachedNode(), storageName, availabilityZone, executions);
+        // process blockstorages init and startup
+        storageScriptGenerator.generateInitStartUpStorageScripts(context, computeNode.getStorageNodes(), storageNames, availabilityZone, executions);
 
         // generate the init script
         if (!executions.isEmpty()) {
-            generateScriptWorkflow(context.getServicePath(), scriptDescriptorPath, INIT_LIFECYCLE, executions, null);
+            generateScriptWorkflow(context.getServicePath(), resourcesDestroyableScriptDescriptorPath, INIT_LIFECYCLE, executions, null);
             initCommand = "\"" + INIT_LIFECYCLE + ".groovy\"";
         }
         context.getAdditionalProperties().put(INIT_COMMAND, initCommand);
@@ -348,11 +350,11 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         List<String> executions = Lists.newArrayList();
 
         // process blockstorage shutdown and / or deletion
-        storageScriptGenerator.generateShutdownStorageScript(context, computeNode.getAttachedNode(), executions);
+        storageScriptGenerator.generateShutdownStorageScript(context, computeNode.getStorageNodes(), executions);
 
         // generate the shutdown script
         if (!executions.isEmpty()) {
-            generateScriptWorkflow(context.getServicePath(), scriptDescriptorPath, SHUTDOWN_LIFECYCLE, executions, null);
+            generateScriptWorkflow(context.getServicePath(), resourcesDestroyableScriptDescriptorPath, SHUTDOWN_LIFECYCLE, executions, null);
             shutdownCommand = "\"" + SHUTDOWN_LIFECYCLE + ".groovy\"";
         }
         context.getAdditionalProperties().put(SHUTDOWN_COMMAND, shutdownCommand);
@@ -424,8 +426,8 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
         for (PaaSNodeTemplate childNode : rootNode.getChildren()) {
             generateExtendedOperationsCommand(context, childNode, operationName, commandsMap, includeNullValues);
         }
-        if (rootNode.getAttachedNode() != null) {
-            generateExtendedOperationsCommand(context, rootNode.getAttachedNode(), operationName, commandsMap, includeNullValues);
+        if (!rootNode.getStorageNodes().isEmpty()) {
+            generateExtendedOperationsCommand(context, rootNode.getStorageNodes().get(0), operationName, commandsMap, includeNullValues);
         }
     }
 
@@ -468,9 +470,9 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             addCustomCommands(child, context);
         }
 
-        // process attachedNodes
-        if (nodeTemplate.getAttachedNode() != null) {
-            addCustomCommands(nodeTemplate.getAttachedNode(), context);
+        // process storages
+        for (PaaSNodeTemplate storage : nodeTemplate.getStorageNodes()) {
+            addCustomCommands(storage, context);
         }
     }
 
@@ -717,21 +719,6 @@ public class RecipeGenerator extends AbstractCloudifyScriptGenerator {
             toReturnMap.put(entry.getKey(), commandGenerator.getToAbsolutePathCommand(linuxFormated));
         }
         return toReturnMap;
-    }
-
-    private String getRestartCondition(final RecipeGeneratorServiceContext context, final OperationCallActivity operationCall) {
-        String restartCondition = null;
-        String startDetectionCommand = context.getStartDetectionCommands().get(operationCall.getNodeTemplateId());
-        String instanceRestartContextAttr = CONTEXT_THIS_INSTANCE_ATTRIBUTES + ".restart";
-        if (startDetectionCommand != null) {
-            restartCondition = instanceRestartContextAttr + " == true && !" + startDetectionCommand;
-        } else {
-            String stopDetectionCommand = context.getStopDetectionCommands().get(operationCall.getNodeTemplateId());
-            if (stopDetectionCommand != null) {
-                restartCondition = instanceRestartContextAttr + " == true && " + stopDetectionCommand;
-            }
-        }
-        return restartCondition;
     }
 
     private void generateServiceDescriptor(final RecipeGeneratorServiceContext context, final String computeTemplate, final String networkName,

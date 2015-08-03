@@ -18,7 +18,7 @@ public class RelationshipOperationTriggeringTestIT extends GenericRelationshipTr
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         String[] computesId = new String[] { "source-comp", "target-comp" };
         String cloudifyAppId = deployTopology("relshipTrigeringTest", computesId, null, null);
-        Topology topo = alienDAO.findById(Topology.class, cloudifyAppId);
+        Topology topo = alienMonitorDao.findById(Topology.class, cloudifyAppId);
         this.assertApplicationIsInstalled(cloudifyAppId);
         testEvents(cloudifyAppId, new String[] { "source-comp", "target-comp" }, 30000L, ToscaNodeLifecycleConstants.CREATED,
                 ToscaNodeLifecycleConstants.CONFIGURED, ToscaNodeLifecycleConstants.STARTED, ToscaNodeLifecycleConstants.AVAILABLE);

@@ -57,11 +57,12 @@ public class TestsUtils {
         remoteGitArtifacts.put("alien-extended-types", new String[] { "https://github.com/alien4cloud/alien4cloud-extended-types.git", "master" });
     }
 
-    public void uploadGitArchive(String repository, String archiveDirectoryName) throws Exception {
+    public void uploadGitArchive(String repository, String branchName, String archiveDirectoryName) throws Exception {
         String path = gitArtifactsDirectory + "/" + repository;
         String[] urlAndBrach = remoteGitArtifacts.get(repository);
         if (!Files.exists(Paths.get(path)) && urlAndBrach != null) {
-            (new RepositoryManager()).cloneOrCheckout(gitArtifactsDirectory, urlAndBrach[0], urlAndBrach[1], repository);
+            branchName = branchName == null | "".equals(branchName) ? urlAndBrach[1] : branchName;
+            (new RepositoryManager()).cloneOrCheckout(gitArtifactsDirectory, urlAndBrach[0], branchName, repository);
         }
         uploadCsarFile(path + "/" + archiveDirectoryName);
     }

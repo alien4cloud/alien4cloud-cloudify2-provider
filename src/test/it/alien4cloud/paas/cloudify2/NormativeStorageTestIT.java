@@ -38,10 +38,13 @@ public class NormativeStorageTestIT extends GenericStorageTestCase {
         providerDeploymentProperties.put(DeploymentPropertiesNames.DELETABLE_BLOCKSTORAGE, Boolean.valueOf(isDeletable).toString());
     }
 
+    // Tests done in CustomCommandsTestIT
     @Test
     public void blockStorageVolumeIdProvidedSucessTest() throws Throwable {
         log.info("\n\n >> Executing Test blockStorageVolumeIdProvidedSucessTest \n");
         setDeletableBlockStorage("false");
+        this.uploadGitArchive(EXTENDED_TYPES_REPO, "", EXTENDED_STORAGE_TYPES);
+        this.uploadTestArchives("custom-storage-types-1.0-SNAPSHOT");
         String cloudifyAppId = null;
         try {
             String[] computesId = new String[] { "comp_storage_volumeid" };
@@ -61,7 +64,7 @@ public class NormativeStorageTestIT extends GenericStorageTestCase {
     public void blockStorageSizeProvidedSucessTest() throws Throwable {
         log.info("\n\n >> Executing Test blockStorageSizeProvidedSucessTest \n");
         String cloudifyAppId = null;
-        this.uploadGitArchive(EXTENDED_TYPES_REPO, EXTENDED_STORAGE_TYPES);
+        this.uploadGitArchive(EXTENDED_TYPES_REPO, "1.0.0", EXTENDED_STORAGE_TYPES);
         try {
 
             String[] computesId = new String[] { "comp_storage_size" };

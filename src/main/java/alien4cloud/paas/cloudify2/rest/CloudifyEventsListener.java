@@ -34,15 +34,15 @@ public class CloudifyEventsListener {
     private final String deploymentId;
     private final String service;
 
-    public CloudifyEventsListener(URI restEventEndpoint) throws URISyntaxException {
-        this(restEventEndpoint, null, null);
+    public CloudifyEventsListener(URI restEventEndpoint, RestExecutor restExecutor) throws URISyntaxException {
+        this(restEventEndpoint, null, null, restExecutor);
     }
 
-    public CloudifyEventsListener(URI restEventEndpoint, String deploymentId, String service) throws URISyntaxException {
+    public CloudifyEventsListener(URI restEventEndpoint, String deploymentId, String service, RestExecutor restExecutor) throws URISyntaxException {
         this.endpoint = restEventEndpoint;
         this.deploymentId = deploymentId;
         this.service = service;
-        this.restExecutor = new RestExecutor();
+        this.restExecutor = restExecutor;
     }
 
     /**

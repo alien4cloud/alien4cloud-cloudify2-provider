@@ -16,7 +16,6 @@ import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.impl.conn.PoolingClientConnectionManager;
 import org.apache.http.util.EntityUtils;
 import org.springframework.http.MediaType;
 
@@ -27,14 +26,8 @@ import alien4cloud.rest.utils.JsonUtil;
 @Setter
 @Slf4j
 public class RestExecutor {
-    private DefaultHttpClient httpClient;
 
-    public RestExecutor() {
-        PoolingClientConnectionManager cm = new PoolingClientConnectionManager();
-        cm.setMaxTotal(200);
-        cm.setDefaultMaxPerRoute(20);
-        this.httpClient = new DefaultHttpClient(cm);
-    }
+    private DefaultHttpClient httpClient;
 
     public String doGet(URIBuilder builder, boolean failOnError) throws URISyntaxException, IOException {
         Response response = doGet(builder);
@@ -98,8 +91,12 @@ public class RestExecutor {
         }
     }
 
+    public void shutdown() {
+        this.httpClient.getConnectionManager().shutdown();
+    }
+
     @Getter
-    private class Response {
+    private static class Response {
         private int status;
         private String errorReason;
         private String response;

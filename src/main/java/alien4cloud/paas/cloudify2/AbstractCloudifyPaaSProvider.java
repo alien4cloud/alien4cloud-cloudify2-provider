@@ -36,7 +36,6 @@ import org.cloudifysource.dsl.rest.response.InvokeServiceCommandResponse;
 import org.cloudifysource.dsl.rest.response.ServiceDescription;
 import org.cloudifysource.dsl.rest.response.ServiceInstanceDetails;
 import org.cloudifysource.dsl.rest.response.UploadResponse;
-import org.cloudifysource.restclient.RestClient;
 import org.cloudifysource.restclient.exceptions.RestClientException;
 import org.cloudifysource.restclient.exceptions.RestClientIOException;
 
@@ -60,6 +59,7 @@ import alien4cloud.paas.cloudify2.generator.RecipeGenerator;
 import alien4cloud.paas.cloudify2.rest.CloudifyEventsListener;
 import alien4cloud.paas.cloudify2.rest.CloudifyRestClient;
 import alien4cloud.paas.cloudify2.rest.CloudifyRestClientManager;
+import alien4cloud.paas.cloudify2.rest.external.RestClient;
 import alien4cloud.paas.cloudify2.utils.CloudifyPaaSUtils;
 import alien4cloud.paas.exception.MaintenanceModeException;
 import alien4cloud.paas.exception.OperationExecutionException;
@@ -159,6 +159,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             DeploymentInfo deploymentInfo = new DeploymentInfo();
             deploymentInfo.deploymentId = activeDeployment.getValue().getDeploymentId();
             deploymentInfo.topology = activeDeployment.getValue().getTopology();
+            deploymentInfo.paaSTopology = activeDeployment.getValue().getPaaSTopology();
             statusByDeployments.put(activeDeployment.getKey(), deploymentInfo);
         }
     }
@@ -211,7 +212,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     }
 
     private boolean updateStatus(String deploymentId, String deploymentPaaSId, DeploymentStatus status) {
-        DeploymentInfo deploymentInfo = statusByDeployments.get(deploymentId);
+        DeploymentInfo deploymentInfo = statusByDeployments.get(deploymentPaaSId);
         if (deploymentInfo == null) {
             deploymentInfo = new DeploymentInfo();
         }
@@ -244,7 +245,8 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         try {
             final URI restEventEndpoint = this.cloudifyRestClientManager.getRestEventEndpoint();
             if (restEventEndpoint != null) {
-                CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, statusByDeployments.get(deploymentPaaSId).deploymentId, "");
+                CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, statusByDeployments.get(deploymentPaaSId).deploymentId, "",
+                        this.cloudifyRestClientManager.getRestExecutor());
                 cleanupUnmanagedApplicationInfos(listener, deploymentPaaSId, false);
             }
 
@@ -267,6 +269,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
     @Override
     public synchronized void undeploy(PaaSDeploymentContext deploymentContext, IPaaSCallback<?> callback) {
         String deploymentPaaSId = deploymentContext.getDeploymentPaaSId();
+        DeploymentStatus oldStatus = null;
         try {
             log.info("Undeploying topology " + deploymentPaaSId);
             try {
@@ -274,6 +277,9 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             } catch (IOException e) {
                 log.info("Failed to delete deployment recipe directory <" + deploymentPaaSId + ">.");
             }
+            // for rollback purposes
+            oldStatus = statusByDeployments.get(deploymentPaaSId).deploymentStatus;
+
             // say undeployment triggered
             updateStatusAndRegisterEvent(deploymentContext.getDeploymentId(), deploymentPaaSId, DeploymentStatus.UNDEPLOYMENT_IN_PROGRESS);
 
@@ -282,6 +288,8 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
             restClient.uninstallApplication(deploymentPaaSId, (int) TIMEOUT_IN_MILLIS);
 
         } catch (RestClientException | PluginConfigurationException e) {
+            log.warn("Error when trying to undploy the application " + deploymentPaaSId + ". Rollbacking the status...");
+            updateStatusAndRegisterEvent(deploymentContext.getDeploymentId(), deploymentPaaSId, oldStatus);
             throwPaaSDeploymentException("Couldn't uninstall topology '" + deploymentPaaSId + "'.", e);
         }
     }
@@ -295,7 +303,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         PaaSDeploymentStatusMonitorEvent dsMonitorEvent = new PaaSDeploymentStatusMonitorEvent();
         dsMonitorEvent.setDeploymentId(deploymentId);
         dsMonitorEvent.setDeploymentStatus(status);
-        dsMonitorEvent.setDate(new Date().getTime());
         monitorEvents.add(dsMonitorEvent);
     }
 
@@ -420,7 +427,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
      */
     private void fillInstanceStates(final String deploymentId, final Map<String, Map<String, InstanceInformation>> instanceInformations,
             final URI restEventEndpoint) throws URISyntaxException, IOException {
-        CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, deploymentId, "");
+        CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, deploymentId, "", this.cloudifyRestClientManager.getRestExecutor());
         List<NodeInstanceState> instanceStates = listener.getNodeInstanceStates(deploymentId);
 
         for (NodeInstanceState instanceState : instanceStates) {
@@ -441,6 +448,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                 break;
             case ToscaNodeLifecycleConstants.MAINTENANCE:
                 instanceStatus = InstanceStatus.MAINTENANCE;
+                break;
             default:
                 instanceStatus = InstanceStatus.PROCESSING;
                 break;
@@ -639,7 +647,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
         List<AbstractMonitorEvent> events = Lists.newArrayList();
         try {
-            CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, "", "");
+            CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, "", "", this.cloudifyRestClientManager.getRestExecutor());
             // get message events
             AbstractMonitorEvent queuedMonitorEvent;
             int count = 0;
@@ -678,7 +686,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
     private void processUnknownStatuses(List<AbstractMonitorEvent> events, List<ApplicationDescription> applicationDescriptions, List<String> appUnknownStatuses) {
         for (ApplicationDescription applicationDescription : applicationDescriptions) {
-            log.debug("GetEvents: PROCESSING UNKWON STATUSES...");
             DeploymentStatus status = getStatusFromApplicationDescription(applicationDescription);
 
             DeploymentInfo info = this.statusByDeployments.get(applicationDescription.getApplicationName());
@@ -690,7 +697,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
                     PaaSDeploymentStatusMonitorEvent dsMonitorEvent = new PaaSDeploymentStatusMonitorEvent();
                     dsMonitorEvent.setDeploymentId(deploymentId);
                     dsMonitorEvent.setDeploymentStatus(status);
-                    dsMonitorEvent.setDate(new Date().getTime());
 
                     // update the local status.
                     log.debug("{} has changed status {}", applicationDescription.getApplicationName(), status);
@@ -978,7 +984,7 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
 
         // write new states in cloudify space
         final URI restEventEndpoint = this.cloudifyRestClientManager.getRestEventEndpoint();
-        CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, "", "");
+        CloudifyEventsListener listener = new CloudifyEventsListener(restEventEndpoint, "", "", this.cloudifyRestClientManager.getRestExecutor());
         listener.putNodeInstanceStates(nodeInstancesStatesToUpdate);
     }
 
@@ -1020,7 +1026,6 @@ public abstract class AbstractCloudifyPaaSProvider implements IConfigurablePaaSP
         monitorEvent.setDeploymentId(deploymentInfo.deploymentId);
         monitorEvent.setNodeTemplateId(id);
         monitorEvent.setInstanceId(instanceId);
-        monitorEvent.setDate(new Date().getTime());
         monitorEvent.setInstanceState(state);
 
         fillInstanceStateEvent(monitorEvent, nodesDeploymentInfo, id, instanceId);
