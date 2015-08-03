@@ -6,7 +6,6 @@ import javax.annotation.Resource;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.ContextConfiguration;
@@ -44,7 +43,7 @@ public class NormativeStorageTestIT extends GenericStorageTestCase {
     public void blockStorageVolumeIdProvidedSucessTest() throws Throwable {
         log.info("\n\n >> Executing Test blockStorageVolumeIdProvidedSucessTest \n");
         setDeletableBlockStorage("false");
-        this.uploadGitArchive(EXTENDED_TYPES_REPO, EXTENDED_STORAGE_TYPES);
+        this.uploadGitArchive(EXTENDED_TYPES_REPO, "", EXTENDED_STORAGE_TYPES);
         this.uploadTestArchives("custom-storage-types-1.0-SNAPSHOT");
         String cloudifyAppId = null;
         try {
