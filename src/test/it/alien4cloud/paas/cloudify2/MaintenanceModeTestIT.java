@@ -32,7 +32,7 @@ public class MaintenanceModeTestIT extends GenericTestCase {
     public void maintenanceModeTest() throws Throwable {
         log.info("\n\n >> Executing Test maintenanceModeTest \n");
         String cloudifyAppId = null;
-        this.uploadGitArchive("samples", "tomcat-war");
+        this.uploadGitArchive("samples", "1.0.0", "tomcat-war");
 
         // String startMaintenanceResultSnipet = "agent failure detection disabled successfully for a period of";
         // String stopMaintenanceResultSnipet = "agent failure detection enabled successfully";

@@ -22,9 +22,9 @@ node_templates:
   java:
     type: alien.nodes.Java
     properties:
-      java_url: 
+      java_url:
         value: "http://download.oracle.com/otn-pub/java/jdk/7u75-b13/jdk-7u75-linux-x64.tar.gz"
-      java_home: 
+      java_home:
         value: /opt/java
     relationships:
       hostedOnServeurWeb:
@@ -38,10 +38,10 @@ node_templates:
     properties:
       tomcat_home:
         value: /opt/tomcat
-      tomcat_port: 
+      tomcat_port:
         value: 9999
       tomcat_url: 
-        value: "http://apache.crihan.fr/dist/tomcat/tomcat-8/v8.0.22/bin/apache-tomcat-8.0.22.tar.gz"
+        value: "http://apache.crihan.fr/dist/tomcat/tomcat-8/v8.0.24/bin/apache-tomcat-8.0.24.tar.gz"
     relationships:
       runOnJVMJava:
         target: java

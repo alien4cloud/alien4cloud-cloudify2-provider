@@ -38,7 +38,7 @@ public class BatchScriptsTestIT extends GenericTestCase {
     public void computeWithBatchScriptsTest() throws Throwable {
         log.info("\n\n >> Executing Test computeWithBatchScriptsTest \n");
 
-        this.uploadGitArchive("samples", "tomcat-war");
+        this.uploadGitArchive("samples", null, "tomcat-war");
         this.uploadTestArchives("test-types-1.0-SNAPSHOT");
         Map<String, ComputeTemplate> templates = Maps.newHashMap();
         templates.put("computeWindows", new ComputeTemplate(ALIEN_WINDOWS_IMAGE, ALIEN_FLAVOR));

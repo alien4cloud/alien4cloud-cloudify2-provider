@@ -38,6 +38,7 @@ import alien4cloud.application.ApplicationService;
 import alien4cloud.component.repository.CsarFileRepository;
 import alien4cloud.component.repository.exception.CSARVersionAlreadyExistsException;
 import alien4cloud.dao.ElasticSearchDAO;
+import alien4cloud.dao.IGenericSearchDAO;
 import alien4cloud.model.application.Application;
 import alien4cloud.model.application.ApplicationEnvironment;
 import alien4cloud.model.application.ApplicationVersion;
@@ -120,6 +121,9 @@ public class GenericTestCase {
     @Resource
     protected ElasticSearchDAO alienDAO;
 
+    @Resource(name = "alien-monitor-es-dao")
+    protected IGenericSearchDAO alienMonitorDao;
+
     protected CsarFileRepository archiveRepositry;
 
     @Resource
@@ -195,8 +199,8 @@ public class GenericTestCase {
         cloudifyPaaSPovider.updateMatcherConfig(matcherConf);
 
         // upload archives
-        testsUtils.uploadGitArchive("tosca-normative-types-1.0.0.wd03", "");
-        testsUtils.uploadGitArchive("alien-extended-types", "alien-base-types-1.0-SNAPSHOT");
+        testsUtils.uploadGitArchive("tosca-normative-types-1.0.0.wd03", "1.0.0", "");
+        testsUtils.uploadGitArchive("alien-extended-types", "1.0.0", "alien-base-types-1.0-SNAPSHOT");
     }
 
     @After
@@ -260,8 +264,8 @@ public class GenericTestCase {
         log.info("Types have been added to the repository.");
     }
 
-    protected void uploadGitArchive(String repository, String archiveDirectoryName) throws Exception {
-        testsUtils.uploadGitArchive(repository, archiveDirectoryName);
+    protected void uploadGitArchive(String repository, String branchName, String archiveDirectoryName) throws Exception {
+        testsUtils.uploadGitArchive(repository, branchName, archiveDirectoryName);
     }
 
     protected void waitForServiceToStarts(final String applicationId, final String serviceName, final long timeoutInMillis) throws Exception {
@@ -359,6 +363,8 @@ public class GenericTestCase {
         for (PaaSNodeTemplate volume : paaSTopology.getVolumes()) {
             setup.getStorageMapping().put(volume.getId(), new StorageTemplate(ALIEN_STORAGE, 1L, ALIEN_STORAGE_DEVICE, null));
         }
+
+        alienMonitorDao.save(topology);
         cloudifyPaaSPovider.deploy(deploymentContext, null);
 
         waitForApplicationInstallation(this.cloudifyRestClientManager.getRestClient(), topology.getId());
@@ -530,17 +536,29 @@ public class GenericTestCase {
         Assert.assertEquals("Application " + applicationId + " is not in UNDEPLOYED state", DeploymentStatus.UNDEPLOYED, status);
     }
 
-    protected void scale(String nodeID, int nbToAdd, String appId, Topology topo, Integer sleepTimeSec) throws Exception {
+    protected void scale(final String nodeID, final int nbToAdd, String appId, Topology topo, Integer sleepTimeSec) throws Exception {
         Capability scalableCapability = TopologyUtils.getScalableCapability(topo, nodeID, true);
-        int plannedInstance = TopologyUtils.getScalingProperty(NormativeComputeConstants.SCALABLE_DEFAULT_INSTANCES, scalableCapability) + nbToAdd;
+        final int plannedInstance = TopologyUtils.getScalingProperty(NormativeComputeConstants.SCALABLE_DEFAULT_INSTANCES, scalableCapability) + nbToAdd;
         log.info("Scaling to " + plannedInstance);
         TopologyUtils.setScalingProperty(NormativeComputeConstants.SCALABLE_DEFAULT_INSTANCES, plannedInstance, scalableCapability);
-        alienDAO.save(topo);
+        alienMonitorDao.save(topo);
         PaaSDeploymentContext deploymentContext = new PaaSDeploymentContext();
         Deployment deployment = new Deployment();
         deployment.setPaasId(appId);
         deploymentContext.setDeployment(deployment);
-        cloudifyPaaSPovider.scale(deploymentContext, nodeID, nbToAdd, null);
+        cloudifyPaaSPovider.scale(deploymentContext, nodeID, nbToAdd, new IPaaSCallback<Void>() {
+            @Override
+            public void onFailure(Throwable throwable) {
+                log.info("Failed to scale <{}> node to <{}> node(s). rolling back to {}...", nodeID, nbToAdd, plannedInstance);
+                throw (PaaSDeploymentException) throwable;
+            }
+
+            @Override
+            public void onSuccess(Void data) {
+                log.info("Succeed to scale <{}> node to <{}> node(s)", nodeID, nbToAdd);
+            }
+        });
+
         if (sleepTimeSec != null) {
             Thread.sleep(sleepTimeSec * 1000L);
         }

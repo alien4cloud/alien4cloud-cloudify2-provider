@@ -78,9 +78,9 @@ public class FunctionProcessorTest {
     @Before
     public void before() throws Throwable {
         testsUtils.cleanESFiles(indiceClassesToClean);
-        testsUtils.uploadGitArchive("tosca-normative-types-1.0.0.wd03", "");
-        testsUtils.uploadGitArchive("alien-extended-types", "alien-base-types-1.0-SNAPSHOT");
-        testsUtils.uploadGitArchive("samples", "tomcat-war");
+        testsUtils.uploadGitArchive("tosca-normative-types-1.0.0.wd03", null, "");
+        testsUtils.uploadGitArchive("alien-extended-types", null, "alien-base-types-1.0-SNAPSHOT");
+        testsUtils.uploadGitArchive("samples", null, "tomcat-war");
         testsUtils.uploadArchive("test-types-1.0-SNAPSHOT");
     }
 
