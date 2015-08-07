@@ -113,7 +113,7 @@ public class CloudifyRestClient extends RestClient {
         Map<String, Map<String, Object>> response = this.executor.get(attributeUrl, new TypeReference<Response<Map<String, Map<String, Object>>>>() {
         });
         Map<String, String> outputs = Maps.newHashMap();
-        Map<String, Object> attributes = response.get("attributes");
+        Map<String, Object> attributes = MapUtils.getMap(response, "attributes", Maps.newHashMap());
         for (String key : attributes.keySet()) {
             if (key.equals(AlienExtentedConstants.CLOUDIFY_OUTPUTS_ATTRIBUTE)) {
                 // For some reason, the value returned by the API is a map.toString(). So impossible to deserialize it using the Json utils
